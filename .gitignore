@@ -1,0 +1,4 @@
+result
+result-*
+*.hm-backup
+hosts/fox-red/secrets/*.tmp
