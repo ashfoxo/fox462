@@ -86,6 +86,9 @@ in
     yt-dlp
     cfspeedtest
     android-tools   # adb (scrcpy is in apps.nix)
+    unzip
+    helix
+    rclone
 
     zoomSplit       # Zoom, outside Mullvad
     firefoxClean    # clean browser, outside Mullvad, encrypted DNS

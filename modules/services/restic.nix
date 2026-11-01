@@ -66,15 +66,16 @@ lib.mkIf cfg.enable {
     # paying to store. This is a starting guess; trim it after checking
     # `du` output on /persist.
     exclude = [
-      "**/.cache"                      # app and tool caches
-      "**/.local/share/Steam"          # Steam client data
-      "**/steamapps"                   # Steam games (redownloadable)
-      "**/node_modules"                # JS dependencies
-      "**/target"                      # Rust build output
-      "**/.direnv"                     # per-project dev environments
-      "**/result"                      # nix build output symlinks
-      "/persist/nix"                   # Nix store (rebuilt from the flake)
+      "**/.cache"                              # app and tool caches
+      "**/.local/share/Steam"                  # Steam client data
+      "**/steamapps"                           # Steam games (redownloadable)
+      "**/node_modules"                        # JS dependencies
+      "**/target"                              # Rust build output
+      "**/.direnv"                             # per-project dev environments
+      "**/result"                              # nix build output symlinks
+      "/persist/nix"                           # Nix store (rebuilt from the flake)
       "/persist/home/arlo/media"               # media library
+      "/persist/home/arlo/working"             # video and photo projects, backed up elsewhere
       "/persist/home/arlo/torrents"            # torrent downloads (qBittorrent)
       "/persist/home/arlo/.local/share/Trash"  # deleted files
     ] ++ cfg.extraExclude;

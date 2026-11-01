@@ -21,9 +21,12 @@ let
   # power-off. "disk": ~/.local/share/sandboxes/<name>, kept. "logins": the
   # disk home, but ~/.cache is in RAM (the app itself must keep history and
   # caches off, see librewolf below). /tmp is always in RAM.
+  # persist: with state "ram", folders (relative to the home) that are kept on
+  # disk anyway, in ~/.local/share/sandboxes/<name>/<folder>: the login of the
+  # app. Folders only, since a file can't be bound before it exists.
   # extraBindRw: a function of sloth (nixpak's path helpers) returning more
   # read-write binds, e.g. sloth: [ [ host-path sandbox-path ] ].
-  makeGuiSandbox = { package, name, state ? "ram", extraBindRw ? (sloth: []), extraDev ? [], extraEnv ? {}, rawPipeWire ? false, machineId ? false }:
+  makeGuiSandbox = { package, name, state ? "ram", persist ? [ ], extraBindRw ? (sloth: []), extraDev ? [], extraEnv ? {}, rawPipeWire ? false, machineId ? false }:
     (mkNixPak {
       config = { sloth, ... }: {
         app.package = package;
@@ -107,6 +110,11 @@ let
             (sloth.mkdir (sloth.concat [ "/run/sandbox-ram/" name "-cache" ]))
             (sloth.concat [ sloth.homeDir "/.cache" ])
           ]
+          # Kept across reboots even though the rest of the home is in RAM.
+          ++ map (p: [
+            (sloth.mkdir (sloth.concat [ sloth.homeDir "/.local/share/sandboxes/" name "/" p ]))
+            (sloth.concat [ sloth.homeDir "/" p ])
+          ]) persist
           ++ lib.optional rawPipeWire (sloth.concat [ (sloth.env "XDG_RUNTIME_DIR") "/pipewire-0" ])
           ++ extraBindRw sloth;
         };
@@ -125,6 +133,9 @@ let
       else pkgs.ungoogled-chromium;
     inherit name;
     extraEnv = { NIXOS_OZONE_WL = "1"; };
+    # The login: cookies, site storage. History and caches stay in RAM.
+    persist = map (d: ".config/chromium/Default/" + d)
+      [ "Network" "Local Storage" "IndexedDB" "Session Storage" ];
   };
 in
 {
@@ -188,8 +199,10 @@ in
   prismlauncher    = makeGuiSandbox { package = pkgs.prismlauncher;    name = "prismlauncher"; state = "disk"; };  # worlds; synced by syncthing.nix
 
   # --- Communication ---
-  vesktop          = makeGuiSandbox { package = pkgs.vesktop;          name = "vesktop"; rawPipeWire = true; machineId = true; };
-  telegram-desktop = makeGuiSandbox { package = pkgs.telegram-desktop; name = "telegram"; };
+  vesktop          = makeGuiSandbox { package = pkgs.vesktop;          name = "vesktop"; rawPipeWire = true; machineId = true;
+    persist = [ ".config/vesktop/Local Storage" ".config/vesktop/Network" ".config/vesktop/IndexedDB" ".config/vesktop/settings" ]; };
+  telegram-desktop = makeGuiSandbox { package = pkgs.telegram-desktop; name = "telegram";
+    persist = [ ".local/share/TelegramDesktop/tdata" ]; };
   # Signal's login and message database are one store: it stays on disk.
   signal-desktop   = makeGuiSandbox { package = pkgs.signal-desktop;   name = "signal"; machineId = true; state = "disk"; };
 
