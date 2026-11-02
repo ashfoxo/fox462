@@ -8,7 +8,9 @@
 # change, and Syncthing keeps the loser as a *.sync-conflict-* file.
 #
 # Devices and their NetBird addresses: lib/syncthing.nix. Each machine
-# syncs with every other machine listed there that has an ID.
+# syncs with every other machine listed there that has an ID, fox-red
+# included: the server is always on, so the laptop and desktop sync
+# through it even when they're never on at the same time.
 # Web UI: http://localhost:8384. Logs: journalctl --user -u syncthing
 
 let

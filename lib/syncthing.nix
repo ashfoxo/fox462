@@ -13,16 +13,23 @@
 # connection where both sides think they called ("simultaneous open"), and
 # Syncthing fails with "unexpected handshake message of type
 # *tls.clientHelloMsg". fox-blue stays home and is always reachable, so
-# fox-amber dials it and fox-blue only accepts.
+# fox-amber dials it and fox-blue only accepts. fox-red is always on, so both
+# dial it and it dials nobody (its config ignores the addresses below,
+# see hosts/fox-red/configuration.nix). That way the laptop amd the desktop
+# sync through fox-red even when they're never on together.
 #
 # Only NetBird is used: no LAN discovery, no global discovery, no relays.
 {
   fox-amber = {
     id = "HKKMYM6-CYFPSSJ-NB2EQX7-XOS2TP7-N5ZPRFZ-F5TYIY7-QYKV3GE-SRLDTAJ";
-    address = ""; # it dials fox-blue; its NetBird IP is 100.73.113.106
+    address = "";
   };
   fox-blue = {
     id = "TQSKPYI-PE26SDB-2ILNBQB-ZYKH3AR-U4ACAGE-M7DBQHZ-6DRQVBN-WAEADQ3";
     address = "100.73.59.52";
+  };
+  fox-red = {
+    id = "KPXV26X-WCTDXXJ-O5YC6UW-QXPPLWN-4SSMULV-RHN3B4Z-BA5XE6Q-C4DAHQ6";
+    address = "100.73.156.82";
   };
 }

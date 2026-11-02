@@ -20,9 +20,11 @@ services other devices have to reach from anywhere are public.
 | Navidrome | music.emberfox.net | NetBird | Podman |
 | AudioMuse-AI | muse.emberfox.net | NetBird | Podman (web, worker, Postgres) |
 | Uptime Kuma | status.emberfox.net | NetBird | NixOS module |
+| Syncthing (Minecraft instances) | NetBird | NixOS module |
 | SSH | fox-red | anywhere, keys only | — |
 
-The firewall opens TCP 22, 80 and 443, and UDP 51820 for NetBird.
+The firewall opens TCP 22, 80 and 443, and UDP 51820 for NetBird. On the
+NetBird interface only, it also opens TCP 22000 for Syncthing.
 
 ## How it fits together
 
@@ -134,7 +136,8 @@ restic, nightly at 01:30 UTC, to the versioned Scaleway bucket
 dumped first rather than copied live: Miniflux's Postgres, AudioMuse's
 Postgres, and the SQLite files of Navidrome, Uptime Kuma, ntfy, Forgejo and
 MollySocket. Also backed up: Forgejo's whole state directory (repos,
-`app.ini`), beets' state, and the deployed copy of this repo.
+`app.ini`), beets' state, the deployed copy of this repo, and the synced
+Minecraft instances (without Syncthing's `.stversions`).
 
 Not backed up: `/var/lib/blog` (rebuilt from git) and the Podman images.
 
