@@ -55,7 +55,7 @@ let
     ".config/chirp"
     ".local/share/direnv"                    # which .envrc files you allowed
     ".config/syncthing" ".local/state/syncthing"
-    ".config/helix"".config/rclone"
+    ".config/helix"
   ];
 
   files = [ ".gitconfig" ];

@@ -8,7 +8,7 @@ PanelWindow {
     id: bar
 
     // Which dropdown is open ("" for none). Its bar button gets the green
-    // fill: chat, hidden, power, vpn, netbird, backup, wifi, bt, vol, clock.
+    // fill: chat, hidden, power, vpn, netbird, backup, update, wifi, bt, vol, clock.
     property string open: ""
     readonly property var monitor: Hyprland.monitorFor(screen)
 

@@ -81,6 +81,7 @@ let
     scripts = {
       load = loadScript;
       backup = backupScript;
+      update = updateScript;
       brightnessctl = lib.getExe pkgs.brightnessctl;
     };
   };
@@ -172,6 +173,71 @@ let
       if [ "$sub" = "auto-restart" ] || { [ -n "$result" ] && [ "$result" != "success" ]; }; then
         err=$(journalctl -u "$unit" -n 200 -o cat --no-pager 2>/dev/null | grep -iE 'fatal|error' | tail -n1 || true)
         echo "error ''${err:-see journalctl -u $unit}"
+      fi
+    '';
+  });
+
+  # Update state for the bar and its dropdown (modules/services/auto-update.nix),
+  # one per line:
+  #   state ok|uptodate|running|skipped|failed|overdue|none|absent|unknown
+  #   last  <unix time of the last good run, 0 if never>
+  #   next  <unix time of the next scheduled run, 0 if unknown>
+  #   note  <why a run was skipped, or what it did>
+  #   error <the last error line>   (only when failed)
+  # "absent" means this machine has no update service (only fox-amber does).
+  updateScript = lib.getExe (pkgs.writeShellApplication {
+    name = "qs-update";
+    runtimeInputs = with pkgs; [ coreutils gnugrep systemd ];
+    text = ''
+      unit=nixos-update
+      dir=/var/lib/nixos-update
+      load=$(systemctl show -p LoadState --value "$unit" 2>/dev/null || true)
+      if [ "$load" != "loaded" ]; then
+        echo "state absent"
+        echo "last 0"
+        echo "next 0"
+        exit 0
+      fi
+
+      last=0
+      [ -e "$dir/last-success" ] && last=$(stat -c %Y "$dir/last-success")
+      age=$(( $(date +%s) - last ))
+      res=""
+      [ -e "$dir/result" ] && res=$(cat "$dir/result")
+      res_state=''${res%% *}
+      res_note=''${res#* }
+
+      state=$(systemctl show -p ActiveState --value "$unit" 2>/dev/null || true)
+      sub=$(systemctl show -p SubState --value "$unit" 2>/dev/null || true)
+      result=$(systemctl show -p Result --value "$unit" 2>/dev/null || true)
+      if [ "$state" = "activating" ] && [ "$sub" != "auto-restart" ]; then
+        echo "state running"
+      elif [ "$sub" = "auto-restart" ] || [ "$result" != "success" ] || [ "$res_state" = "failed" ]; then
+        echo "state failed"
+      elif [ "$res_state" = "skipped" ]; then
+        echo "state skipped"
+      elif [ "$last" = 0 ]; then
+        echo "state none"
+      elif [ "$age" -gt 93600 ]; then
+        # The timer is daily with up to 1h random delay, so allow 26h.
+        echo "state overdue"
+      elif [ "$res_state" = "uptodate" ]; then
+        echo "state uptodate"
+      else
+        echo "state ok"
+      fi
+      echo "last $last"
+
+      next=$(systemctl show -p NextElapseUSecRealtime --value "$unit.timer" 2>/dev/null || true)
+      if [ -n "$next" ] && [ "$next" != "n/a" ]; then
+        echo "next $(date -d "$next" +%s 2>/dev/null || echo 0)"
+      else
+        echo "next 0"
+      fi
+
+      [ -n "$res" ] && echo "note $res_note"
+      if [ "$res_state" = "failed" ]; then
+        echo "error $res_note"
       fi
     '';
   });

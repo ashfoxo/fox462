@@ -109,7 +109,6 @@ in
     # --- Tools -------------------------------------------------------------
     pkgs.ghostty
     pkgs.vscodium
-    pkgs.helix
     pkgs.qdirstat              # disk usage map
   ];
 

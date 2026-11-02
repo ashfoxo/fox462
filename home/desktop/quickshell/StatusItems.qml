@@ -112,6 +112,19 @@ Row {
         open: root.bar.open === "backup"
         onClicked: root.bar.toggle("backup")
     }
+    BarButton {
+        id: updateItem
+        visible: Update.state !== "absent"
+        icon: "\u{F06B0}"
+        text: ({ failed: "update failed", overdue: "update overdue", skipped: "update skipped", ok: "update ready" })[Update.state] ?? ""
+        color: Update.state === "failed" ? root.c.rust_text
+            : (Update.state === "overdue" || Update.state === "skipped" || Update.state === "none") ? root.c.amber
+            : Update.state === "running" ? root.c.teal_text
+            : Update.state === "ok" ? root.c.forest_text
+            : root.c.dim
+        open: root.bar.open === "update"
+        onClicked: root.bar.toggle("update")
+    }
 
     // ---- wi-fi ----------------------------------------------------------------
     BarButton {
@@ -236,6 +249,12 @@ Row {
         bar: root.bar
         anchorItem: backupItem
         visible: root.bar.open === "backup"
+        onDismissed: root.bar.open = ""
+    }
+    UpdateMenu {
+        bar: root.bar
+        anchorItem: updateItem
+        visible: root.bar.open === "update"
         onDismissed: root.bar.open = ""
     }
     WifiMenu {

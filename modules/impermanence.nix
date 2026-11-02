@@ -23,6 +23,7 @@
       "/var/lib/power-profiles-daemon"
       "/var/lib/fwupd"                   # firmware update history
       "/var/lib/restic-status"           # last successful backup (lock screen)
+      "/var/lib/nixos-update"            # last update result (bar)
       "/etc/mullvad-vpn"
       "/var/cache/mullvad-vpn"
       {
