@@ -28,6 +28,7 @@ let
     runtimeInputs = [ pkgs.networkmanager pkgs.systemd pkgs.mullvad pkgs.util-linux ];
     text = ''
       home=0
+      # shellcheck disable=SC2034
       while IFS=: read -r dev type state; do
         [ "$state" = connected ] || continue
         case "$type" in
