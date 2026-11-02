@@ -63,6 +63,12 @@ deliberate exceptions (Zoom and a plain Firefox use `mullvad-exclude`).
 server, with inbound connections blocked. Wi-Fi MAC addresses are randomised
 per network.
 
+**Home NAS.** Ark, an SMB share that can't run NetBird, is mounted at
+`~/ark` only while the machine is on the home Wi-Fi (`Ashkelon_5GHz`) and
+unmounted when it leaves; fox-blue does the same on any wired connection.
+Mullvad's "allow local network" is on only while home. New machines get this
+for free from `modules/personal.nix`; see `modules/network/nas.nix`.
+
 **Hardening.** `sudo` wants a YubiKey touch or password every time, with no
 cached session. SSH is key-only. Kernel pointer and `dmesg` leaks are closed
 and core dumps are off. User accounts are immutable, and their password
@@ -97,7 +103,7 @@ modules/               System-level NixOS modules
   core/                  Nix settings, users, SSH, hardening, USB allowlist, time zone
   desktop/               Login (greetd) and Hyprland session, audio, fonts, system apps
   hardware/              laptop.nix (power, thermals), nvidia.nix
-  network/               Mullvad + NetBird, phone file transfer
+  network/               Mullvad + NetBird, phone file transfer, home NAS
   services/restic.nix    Backups
   boot.nix, impermanence.nix
 home/                  Home Manager config for the user

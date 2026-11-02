@@ -12,6 +12,7 @@
     ./desktop
     ./network/vpn.nix
     ./network/phone.nix
+    ./network/nas.nix
     ./services/restic.nix
 
     inputs.impermanence.nixosModules.impermanence

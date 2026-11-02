@@ -45,6 +45,50 @@ in
       };
     };
 
+    nas = {
+      enable = mkOption {
+        type = types.bool;
+        default = true;
+        description = ''
+          Mount the home NAS (an SMB share) while on the home network, and
+          only then (network/nas.nix). Needs nas-username and nas-password in
+          secrets.yaml.
+        '';
+      };
+      host = mkOption {
+        type = types.str;
+        default = "ark";
+        description = ''
+          The NAS's name on the home network. An IP address (give the NAS a
+          DHCP reservation) also works and is safer: with Mullvad up, name
+          lookups go through Mullvad's resolver, not the router's.
+        '';
+      };
+      share = mkOption {
+        type = types.str;
+        default = "share";
+        description = "The SMB share to mount (the folder name you see in Windows under \\\\ark).";
+      };
+      mountPoint = mkOption {
+        type = types.str;
+        default = "/home/arlo/ark";
+        description = "Where the share appears while it is mounted.";
+      };
+      wifiSsid = mkOption {
+        type = types.nullOr types.str;
+        default = "Ashkelon_5GHz";
+        description = "Mount when connected to this Wi-Fi network. null means never on Wi-Fi.";
+      };
+      wired = mkOption {
+        type = types.bool;
+        default = false;
+        description = ''
+          Also mount whenever any wired (Ethernet) connection is up. For a
+          desk machine that is always home: set it, and wifiSsid = null.
+        '';
+      };
+    };
+
     desktop = {
       monitors = mkOption {
         type = types.listOf (types.attrsOf types.anything);
