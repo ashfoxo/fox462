@@ -4,6 +4,10 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
 
+    # Only for packages that should run ahead of the stable release (NetBird
+    # today). Nothing else follows it, and the system itself stays on stable.
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
+
     home-manager = {
       # Must match the nixpkgs release. master tracks unstable and will not
       # evaluate cleanly against a stable nixpkgs.

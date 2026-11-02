@@ -1,4 +1,8 @@
-{ pkgs, ... }:
+{ pkgs, inputs, ... }:
+let
+  # NetBird runs from nixos-unstable (see flake.nix); the rest stays on stable.
+  unstable = inputs.nixpkgs-unstable.legacyPackages.${pkgs.stdenv.hostPlatform.system};
+in
 {
   ##### Networking #####
   networking.networkmanager.enable = true;
@@ -26,6 +30,8 @@
   # Routing is by destination: NetBird peers (*.netbird.cloud / 100.x) go out
   # wt0, everything else goes through Mullvad. Keep any nameserver group in the
   # NetBird dashboard non-primary so only peer names resolve through NetBird.
+  services.netbird.package = unstable.netbird;
+
   services.netbird.clients.wt0 = {
     port = 51820;
     interface = "wt0";

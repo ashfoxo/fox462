@@ -50,7 +50,7 @@ let
     ".config/fluent-reader"
     ".config/@filen" ".filen-cli"            # Filen login and CLI login
     ".config/Electron"                       # Filen's IndexedDB (and any Electron app with the default name)
-    ".mnt/filen"                              # empty mount point for the Filen app's network drive
+    "mnt/filen"                              # empty mount point for the Filen app's network drive
     ".local/share/Steam" ".steam"
     ".zoom"
     ".config/chirp"

@@ -79,6 +79,7 @@ lib.mkIf cfg.enable {
       "/persist/home/arlo/torrents"            # torrent downloads (qBittorrent)
       "/persist/home/arlo/.local/share/Trash"  # deleted files
       "**/.filen.trash.local"                  # Filen's local trash, changes while backing up
+      "**/.Trash-*"                            # desktop trash folders (Filen's got nested into itself)
     ] ++ cfg.extraExclude;
 
     # Also skip any directory containing a CACHEDIR.TAG file, which is the

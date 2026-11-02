@@ -53,8 +53,9 @@
 #                      Site administration -> Actions -> Runners. Only used to
 #                      register once; the runner keeps its own credentials.
 
-{ config, pkgs, lib, ... }:
+{ config, pkgs, lib, inputs, ... }:
 let
+  unstable = inputs.nixpkgs-unstable.legacyPackages.${pkgs.stdenv.hostPlatform.system};
   # Every file in secrets/, each decrypted to /run/secrets/<name>.
   secretNames = [
     "storagebox-creds"
@@ -204,13 +205,16 @@ in
   };
 
   # NetBird client, joined to NetBird's hosted control plane. Nothing of
-  # NetBird's server side runs here.
+  # NetBird's server side runs here. The client comes from nixos-unstable
+  # (see flake.nix), the same as on the laptop and desktop.
   #
   # Enrols itself on first start with the one-time setup key, then keeps its
   # identity in /var/lib/netbird, so later starts never need the key again.
   # The service, command and interface are all plain "netbird" / wt0:
   #   netbird status
-  # UDP 51820 is opened so peers can connect directly instead of relaying.
+  # The client listens on UDP 51820 for direct peer connections.
+  services.netbird.package = unstable.netbird;
+
   services.netbird.clients.netbird = {
     port = 51820;
     interface = "wt0";
@@ -1018,7 +1022,7 @@ in
     # lib.fakeHash, build once, and copy the "got:" hash from the error.
     package = pkgs.caddy.withPlugins {
       plugins = [ "github.com/caddy-dns/njalla@v1.0.0" ];
-      hash = "sha256-w8TGwmQHx9uTGQExZ8nAkH1jWnMXU0aUf73/9ZdHMOI=";
+      hash = "sha256-FNu+XhEMLr4wWfo+iSoWlxbSurmvPjphU6yTQYd/s3c=";
     };
 
     virtualHosts = {
