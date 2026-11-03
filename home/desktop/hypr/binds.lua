@@ -26,6 +26,7 @@ local exec = hl.dsp.exec_cmd
 bind(mod .. " + Return", exec("ghostty"),                   "Apps: Terminal")
 bind(mod .. " + R",      exec("fuzzel"),                    "Apps: Launcher")
 bind(mod .. " + slash",  exec("hypr-cheatsheet"),           "Help: This cheat sheet")
+bind(mod .. " + SHIFT + P", exec("display-main"),           "Displays: Pick the main display (bar and lock screen)")
 
 -- Focus the app if it's already open, otherwise launch it. `needle` is any
 -- piece of the window class (see hyprctl clients), matched as plain text.

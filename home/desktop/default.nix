@@ -12,5 +12,6 @@
     ./theme.nix      # GTK, Qt and cursor look
     ./filen.nix
     ./syncthing.nix  # Minecraft instances, synced over NetBird
+    ./displays.nix   # Super + Shift + P: pick the main display
   ];
 }

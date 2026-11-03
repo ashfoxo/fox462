@@ -57,6 +57,7 @@ let
     ".local/share/direnv"                    # which .envrc files you allowed
     ".config/syncthing" ".local/state/syncthing"
     ".config/helix"
+    ".local/state/fox-displays"              # the main display picked with Super + Shift + P (lib/displays.nix)
   ];
 
   files = [ ".gitconfig" ];

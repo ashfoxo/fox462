@@ -18,19 +18,25 @@
 let
   c = (import ../../lib/palette.nix).for "quickshell";
   user = config.home.username;
+  displayFiles = import ../../lib/displays.nix config.home.homeDirectory;
 
   # ---------------------------------------------------------------------------
   # Settings (end up in Config.qml)
   # ---------------------------------------------------------------------------
   settings = {
-    # Which monitor gets the bar. The first one in the list that's plugged
-    # in wins; if none are, the bar goes on the laptop screen, so an empty
-    # list means "always the laptop". Each entry can be part of a monitor's
-    # model (the "description" line of `hyprctl monitors all`, e.g.
-    # "U2723QE"), which follows the screen to any port, or a port name
+    # Which monitor gets the bar when no main display is picked with
+    # Super + Shift + P (displays.nix). The first one in the list that's
+    # plugged in wins; if none are, the bar goes on the laptop screen, so an
+    # empty list means "always the laptop". Each entry can be part of a
+    # monitor's model (the "description" line of `hyprctl monitors all`,
+    # e.g. "U2723QE"), which follows the screen to any port, or a port name
     # like "DP-1".
     # Per host: fox.desktop.barMonitors (modules/options.nix).
     barMonitors = osConfig.fox.desktop.barMonitors;
+
+    # The main-display choice the bar reads, and the file it writes for the
+    # lock screen (lib/displays.nix).
+    displays = { inherit (displayFiles) choice lock; };
 
     # The prompt on the left: arlo@ws:~/web
     prompt = "${user}@${osConfig.fox.desktop.barHost}";

@@ -122,17 +122,20 @@ in
         type = types.listOf types.str;
         default = [ ];
         description = ''
-          Screens the Quickshell bar prefers, in order: a port name like
-          "DP-2" or part of the monitor's description. Empty means the
-          laptop panel, else the first screen.
+          Screens the Quickshell bar prefers, in order, when no main display
+          is picked with Super + Shift + P (home/desktop/displays.nix): a
+          port name like "DP-2" or part of the monitor's description. Empty
+          means the laptop panel, else the first screen.
         '';
       };
       lockMonitor = mkOption {
         type = types.str;
         default = "eDP-1";
         description = ''
-          The screen the lock screen draws its clock and password prompt on.
-          Every other screen gets the plain background.
+          The screen the lock screen draws its clock and password prompt on
+          until the bar has written the main display's lock file
+          (home/desktop/displays.nix). Every other screen gets the plain
+          background.
         '';
       };
       barHost = mkOption {

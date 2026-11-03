@@ -1,4 +1,4 @@
-{ pkgs, lib, osConfig, ... }:
+{ pkgs, lib, config, osConfig, ... }:
 
 # The Hyprland lock screen (hyprlock): "terminal" layout.
 #
@@ -14,8 +14,8 @@
 #     checking    ❯ ···       (teal: Enter pressed, touch the key)
 #     wrong       ❯ ✕ 2       (rust, with the failed-attempt count)
 #
-#   Only the laptop screen shows text; every other monitor is plain
-#   background. No animations: it cuts in and out.
+#   Only the main display (displays.nix) shows text; every other monitor is
+#   plain background. No animations: it cuts in and out.
 #
 # Unlock works as before: Enter, then touch the YubiKey, or type the
 # password (PAM setup is in modules/desktop/session.nix).
@@ -29,10 +29,13 @@
 let
   c = (import ../../lib/palette.nix).for "hyprlock";
 
-  # The screen that gets the text: the built-in panel on the laptop, set
-  # per host with fox.desktop.lockMonitor. Check with `hyprctl monitors` if
-  # the text doesn't show up; every other monitor gets the background only.
-  screen = osConfig.fox.desktop.lockMonitor;
+  # The screen that gets the text, as the hyprlock variable $main. It starts
+  # as fox.desktop.lockMonitor (per host), then the lock file the bar writes
+  # (lib/displays.nix) replaces it with the screen the bar is on. If that
+  # file is missing, hyprlock logs it and keeps the per-host screen.
+  # Every other monitor gets the background only.
+  screen = "$main";
+  lockFile = (import ../../lib/displays.nix config.home.homeDirectory).lock;
 
   font = "JetBrainsMono Nerd Font";
 
@@ -102,6 +105,11 @@ in
   programs.hyprlock = {
     enable = true;
     settings = {
+      # Written before the source line below (Home Manager puts $ variables
+      # first, then source), so the lock file's value wins.
+      "$main" = osConfig.fox.desktop.lockMonitor;
+      source = [ lockFile ];
+
       general = {
         hide_cursor = true;
         ignore_empty_input = false; # an empty Enter starts the key-touch check
