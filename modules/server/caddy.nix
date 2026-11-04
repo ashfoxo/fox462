@@ -40,7 +40,7 @@ let
   # Host header. So the source address is checked as well:
   #   100.64.0.0/10   NetBird peers
   #   127.0.0.0/8 ::1 the server itself
-  # Uptime Kuma runs on the server, and its requests to these names leave from
+  # Gatus runs on the server, and its requests to these names leave from
   # the server's own NetBird address, so they fall in the first range.
   # Anything else gets its connection dropped with no response, and so do
   # unknown names under the zone.
@@ -70,7 +70,7 @@ let
       }
     ''; };
 in
-{
+lib.mkIf config.fox.server.caddy.enable {
   # njalla-token: Njalla API token for the wildcard certificate. Limited to the
   # private domain, _acme-challenge TXT records, the four record methods, and
   # the server's own IPv4 and IPv6.

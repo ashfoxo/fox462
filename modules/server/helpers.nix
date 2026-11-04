@@ -3,11 +3,12 @@
 #   { pkgs, srv, ... }: ... ${srv.notify} "title" "body" high
 #
 #   notify              fire-and-forget ntfy alert (never fails its caller)
+#   heartbeat           fire-and-forget push to the watching server's Gatus
 #   podman              the system podman, for scripts run by systemd
 #   secHeaders          Caddy security headers
 #   secHeadersDeferCSP  same, but keeps an app's own Content-Security-Policy
 #   mkLog / plainLog    Caddy access-log blocks
-{ pkgs, ... }:
+{ config, pkgs, ... }:
 let
   secHeaders = ''
     header {
@@ -56,16 +57,46 @@ let
   # Fire-and-forget ntfy alert. Never fails its caller: an alerting path that
   # can fail a backup or an upgrade is worse than no alerting path.
   # Usage: notify <title> <body> <priority>
+  #
+  # NTFY_TOKEN may be empty, for a topic that needs no login (fox-green's
+  # alerts go to a long random topic on ntfy.sh, so they never depend on
+  # fox-red being up).
   notify = pkgs.writeShellScript "notify" ''
     set -u
     [ -r /run/secrets/ntfy-alert.env ] || exit 0
     . /run/secrets/ntfy-alert.env
+    auth=()
+    [ -n "''${NTFY_TOKEN:-}" ] && auth=(-H "Authorization: Bearer $NTFY_TOKEN")
     ${pkgs.curl}/bin/curl -fsS -m 10 --retry 3 \
-      -H "Authorization: Bearer $NTFY_TOKEN" \
+      "''${auth[@]}" \
       -H "Title: $1" \
       -H "Priority: $3" \
       -d "$2" \
       "$NTFY_URL" >/dev/null 2>&1 || true
+    exit 0
+  '';
+
+  # Fire-and-forget heartbeat to the Gatus on the server that watches this
+  # one (see watch.nix). Gatus alerts when one says false, and when none
+  # arrives for the interval watch.nix gives it, which is how a server that
+  # is down entirely gets noticed. Never fails its caller, like notify.
+  #
+  # Usage: heartbeat <name> <true|false> [error message]
+  #
+  # heartbeat.env: HEARTBEAT_URL= (the watcher's Gatus, no trailing slash)
+  #                HEARTBEAT_TOKEN= (the watcher's HEARTBEAT_TOKEN in gatus.env)
+  heartbeat = pkgs.writeShellScript "heartbeat" ''
+    set -u
+    [ -r /run/secrets/heartbeat.env ] || exit 0
+    . /run/secrets/heartbeat.env
+    # Gatus's key for group <host>, name <name>.
+    key="${config.networking.hostName}_$1"
+    args=(--data-urlencode "success=$2")
+    [ "$2" = false ] && args+=(--data-urlencode "error=''${3:-failed}")
+    ${pkgs.curl}/bin/curl -fsS -m 10 --retry 3 -X POST -G \
+      -H "Authorization: Bearer $HEARTBEAT_TOKEN" \
+      "''${args[@]}" \
+      "$HEARTBEAT_URL/api/v1/endpoints/$key/external" >/dev/null 2>&1 || true
     exit 0
   '';
 
@@ -75,6 +106,6 @@ let
 in
 {
   _module.args.srv = {
-    inherit secHeaders secHeadersDeferCSP mkLog plainLog notify podman;
+    inherit secHeaders secHeadersDeferCSP mkLog plainLog notify heartbeat podman;
   };
 }

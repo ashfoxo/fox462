@@ -57,6 +57,28 @@ in
       '';
     };
 
+    caddy.enable = mkOption {
+      type = types.bool;
+      default = true;
+      description = ''
+        Whether this server runs Caddy (public sites, and the NetBird-only
+        sites under privateDomain). A server with no sites turns it off, which
+        also closes ports 80 and 443.
+      '';
+    };
+
+    caddy.public = mkOption {
+      type = types.bool;
+      default = true;
+      description = ''
+        Whether Caddy is reachable from the internet (ports 80 and 443 open
+        to everyone). A server whose only sites are NetBird-only turns it
+        off: 443 is then open on the NetBird interface alone. Its
+        certificate still comes through the DNS challenge, which needs no
+        inbound port.
+      '';
+    };
+
     ssh.allowUsers = mkOption {
       type = types.listOf types.str;
       default = [ ];
@@ -73,7 +95,27 @@ in
       '';
     };
 
+    monitoring.extraChecks = mkOption {
+      type = types.lines;
+      default = "";
+      description = ''
+        Extra shell for the 5-minute health check, run as root. Append a line
+        to the `problems` array for anything wrong, e.g.
+        `problems+=("tunnel down")`; the check alerts and pushes its
+        heartbeat as failed. Call tools by full store path: the check's PATH
+        is small.
+      '';
+    };
+
     backup = {
+      enable = mkOption {
+        type = types.bool;
+        default = true;
+        description = ''
+          Whether this server runs the nightly restic backup. Off for a server
+          whose state is all in this repo and can be rebuilt from it.
+        '';
+      };
       repository = mkOption {
         type = types.str;
         description = "restic repository URL for this host, e.g. s3:https://s3.fr-par.scw.cloud/bagger-red.";

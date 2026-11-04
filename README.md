@@ -1,7 +1,7 @@
 # fox-den
 
-A single [Nix flake](https://nixos.wiki/wiki/Flakes) that builds three NixOS
-machines: a laptop, a desktop PC, and a small cloud server. Everything about
+A single [Nix flake](https://nixos.wiki/wiki/Flakes) that builds four NixOS
+machines: a laptop, a desktop PC, and two small cloud servers. Everything about
 them is in this repo: disk layout, desktop, apps, VPN, backups, and
 encrypted secrets. Rebuild from a fresh install and you get the same machine
 back.
@@ -17,10 +17,12 @@ use it as a starting point. It is not a ready-to-run distro. See
 | `fox-amber` | Laptop (Intel); on the network it goes by `workstation` | `hosts/fox-amber/` |
 | `fox-blue` | Desktop PC (Ryzen, NVIDIA) that boots NixOS from a portable SSD and leaves the internal Windows drive alone | `hosts/fox-blue/` |
 | `fox-red` | Hetzner VPS running a blog, Git forge, RSS reader, music server and more | `hosts/fox-red/` |
+| `fox-green` | RackNerd VPS in New York: watches fox-red (and is watched by it), and runs two NetBird exit nodes for the phone, one through Mullvad | `hosts/fox-green/` |
 
 The laptop and desktop share almost everything through `modules/personal.nix`.
 A host file only says what's different: its hardware, monitors, backup bucket.
-The server is separate and has [its own README](hosts/fox-red/README.md).
+The servers are separate and each has its own README
+([fox-red](hosts/fox-red/README.md), [fox-green](hosts/fox-green/README.md)).
 
 ## What the laptop and desktop get
 

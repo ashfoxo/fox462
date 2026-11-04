@@ -1,22 +1,25 @@
 # Threshold alerting for the host itself.
 { config, pkgs, lib, inputs, srv, ... }:
 let
-  inherit (srv) notify podman;
+  inherit (srv) notify heartbeat podman;
 in
 {
-  # health-check.env: KUMA_PUSH_URL= for the health-check push monitor
-  fox.server.secretNames = [ "health-check.env" ];
+  # heartbeat.env: where heartbeats go (see helpers.nix). Every server has
+  # one, since every server is watched by another (watch.nix).
+  fox.server.secretNames = [ "heartbeat.env" ];
   fox.server.monitoring.watchUnits = [ "podman-*.service" ];
 
-  # Threshold alerting. Kuma watches endpoints; this watches the host itself.
+  # Threshold alerting. Gatus watches endpoints; this watches the host itself.
   # The restart-delta check exists because a unit in a restart loop never
   # reaches "failed" state, so nothing else here would see it.
+  #
+  # Every run also sends the "health" heartbeat to the other server's Gatus,
+  # which alerts when it says false or stops arriving.
   systemd.services.health-check = {
-    description = "Host health thresholds -> ntfy + Kuma push";
+    description = "Host health thresholds -> ntfy + Gatus heartbeat";
     path = with pkgs; [ curl systemd coreutils gawk ];
     serviceConfig = {
       Type = "oneshot";
-      EnvironmentFile = "/run/secrets/health-check.env";
       StateDirectory = "health-check";
     };
     script = ''
@@ -61,6 +64,9 @@ in
         fi
       done
 
+      # Host-specific checks (fox.server.monitoring.extraChecks).
+      ${config.fox.server.monitoring.extraChecks}
+
       STAMP="$STATE/last-alert"
       NOW=$(date +%s)
 
@@ -71,15 +77,13 @@ in
           ${notify} "${config.networking.hostName}: health check" "$MSG" urgent
           echo "$NOW" > "$STAMP"
         fi
-        curl -fsS -m 10 -G "$KUMA_PUSH_URL" \
-          --data-urlencode "status=down" --data-urlencode "msg=$MSG" >/dev/null 2>&1 || true
+        ${heartbeat} health false "$MSG"
       else
         if [ -f "$STAMP" ]; then
           ${notify} "${config.networking.hostName}: health recovered" "All checks clear." default
           rm -f "$STAMP"
         fi
-        curl -fsS -m 10 -G "$KUMA_PUSH_URL" \
-          --data-urlencode "status=up" --data-urlencode "msg=OK" >/dev/null 2>&1 || true
+        ${heartbeat} health true
       fi
       exit 0
     '';

@@ -7,10 +7,12 @@ same job for the laptop and desktop.
 modules/server/
   default.nix     imports everything below; a host imports just this
   options.nix     the fox.server.* options (the per-host values)
-  helpers.nix     notify (ntfy alert), podman, Caddy header/log blocks, as `srv`
+  helpers.nix     notify (ntfy alert), heartbeat (to the watching Gatus), podman,
+                  Caddy header/log blocks, as `srv`
   secrets.nix     fox.server.secretNames -> hosts/<host>/secrets/<name>
   base.nix        firewall, kernel hardening, Nix, SSH, fail2ban, journald
   netbird.nix  podman.nix  caddy.nix  backup.nix  monitoring.nix  packages.nix
+  watch.nix       which server's Gatus checks and alerts for which (data, not a module)
   services/       one file per service; a host imports the ones it runs
 ```
 
@@ -30,17 +32,25 @@ central list is ever edited:
 | restart-loop alerts | `fox.server.monitoring.watchUnits` |
 | an SSH account | `fox.server.ssh.allowUsers` |
 | an alert on failure | `${notify} "${config.networking.hostName}: thing FAILED" "..." high` |
+| a heartbeat the other server expects | `${heartbeat} <name> true` (or `false "why"`), and the name under the host's `heartbeats` in `watch.nix` |
+| an extra health check | `fox.server.monitoring.extraChecks` (append to `problems`) |
 
 Values that differ per host (`fox.server.domain`, `.privateDomain`,
 `.backup.repository`, `.ssh.allowUsers`) are set in the host's
-`default.nix`. A service can be imported by any number of hosts; each host
+`default.nix`. A server with no sites sets `fox.server.caddy.enable = false`
+(which also closes 80 and 443); one whose sites are all NetBird-only sets
+`fox.server.caddy.public = false` (443 on the NetBird interface only); and
+one with nothing worth backing up sets `fox.server.backup.enable = false`.
+fox-green does the last two. A service can be imported by any number of hosts; each host
 gets its own secrets (`hosts/<host>/secrets/`) and its own backup bucket.
 
 ## Adding a server
 
 1. `hosts/<name>/default.nix`: import `../../modules/server`, the services it
-   should run, and its `hardware-configuration.nix`; set
-   `networking.hostName`, `system.stateVersion`, its user, and `fox.server.*`.
+   should run (including `services/gatus.nix`), and its
+   `hardware-configuration.nix`; set `networking.hostName`,
+   `system.stateVersion`, its user, and `fox.server.*`. Add it to `watch.nix`
+   with the server that watches it.
 2. `hosts/<name>/.sops.yaml`: copy fox-red's, with the new server's age key
    (`ssh-to-age` on its host key) and your workstation's.
 3. `./secret.sh <name> <secret>` for each name in its `fox.server.secretNames`.

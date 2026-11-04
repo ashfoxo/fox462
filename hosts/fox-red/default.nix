@@ -19,6 +19,7 @@
 
     ../../modules/server/services/blog.nix
     ../../modules/server/services/forgejo.nix
+    ../../modules/server/services/gatus.nix
     ../../modules/server/services/miniflux.nix
     ../../modules/server/services/mollysocket.nix
     ../../modules/server/services/music.nix
@@ -26,7 +27,6 @@
     ../../modules/server/services/notesnook.nix
     ../../modules/server/services/ntfy.nix
     ../../modules/server/services/syncthing.nix
-    ../../modules/server/services/uptime-kuma.nix
   ];
 
   nixpkgs.hostPlatform = "x86_64-linux";

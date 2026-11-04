@@ -8,9 +8,11 @@
 
   time.timeZone = "UTC";
 
-  networking.firewall = {
+  networking.firewall = let caddy = config.fox.server.caddy; in {
     enable = true;
-    allowedTCPPorts = [ 22 80 443 ];
+    allowedTCPPorts = [ 22 ] ++ lib.optionals (caddy.enable && caddy.public) [ 80 443 ];
+    # NetBird-only Caddy: HTTPS on the NetBird interface, nothing public.
+    interfaces.wt0.allowedTCPPorts = lib.optionals (caddy.enable && !caddy.public) [ 443 ];
   };
 
   ############################################################################
@@ -81,6 +83,10 @@
     ignoreIP = [
       "127.0.0.0/8"
       "::1"
+      # NetBird peers. The other server's Gatus opens a TCP connection to
+      # port 22 every few minutes to check SSH answers, and would get itself
+      # banned. Logins are key-only either way.
+      "100.64.0.0/10"
     ];
   };
 

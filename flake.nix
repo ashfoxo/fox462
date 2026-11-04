@@ -54,6 +54,7 @@
         fox-amber   = mkHost "fox-amber";     # laptop (hostName: workstation)
         fox-blue    = mkHost "fox-blue";      # desktop, boots from external SSD
         fox-red     = mkHost "fox-red";       # server (Hetzner VPS)
+        fox-green   = mkHost "fox-green";     # server (RackNerd VPS, New York): watches fox-red, exit nodes
       };
     };
 }

@@ -19,7 +19,7 @@ services other devices have to reach from anywhere are public.
 | Miniflux | rss.emberfox.net | NetBird | NixOS module |
 | Navidrome | music.emberfox.net | NetBird | Podman |
 | AudioMuse-AI | muse.emberfox.net | NetBird | Podman (web, worker, Postgres) |
-| Uptime Kuma | status.emberfox.net | NetBird | NixOS module |
+| Gatus | foxred.emberfox.net | NetBird | NixOS module |
 | Notesnook sync server | notes.emberfox.net (+ auth., events., files. under notes.) | NetBird | Podman (MongoDB, Silo, three apps) |
 | Syncthing (Minecraft instances) | NetBird | NixOS module |
 | SSH | fox-red | anywhere, keys only | — |
@@ -38,7 +38,7 @@ NetBird interface only, it also opens TCP 22000 for Syncthing.
                                        │   private names only answer
                                        │   100.64.0.0/10 and localhost
           ┌────────────┬───────────────┼──────────────┬──────────────┐
-   /var/lib/blog   Forgejo + runner   ntfy      Miniflux, Kuma   Navidrome ↔ AudioMuse
+   /var/lib/blog   Forgejo + runner   ntfy      Miniflux, Gatus  Navidrome ↔ AudioMuse
      /current         (blog builds)                              (Podman "music" network)
 ```
 
@@ -140,7 +140,7 @@ server; after a bare-metal restore, reset it from the Hetzner console.
 restic, nightly at 01:30 UTC, to the versioned Scaleway bucket
 `bagger-red`, keeping 7 daily, 4 weekly and 6 monthly snapshots. Databases are
 dumped first rather than copied live: Miniflux's Postgres, AudioMuse's
-Postgres, Notesnook's MongoDB, and the SQLite files of Navidrome, Uptime Kuma,
+Postgres, Notesnook's MongoDB, and the SQLite files of Navidrome,
 ntfy, Forgejo and MollySocket. Also backed up: Forgejo's whole state directory (repos,
 `app.ini`), Notesnook's attachments, beets' state, the deployed copy of this repo, and the synced
 Minecraft instances (without Syncthing's `.stversions`).
@@ -156,13 +156,19 @@ repository and verifies it. The pre-rebuild history is in the old
 Everything alerts through ntfy:
 
 - **health-check**, every 5 minutes: load, disk over 80%, low memory, failed
-  units, services stuck restarting. It also pushes to an Uptime Kuma monitor.
+  units, services stuck restarting. Each run also sends a `health` heartbeat
+  to fox-green's Gatus, and each successful backup a `backup` heartbeat.
 - **Failures** of the backup, the monthly repository check, the blog build,
   the music stack update and the similar-songs check.
-- **Uptime Kuma** watches the sites themselves.
+- **Gatus on fox-green** watches the sites from outside and alerts when one
+  fails, or when a heartbeat says something is wrong or stops arriving (15
+  minutes for health, 26 hours for the backup). That's how fox-red being
+  down entirely gets noticed. Those alerts go to an ntfy.sh topic, not to
+  fox-red's ntfy.
 
-Uptime Kuma runs on fox-red, so it cannot report fox-red being down. An
-outside check (healthchecks.io) is part of the next step.
+fox-red's own Gatus (foxred.emberfox.net) shows the same checks but alerts
+only for fox-green, in return. Who checks what is in
+`modules/server/watch.nix`; see [fox-green's README](../fox-green/README.md).
 
 ## Nightly schedule (UTC)
 
