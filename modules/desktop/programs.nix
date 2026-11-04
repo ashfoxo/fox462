@@ -72,7 +72,6 @@ in
     binfmt = false;
   };
 
-  # The phone send/fetch commands are in network/phone.nix.
   environment.systemPackages = with pkgs; [
     git
     vim

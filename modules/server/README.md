@@ -41,8 +41,15 @@ Values that differ per host (`fox.server.domain`, `.privateDomain`,
 (which also closes 80 and 443); one whose sites are all NetBird-only sets
 `fox.server.caddy.public = false` (443 on the NetBird interface only); and
 one with nothing worth backing up sets `fox.server.backup.enable = false`.
-fox-green does the last two. A service can be imported by any number of hosts; each host
-gets its own secrets (`hosts/<host>/secrets/`) and its own backup bucket.
+fox-green does the last two. A service can be imported by any number of
+hosts; each host gets its own secrets (`hosts/<host>/secrets/`) and its own
+backup bucket.
+
+`*.emberfox.net` points at fox-red, so a NetBird-only site on any other server
+needs an A record of its own pointing at that server's NetBird address, and
+that server needs its own Njalla token for the certificate. Every server has
+one such site: its Gatus dashboard, named after it without the dash
+(`foxgreen.emberfox.net`).
 
 ## Adding a server
 
@@ -54,8 +61,11 @@ gets its own secrets (`hosts/<host>/secrets/`) and its own backup bucket.
 2. `hosts/<name>/.sops.yaml`: copy fox-red's, with the new server's age key
    (`ssh-to-age` on its host key) and your workstation's.
 3. `./secret.sh <name> <secret>` for each name in its `fox.server.secretNames`.
+   Pipe raw tokens in with `printf '%s'`: typed at the prompt, a value gets a
+   trailing newline.
 4. One line in `flake.nix`.
-5. `./deploy.sh <name> test`, then `switch`.
+5. `./deploy.sh <name> test`, then `switch`. The very first deploy runs as
+   root, before its user exists (see fox-green's README).
 
 ## Adding a service
 

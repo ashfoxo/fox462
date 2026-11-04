@@ -16,7 +16,7 @@ let
     # --- Your files ---
     "Documents" "Downloads" "Pictures" "Videos" "Music" "media" "working"
     "fox-den"           # this repo's checkout
-    "tailnet"           # send / fetch with the phone
+    "sync"              # synced to every device by Syncthing (home/desktop/syncthing.nix)
     "torrents"          # qBittorrent downloads
     "sandbox_folders"   # the shared folder of each sandboxed app
     ".password-store"   # pass
@@ -77,7 +77,15 @@ in
   fileSystems."/home".neededForBoot = true;
 
   # tmpfs mounts as root; hand the top folder to arlo before anything uses it.
-  systemd.tmpfiles.rules = [ "d /home/arlo 0700 arlo users -" ];
+  systemd.tmpfiles.rules = [
+    "d /home/arlo 0700 arlo users -"
+    # Syncthing's marker for ~/sync (home/desktop/syncthing.nix). It refuses
+    # a folder without one, so that an empty, unmounted folder can't look
+    # like "everything was deleted" and wipe the other devices. Made in the
+    # persistent copy only, for the same reason: if ~/sync ever fails to
+    # mount, the empty folder left behind has no marker and Syncthing stops.
+    "d /persist/home/arlo/sync/.stfolder 0755 arlo users -"
+  ];
 
   environment.persistence."/persist".users.arlo = { inherit directories files; };
 

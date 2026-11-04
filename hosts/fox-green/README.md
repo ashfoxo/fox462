@@ -129,7 +129,7 @@ the blackhole is missing, or if the direct exit's namespace has no way out.
 | Path | What it is |
 | --- | --- |
 | `hosts/fox-green/default.nix` | This host: its name, user, Mullvad addresses, and the services it runs |
-| `hosts/fox-green/hardware-configuration.nix`, `networking.nix` | Disk, boot and network, as nixos-infect generated them |
+| `hosts/fox-green/hardware-configuration.nix`, `networking.nix` | Disk, boot and network, from `nixos-generate-config` and the network RackNerd set up |
 | `hosts/fox-green/secrets/`, `.sops.yaml` | Its encrypted secrets, and who can decrypt them |
 | `modules/server/services/exit-nodes.nix` | Both exit nodes, the server rotation, and their health checks |
 | `modules/server/services/gatus.nix`, `modules/server/watch.nix` | Gatus, shared with fox-red, and who watches whom |
@@ -150,7 +150,7 @@ read the other's secrets.
 | `netbird-setup-key`, `netbird-direct-setup-key` | One-time NetBird setup keys, one per peer; unused after enrolment |
 | `ntfy-alert.env` | `NTFY_URL` (the ntfy.sh topic) and an empty `NTFY_TOKEN` |
 | `gatus.env` | `GATUS_NTFY_URL`, `GATUS_NTFY_TOPIC`, `GATUS_NTFY_TOKEN`, and `HEARTBEAT_TOKEN`, which fox-red sends with its heartbeats |
-| `heartbeat.env` | `HEARTBEAT_URL` (fox-red's Gatus) and `HEARTBEAT_TOKEN` (the one fox-red's Gatus expects) |
+| `heartbeat.env` | `HEARTBEAT_URL` (fox-red's Gatus, `https://foxred.emberfox.net`) and `HEARTBEAT_TOKEN` (the one fox-red's Gatus expects) |
 
 ## Deploying and updates
 
@@ -167,7 +167,7 @@ sudo wg show wg-mullvad                      # its handshake
 ip rule show priority 100; ip -6 rule show priority 100
 ip route show table 51                       # tunnel route and blackhole
 sudo systemctl start mullvad-rotate          # move to another server now
-netbird status; sudo netbird-direct status   # the two peers
+sudo netbird status; sudo netbird-direct status   # the two peers
 ```
 
 To see the kill switch work: with the phone on the `fox-green-mullvad` exit, run
@@ -189,3 +189,6 @@ wireguard-wg-mullvad` brings it back, on a new server.
 - **The first deploy** has to run as root (the `arlo` account doesn't exist
   yet), and the config turns root logins off. Keep a root session open to set
   the account's password afterwards.
+- **The dashboard's name** needs an A record of its own pointing at the
+  server's NetBird address, and the server its own Njalla token, restricted
+  to its IP (see Secrets).

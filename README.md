@@ -62,7 +62,7 @@ command, a launcher entry and a workspace rule).
 **Network privacy.** Mullvad VPN for everything, with a couple of
 deliberate exceptions (Zoom and a plain Firefox use `mullvad-exclude`).
 [NetBird](https://netbird.io) connects the machines to each other and to the
-server, with inbound connections blocked. Wi-Fi MAC addresses are randomised
+servers, with inbound connections blocked (except Syncthing's port). Wi-Fi MAC addresses are randomised
 per network.
 
 **Home NAS.** Ark, an SMB share that can't run NetBird, is mounted at
@@ -80,20 +80,34 @@ hashes come from encrypted secrets.
 (Scaleway), encrypted client-side, with 7 daily, 4 weekly, 6 monthly and 1
 yearly snapshots kept. The lock screen shows when the last one succeeded.
 
+**Unattended updates (laptop).** Once a day `nix flake update` runs and the
+result is built for the next boot, never switched to while you work, then
+`flake.lock` is committed with the package changes in the message. It skips
+metered networks and a repo with uncommitted edits, and doesn't push. The bar
+shows the state (`modules/services/auto-update.nix`).
+
 **Small tools.**
 - `Super + Shift + R` records a voice note and transcribes it offline with
   whisper.cpp. `transcribe FILE` does the same for existing audio.
-- `send` and `fetch` copy files to and from a phone over SSH.
+- `~/sync` is the same on every device, the phone included, kept in step by
+  Syncthing over NetBird: directly between whichever are on, with fox-red
+  keeping an always-on copy.
 - A C toolchain with clangd, sanitizers and friends (`home/desktop/dev.nix`).
 
-## The server
+## The servers
 
-`fox-red` is built from the shared server modules in `modules/server/` plus
-its own secrets and the services it imports. One deploy script covers any
-server. Public services are behind Caddy with automatic HTTPS;
-private ones answer only to the NetBird network. Everything alerts through
-ntfy. Services, the nightly schedule, backups and lessons learned are all in
-[`hosts/fox-red/README.md`](hosts/fox-red/README.md).
+Both are built from the shared server modules in `modules/server/` plus their
+own secrets and the services they import. One deploy script covers both.
+Public services are behind Caddy with automatic HTTPS; private ones answer
+only to the NetBird network.
+
+- **fox-red** runs the services: blog, Git, RSS, music, notes sync and more.
+  Its services, nightly schedule, backups and lessons learned are in
+  [`hosts/fox-red/README.md`](hosts/fox-red/README.md).
+- **fox-green** keeps watch on fox-red, and fox-red on it, so either one
+  going down gets noticed (Gatus, with dashboards at `foxred.` and
+  `foxgreen.emberfox.net`). It also gives the phone two exit nodes, one
+  through Mullvad. See [`hosts/fox-green/README.md`](hosts/fox-green/README.md).
 
 ## How it's organised
 
@@ -106,13 +120,16 @@ modules/               System-level NixOS modules
   core/                  Nix settings, users, SSH, hardening, USB allowlist, time zone
   desktop/               Login (greetd) and Hyprland session, audio, fonts, system apps
   hardware/              laptop.nix (power, thermals), nvidia.nix
-  network/               Mullvad + NetBird, phone file transfer, home NAS
-  services/restic.nix    Backups
-  boot.nix, impermanence.nix
+  network/               Mullvad + NetBird, SSH to the phone, home NAS
+  services/              restic.nix (backups), auto-update.nix (daily updates, laptop)
+  boot.nix, impermanence.nix, ephemeral-home.nix
+  server/                The shared server modules (its own README)
 home/                  Home Manager config for the user
   desktop/               Hyprland (hypr/*.lua), Quickshell bar, apps, sandboxes, lock screen, theme
-lib/                   Shared values: colour palette, session variables
+lib/                   Shared values: colour palette, displays, session variables,
+                       Syncthing devices and folders
 secrets/               sops-encrypted secrets for the laptop and desktop
+deploy.sh, secret.sh   Deploy a server; add one of its secrets
 sops.sh                Wrapper for editing those secrets
 ```
 
@@ -150,7 +167,7 @@ flake output, so name it: `sudo nixos-rebuild switch --flake .#fox-amber`.
 Rebuild a specific one: `sudo nixos-rebuild switch --flake .#fox-blue`. Use
 `boot` instead of `switch` to apply at next boot.
 
-Deploy the server, from a clean git checkout:
+Deploy a server (fox-red or fox-green), from a clean git checkout:
 
 ```bash
 ./deploy.sh fox-red test     # activate now; a reboot undoes it
@@ -180,8 +197,11 @@ repo.
 
 - **Laptop and desktop:** `secrets/`, encrypted to one shared age key
   (listed in `.sops.yaml`). Edit with `./sops.sh secrets/secrets.yaml`.
-- **Server:** `hosts/fox-red/secrets/`, one file per secret, with its own
-  `.sops.yaml`. Add one with `./secret.sh <host> <name>`.
+- **Servers:** `hosts/<server>/secrets/`, one file per secret, with that
+  server's own `.sops.yaml`. Add one with `./secret.sh <host> <name>`. Typed
+  at its prompt, a value is stored with a newline at the end, which is fine
+  for `.env` files but not for a raw token a program reads straight from the
+  file: pipe those in exactly, `printf '%s' "$TOKEN" | ./secret.sh <host> <name>`.
 
 If you can't decrypt, the system will still build, but activation will fail
 and login passwords won't be set. Check that decryption works before you
@@ -198,10 +218,12 @@ If you want to adapt the whole thing, change these first:
 
 - The username `arlo` appears throughout, and the lock screen has a name in
   `home/desktop/lockscreen.nix`.
-- `.sops.yaml` and `hosts/fox-red/.sops.yaml` hold the owner's public age
-  keys. Put in yours and replace the files in `secrets/` with your own.
-- Backup buckets, domain names, NetBird addresses (`modules/network/phone.nix`)
-  and the time zone (`modules/core/default.nix`) are the owner's.
+- `.sops.yaml` and each `hosts/<server>/.sops.yaml` hold the owner's public
+  age keys. Put in yours and replace the encrypted files with your own.
+- Backup buckets, domain names, NetBird addresses (`lib/syncthing.nix`,
+  `modules/server/watch.nix`), the Mullvad addresses in
+  `hosts/fox-green/default.nix`, and the time zone (`modules/core/default.nix`)
+  are the owner's.
 - `hardware-configuration.nix` in each host folder is generated for that
   specific machine. Regenerate yours with `nixos-generate-config`.
 - Disk layout assumptions: a LUKS device named `cryptroot` containing btrfs

@@ -21,7 +21,7 @@ services other devices have to reach from anywhere are public.
 | AudioMuse-AI | muse.emberfox.net | NetBird | Podman (web, worker, Postgres) |
 | Gatus | foxred.emberfox.net | NetBird | NixOS module |
 | Notesnook sync server | notes.emberfox.net (+ auth., events., files. under notes.) | NetBird | Podman (MongoDB, Silo, three apps) |
-| Syncthing (Minecraft instances) | NetBird | NixOS module |
+| Syncthing (Minecraft instances, `~/sync`) | port 22000 | NetBird | NixOS module |
 | SSH | fox-red | anywhere, keys only | — |
 
 The firewall opens TCP 22, 80 and 443, and UDP 51820 for NetBird. On the
@@ -110,7 +110,8 @@ Two things update on their own schedule:
   versions. The nightly `similar-songs-check` alerts if an update breaks them.
 - **A new NixOS release** is a one-line change in `flake.nix`. 26.05 stops
   getting fixes around the end of December 2026: move to `nixos-26.11` after
-  it ships on 23 November, and to 27.05 by June 2027.
+  it ships on 23 November, and to 27.05 by June 2027. Upgrade fox-green first:
+  it has the least on it.
 
 ## Secrets
 
@@ -142,8 +143,8 @@ restic, nightly at 01:30 UTC, to the versioned Scaleway bucket
 dumped first rather than copied live: Miniflux's Postgres, AudioMuse's
 Postgres, Notesnook's MongoDB, and the SQLite files of Navidrome,
 ntfy, Forgejo and MollySocket. Also backed up: Forgejo's whole state directory (repos,
-`app.ini`), Notesnook's attachments, beets' state, the deployed copy of this repo, and the synced
-Minecraft instances (without Syncthing's `.stversions`).
+`app.ini`), Notesnook's attachments, beets' state, the deployed copy of this repo, and the two
+Syncthing folders, the Minecraft instances and `~/sync` (without Syncthing's `.stversions`).
 
 Not backed up: `/var/lib/blog` (rebuilt from git) and the Podman images.
 
@@ -195,6 +196,20 @@ only for fox-green, in return. Who checks what is in
   bit.
 - **sops:** check that `.sops.yaml` lists fox-red's key before deploying a
   new secret. Activation fails with "0 successful groups" otherwise.
+- **secret.sh adds a newline** to a value typed at its prompt. A raw token
+  read straight from its file then carries it along: Caddy sent the Njalla
+  token with it and failed with `invalid header field value for
+  "Authorization"`. Pipe such tokens in with `printf '%s'`.
+- **Syncthing** refuses a folder without its `.stfolder` marker, and a
+  folder the system creates first (like `~/sync`, which impermanence makes)
+  has none. The laptop and desktop now get the marker at boot, in the
+  persistent copy only. The `Failed TLS handshake` lines every minute in its
+  log are the two Gatus instances checking port 22000; they're harmless.
+- **Notesnook** can keep retrying with a login the server no longer accepts
+  (`Invalid reference token` in `podman-identity-server`'s log) after its
+  containers restart, and the app shows no error, it just stops syncing.
+  **Sync now** on each device clears it; if not, sign out and back in, after
+  a backup.
 - **Notesnook:** mail (confirmation, email 2FA, password reset) goes out
   through Purelymail's SMTP on port 587; Hetzner blocks outbound 25 and 465.
   The mailbox login is in the `notesnook.env` secret and is also the sender.
