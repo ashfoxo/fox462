@@ -1,8 +1,8 @@
 # Filen -> Storage Box -> beets -> Navidrome ingest pipeline.
 # Single-copy variant, for nixos-26.05.
 #
-# Lives at /etc/nixos/music-ingest.nix, imported from configuration.nix:
-#   imports = [ ./hardware-configuration.nix ./music-ingest.nix ];
+# Lives at modules/server/services/music-ingest.nix; a host imports it next to
+# music.nix (Navidrome).
 #
 # Shape of the thing:
 #
@@ -52,9 +52,9 @@
 #   is locked". Hence /var/lib/beets on local disk, and hence it must be backed
 #   up, since it no longer rides along with the music.
 #
-# REQUIRED EDITS IN configuration.nix:
+# WHAT IT NEEDS FROM THE HOST:
 #
-#   1. imports = [ ./hardware-configuration.nix ./music-ingest.nix ];
+#   1. Import this next to services/music.nix (Navidrome).
 #
 #   2. Navidrome's volume must point at the library, not the mount root, or it
 #      indexes the inbox too and half-tagged files appear and vanish from the
@@ -83,7 +83,7 @@
 #   d. sudo systemctl start music-reconcile.service   # READ THE SUMMARY
 #   e. sudo systemctl start music-ingest.service
 
-{ config, pkgs, lib, ... }:
+{ config, pkgs, lib, srv, ... }:
 let
   inboxDir = "/mnt/music/inbox";
   libraryDir = "/mnt/music/library";
@@ -132,21 +132,7 @@ let
           "--prefix PATH : ${lib.makeBinPath [ pkgs.chromaprint ]}"}
     '';
 
-  # Local copy of the notify helper from configuration.nix. Duplicated on
-  # purpose: this module should be droppable into another host without dragging
-  # the rest of the file along.
-  notify = pkgs.writeShellScript "notify-music" ''
-    set -u
-    [ -r /run/secrets/ntfy-alert.env ] || exit 0
-    . /run/secrets/ntfy-alert.env
-    ${pkgs.curl}/bin/curl -fsS -m 10 --retry 3 \
-      -H "Authorization: Bearer $NTFY_TOKEN" \
-      -H "Title: $1" \
-      -H "Priority: $3" \
-      -d "$2" \
-      "$NTFY_URL" >/dev/null 2>&1 || true
-    exit 0
-  '';
+  inherit (srv) notify;
 
   beetsConfig = pkgs.writeText "beets-config.yaml" ''
     directory: ${libraryDir}
@@ -261,6 +247,12 @@ let
   '';
 in
 {
+  # filen-rclone.env: RCLONE_CONFIG_FILEN_* defining the Filen rclone remote.
+  # PASSWORD and API_KEY are `rclone obscure` output, which is reversible
+  # encoding, not encryption. Treat as plaintext credentials. Re-export the API
+  # key via the Filen CLI if you ever change the account password.
+  fox.server.secretNames = [ "filen-rclone.env" ];
+
   environment.systemPackages = [ pkgs.rclone beetsPkg musicBeet musicReingest ];
 
   systemd.tmpfiles.rules = [
@@ -271,13 +263,9 @@ in
     "L+ ${stateDir}/config.yaml - - - - ${beetsConfig}"
   ];
 
-  # listOf options merge across modules, so this appends to the paths already
-  # declared in configuration.nix. If the build reports a conflict here, delete
-  # this line and add "/var/lib/beets" to the restic paths list directly.
-  #
   # Matters more in the single-copy variant than the mirror one: losing this
   # directory loses seen.list, and the next run re-downloads everything.
-  services.restic.backups.offsite.paths = [ stateDir ];
+  fox.server.backup.paths = [ stateDir ];
 
   ############################################################################
   # Reconcile
@@ -503,7 +491,7 @@ in
       echo "beets: $added tracks added, $leftover file(s) left in the inbox"
 
       if [ "$leftover" -gt 0 ]; then
-        ${notify} "fox-red: music needs a look" \
+        ${notify} "${config.networking.hostName}: music needs a look" \
           "$leftover file(s) beets would not auto-tag, sitting in the inbox. Run: sudo music-beet import -I ${inboxDir}" \
           default
       fi
@@ -547,7 +535,7 @@ in
     description = "Push an ntfy alert when the music ingest fails";
     serviceConfig.Type = "oneshot";
     script = ''
-      ${notify} "fox-red: music ingest FAILED" \
+      ${notify} "${config.networking.hostName}: music ingest FAILED" \
         "music-ingest failed. journalctl -u music-ingest" \
         high
     '';

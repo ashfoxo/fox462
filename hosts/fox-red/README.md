@@ -2,7 +2,7 @@
 
 The NixOS configuration for **fox-red**, a Hetzner VPS (4 vCPU, 8 GB RAM,
 40 GB disk, plus a 1 TB Storage Box for music). The whole server is built from
-this repo: one flake, one `configuration.nix`, encrypted secrets, and a deploy
+this repo: one flake, shared server modules, encrypted secrets, and a deploy
 script. fox-red was rebuilt in place in autumn 2026.
 
 ## What runs here
@@ -60,16 +60,19 @@ NetBird interface only, it also opens TCP 22000 for Syncthing.
 
 ## Repo layout
 
-| File | What it is |
+fox-red is the flake output `fox-red`; its pieces are shared with any other
+server (see [`modules/server/README.md`](../../modules/server/README.md)).
+
+| Path | What it is |
 | --- | --- |
-| `flake.nix`, `flake.lock` | The NixOS release (`nixos-26.05`) and sops-nix, pinned |
-| `configuration.nix` | The whole server, in commented sections |
-| `music-ingest.nix` | Filen → beets → Navidrome pipeline |
-| `hardware-configuration.nix` | Disks and boot for this VPS |
-| `secrets/` | One encrypted file per secret |
-| `.sops.yaml` | Which age keys can decrypt `secrets/` |
-| `deploy.sh` | Copy the repo to fox-red and rebuild there |
-| `secret.sh` | Add or replace a secret |
+| `flake.nix`, `flake.lock` (repo root) | The NixOS release (`nixos-26.05`) and sops-nix, pinned |
+| `hosts/fox-red/default.nix` | This host: its name, user, domains, backup bucket, and the list of services it runs |
+| `hosts/fox-red/hardware-configuration.nix` | Disks and boot for this VPS |
+| `hosts/fox-red/secrets/` | One encrypted file per secret |
+| `hosts/fox-red/.sops.yaml` | Which age keys can decrypt `secrets/` |
+| `modules/server/` | The shared base: SSH, hardening, Caddy, NetBird, Podman, backups, monitoring |
+| `modules/server/services/` | One file per service (Forgejo, blog, Miniflux, ntfy, the music stack, …) |
+| `deploy.sh`, `secret.sh` (repo root) | Copy the repo to a server and rebuild there; add or replace a secret |
 
 ## Deploying
 
@@ -77,8 +80,8 @@ From the workstation, in a clean checkout:
 
 ```bash
 git commit -am "…"
-./deploy.sh test      # activate now, but reboot returns to the previous version
-./deploy.sh switch    # activate and make it the boot default
+./deploy.sh fox-red test      # activate now, but reboot returns to the previous version
+./deploy.sh fox-red switch    # activate and make it the boot default
 ```
 
 `deploy.sh` refuses to run with uncommitted changes, so whatever is on the
@@ -92,7 +95,7 @@ generation from the boot menu.
 ## Updates
 
 ```bash
-nix flake update && git commit -qam "flake update" && ./deploy.sh switch
+nix flake update && git commit -qam "flake update" && ./deploy.sh fox-red switch
 ```
 
 Run weekly until automatic upgrades are back on. Those are the next step:
@@ -113,14 +116,16 @@ Two things update on their own schedule:
 Secrets live in `secrets/`, encrypted with sops for two age keys: the
 workstation's (its private half in Bitwarden) and fox-red's, derived from its
 SSH host key. At boot, sops-nix decrypts each to `/run/secrets/<name>`.
-The top of `configuration.nix` lists what each secret holds.
+Each service's file lists the secrets it uses (`fox.server.secretNames`) and
+what they hold.
 
 ```bash
-./secret.sh <name>                    # asks for a value, typing hidden
-some-command | ./secret.sh <name>     # stores stdin exactly
+./secret.sh fox-red <name>                    # asks for a value, typing hidden
+some-command | ./secret.sh fox-red <name>     # stores stdin exactly
 ```
 
-A new secret also goes into `secretNames` in `configuration.nix`. If
+A new secret's name goes into `fox.server.secretNames` in the service that
+uses it. If
 fox-red is ever reinstalled, its new host key must be added to `.sops.yaml`
 and the secrets re-encrypted (`sops updatekeys`) before the first deploy.
 

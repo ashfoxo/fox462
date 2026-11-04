@@ -86,8 +86,9 @@ yearly snapshots kept. The lock screen shows when the last one succeeded.
 
 ## The server
 
-`fox-red` is a single-host NixOS config with its own secrets and its own
-deploy script. Public services are behind Caddy with automatic HTTPS;
+`fox-red` is built from the shared server modules in `modules/server/` plus
+its own secrets and the services it imports. One deploy script covers any
+server. Public services are behind Caddy with automatic HTTPS;
 private ones answer only to the NetBird network. Everything alerts through
 ntfy. Services, the nightly schedule, backups and lessons learned are all in
 [`hosts/fox-red/README.md`](hosts/fox-red/README.md).
@@ -150,14 +151,21 @@ Rebuild a specific one: `sudo nixos-rebuild switch --flake .#fox-blue`. Use
 Deploy the server, from a clean git checkout:
 
 ```bash
-./hosts/fox-red/deploy.sh test     # activate now; a reboot undoes it
-./hosts/fox-red/deploy.sh switch   # activate and make it the default
+./deploy.sh fox-red test     # activate now; a reboot undoes it
+./deploy.sh fox-red switch   # activate and make it the default
 ```
 
 Add a machine: create `hosts/<name>/default.nix` (set
 `networking.hostName` to the same name, import `modules/personal.nix` and a
 generated `hardware-configuration.nix`), then add one line to
 `nixosConfigurations` in `flake.nix`.
+
+Add a server: create `hosts/<name>/default.nix` that imports
+`modules/server` and the services it should run from
+`modules/server/services/`, and sets its `fox.server.*` values (its backup
+bucket, domains). Add its age key to `hosts/<name>/.sops.yaml`, then one line
+to `flake.nix`. [`modules/server/README.md`](modules/server/README.md) walks
+through it, and through writing a new service.
 
 Update everything: `nix flake update`, then rebuild.
 
@@ -171,7 +179,7 @@ repo.
 - **Laptop and desktop:** `secrets/`, encrypted to one shared age key
   (listed in `.sops.yaml`). Edit with `./sops.sh secrets/secrets.yaml`.
 - **Server:** `hosts/fox-red/secrets/`, one file per secret, with its own
-  `.sops.yaml`. Add one with `./hosts/fox-red/secret.sh <name>`.
+  `.sops.yaml`. Add one with `./secret.sh <host> <name>`.
 
 If you can't decrypt, the system will still build, but activation will fail
 and login passwords won't be set. Check that decryption works before you
