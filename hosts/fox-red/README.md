@@ -20,6 +20,7 @@ services other devices have to reach from anywhere are public.
 | Navidrome | music.emberfox.net | NetBird | Podman |
 | AudioMuse-AI | muse.emberfox.net | NetBird | Podman (web, worker, Postgres) |
 | Uptime Kuma | status.emberfox.net | NetBird | NixOS module |
+| Notesnook sync server | notes.emberfox.net (+ auth., events., files. under notes.) | NetBird | Podman (MongoDB, Silo, three apps) |
 | Syncthing (Minecraft instances) | NetBird | NixOS module |
 | SSH | fox-red | anywhere, keys only | — |
 
@@ -139,9 +140,9 @@ server; after a bare-metal restore, reset it from the Hetzner console.
 restic, nightly at 01:30 UTC, to the versioned Scaleway bucket
 `bagger-red`, keeping 7 daily, 4 weekly and 6 monthly snapshots. Databases are
 dumped first rather than copied live: Miniflux's Postgres, AudioMuse's
-Postgres, and the SQLite files of Navidrome, Uptime Kuma, ntfy, Forgejo and
-MollySocket. Also backed up: Forgejo's whole state directory (repos,
-`app.ini`), beets' state, the deployed copy of this repo, and the synced
+Postgres, Notesnook's MongoDB, and the SQLite files of Navidrome, Uptime Kuma,
+ntfy, Forgejo and MollySocket. Also backed up: Forgejo's whole state directory (repos,
+`app.ini`), Notesnook's attachments, beets' state, the deployed copy of this repo, and the synced
 Minecraft instances (without Syncthing's `.stversions`).
 
 Not backed up: `/var/lib/blog` (rebuilt from git) and the Podman images.
@@ -172,6 +173,7 @@ outside check (healthchecks.io) is part of the next step.
 | 02:10 | Music ingest |
 | 05:30 | Similar-songs check |
 | Sun 06:00 | Navidrome + AudioMuse update |
+| Sun 06:30 | Notesnook image update |
 | 1st, 07:00 | Backup repository check |
 
 ## Lessons worth keeping
@@ -187,3 +189,14 @@ outside check (healthchecks.io) is part of the next step.
   bit.
 - **sops:** check that `.sops.yaml` lists fox-red's key before deploying a
   new secret. Activation fails with "0 successful groups" otherwise.
+- **Notesnook:** mail (confirmation, email 2FA, password reset) goes out
+  through Purelymail's SMTP on port 587; Hetzner blocks outbound 25 and 465.
+  The mailbox login is in the `notesnook.env` secret and is also the sender.
+  The first account is created with `disableSignups = "false"` in
+  `modules/server/services/notesnook.nix`; set it to `"true"` and deploy again
+  afterwards. Existing notes don't move between servers: export from the old
+  account, sign in to the new instance, import. In the app, Settings → Server
+  settings takes the four addresses: `notes.emberfox.net` and
+  `auth.`, `events.`, `files.` under `notes.emberfox.net`. Those three need
+  their own wildcard certificate (`*.notes.emberfox.net`), so the Njalla token
+  must be allowed to create `_acme-challenge.notes.emberfox.net`.

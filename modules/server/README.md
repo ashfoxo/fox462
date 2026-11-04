@@ -23,7 +23,7 @@ central list is ever edited:
 | It needs | It sets |
 | --- | --- |
 | a secret | `fox.server.secretNames = [ "x.env" ];` |
-| a NetBird-only site | `fox.server.privateSites.x.upstream = "127.0.0.1:PORT";` |
+| a NetBird-only site | `fox.server.privateSites.x.upstream = "127.0.0.1:PORT";` (`"a.x"` for a name one level down: it gets its own wildcard certificate) |
 | a public site | `services.caddy.virtualHosts."x.${config.fox.server.domain}"` |
 | its state backed up | `fox.server.backup.paths` (and `.exclude`) |
 | a database snapshotted | `fox.server.backup.sqlite`, or `.prepare` for a dump command |

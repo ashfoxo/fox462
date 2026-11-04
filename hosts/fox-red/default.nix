@@ -23,6 +23,7 @@
     ../../modules/server/services/mollysocket.nix
     ../../modules/server/services/music.nix
     ../../modules/server/services/music-ingest.nix
+    ../../modules/server/services/notesnook.nix
     ../../modules/server/services/ntfy.nix
     ../../modules/server/services/syncthing.nix
     ../../modules/server/services/uptime-kuma.nix

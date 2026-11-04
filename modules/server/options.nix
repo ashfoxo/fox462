@@ -50,7 +50,10 @@ in
       example = { rss.upstream = "127.0.0.1:8080"; };
       description = ''
         Private sites, by subdomain. Each is reachable only over NetBird (and
-        from the server itself). A service adds its own entry.
+        from the server itself). A service adds its own entry. A name may
+        have dots: "rss" is rss.<privateDomain>, "auth.notes" is
+        auth.notes.<privateDomain>, served from its own *.notes.<privateDomain>
+        wildcard certificate.
       '';
     };
 

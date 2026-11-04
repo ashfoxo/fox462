@@ -6,13 +6,69 @@
 let
   inherit (srv) secHeaders plainLog;
   priv = config.fox.server.privateDomain;
-  # One handle block per private site, in name order.
-  sites = lib.concatStringsSep "\n" (lib.mapAttrsToList (name: site: ''
-    @${name} host ${name}.${priv}
-    handle @${name} {
-      reverse_proxy ${site.upstream}
-    }
-  '') config.fox.server.privateSites);
+  sites = config.fox.server.privateSites;
+
+  # A site name may have dots: "rss" is rss.<priv>, "auth.notes" is
+  # auth.notes.<priv>. A wildcard certificate covers one label only, so sites
+  # are grouped by what follows their first label (their zone) and each zone
+  # gets its own wildcard block: "" is *.<priv>, "notes" is *.notes.<priv>.
+  zoneOf = name: lib.concatStringsSep "." (builtins.tail (lib.splitString "." name));
+  zones = lib.unique ([ "" ] ++ map zoneOf (lib.attrNames sites));
+
+  # One handle block per private site in the zone, in name order. Matcher names
+  # can't hold dots.
+  handles = zone: lib.concatStringsSep "\n" (lib.mapAttrsToList
+    (name: site:
+      let m = lib.replaceStrings [ "." ] [ "-" ] name; in ''
+        @${m} host ${name}.${priv}
+        handle @${m} {
+          reverse_proxy ${site.upstream}
+        }
+      '')
+    (lib.filterAttrs (name: _: zoneOf name == zone) sites));
+
+  # Every private service (fox.server.privateSites) sits behind a wildcard
+  # certificate, one per zone.
+  #
+  # The certificate comes from the DNS challenge through Njalla, because Let's
+  # Encrypt cannot reach a NetBird address. A wildcard also keeps the private
+  # names out of the public certificate logs. A site with its own block (ntfy)
+  # beats the wildcard, so it stays public on an ordinary certificate.
+  #
+  # DNS sends *.<priv> to the server's NetBird address, but Caddy still listens
+  # on the public IP too, and anyone can send a request there with a private
+  # Host header. So the source address is checked as well:
+  #   100.64.0.0/10   NetBird peers
+  #   127.0.0.0/8 ::1 the server itself
+  # Uptime Kuma runs on the server, and its requests to these names leave from
+  # the server's own NetBird address, so they fall in the first range.
+  # Anything else gets its connection dropped with no response, and so do
+  # unknown names under the zone.
+  privateVhost = zone:
+    let
+      domain = if zone == "" then priv else "${zone}.${priv}";
+      logName = if zone == "" then "private.${priv}" else "private-${zone}.${priv}";
+    in
+    lib.nameValuePair "*.${domain}" { extraConfig = ''
+      tls {
+        dns njalla {file./run/secrets/njalla-token}
+        propagation_delay 2m
+        propagation_timeout 10m
+      }
+      ${secHeaders}
+      ${plainLog logName}
+
+      @outside not remote_ip 100.64.0.0/10 127.0.0.0/8 ::1
+      handle @outside {
+        abort
+      }
+
+      ${handles zone}
+
+      handle {
+        abort
+      }
+    ''; };
 in
 {
   # njalla-token: Njalla API token for the wildcard certificate. Limited to the
@@ -43,48 +99,6 @@ in
       hash = "sha256-FNu+XhEMLr4wWfo+iSoWlxbSurmvPjphU6yTQYd/s3c=";
     };
 
-    virtualHosts = {
-
-      # Every private service (fox.server.privateSites), behind one wildcard
-      # certificate.
-      #
-      # The certificate comes from the DNS challenge through Njalla, because
-      # Let's Encrypt cannot reach a NetBird address. A wildcard also keeps
-      # the private names out of the public certificate logs. ntfy above has
-      # its own site block, which beats this wildcard, so it stays public on
-      # an ordinary certificate. Services add their own entry to privateSites.
-      #
-      # DNS sends *.emberfox.net to fox-red's NetBird address, but Caddy still
-      # listens on the public IP too, and anyone can send a request there with
-      # a private Host header. So the source address is checked as well:
-      #   100.64.0.0/10   NetBird peers
-      #   127.0.0.0/8 ::1 fox-red itself
-      # Uptime Kuma runs on fox-red, and its requests to these names leave
-      # from fox-red's own NetBird address, so they fall in the first range.
-      # Anything else gets its connection dropped with no response.
-      #
-      # Unknown names under the private domain are dropped the same way.
-      "*.${priv}".extraConfig = ''
-        tls {
-          dns njalla {file./run/secrets/njalla-token}
-          propagation_delay 2m
-          propagation_timeout 10m
-        }
-        ${secHeaders}
-        ${plainLog "private.${priv}"}
-
-        @outside not remote_ip 100.64.0.0/10 127.0.0.0/8 ::1
-        handle @outside {
-          abort
-        }
-
-        ${sites}
-
-        handle {
-          abort
-        }
-      '';
-
-    };
+    virtualHosts = lib.listToAttrs (map privateVhost zones);
   };
 }

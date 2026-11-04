@@ -74,8 +74,8 @@ in
         DOMAIN = "git.${domain}";
         ROOT_URL = "https://git.${domain}/";
         HTTP_ADDR = "127.0.0.1";
-        # 3001 kuma, 4533 navidrome, 8000 audiomuse, 8080 miniflux
-        # 8090 ntfy. 3000 is the gap.
+        # 3001 kuma, 4533 navidrome, 5264/7264/8264/9000 notesnook,
+        # 8000 audiomuse, 8080 miniflux, 8090 ntfy. 3000 is the gap.
         HTTP_PORT = 3000;
 
         # Host sshd, not the built-in server: 22 is already open and already
