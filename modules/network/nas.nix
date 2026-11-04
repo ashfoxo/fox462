@@ -47,7 +47,16 @@ let
 
       if [ "$home" = 1 ]; then
         mullvad lan set allow || true
-        systemctl start ${lib.escapeShellArg mountUnit} || true
+        # Right after joining a network the route, DNS and Mullvad's firewall
+        # rule may not be in place yet, and a single try used to fail and
+        # then never be retried until the next network event.
+        if ! mountpoint -q ${lib.escapeShellArg cfg.mountPoint}; then
+          for attempt in 1 2 3 4 5; do
+            if systemctl start ${lib.escapeShellArg mountUnit}; then break; fi
+            echo "mounting Ark failed (attempt $attempt of 5)" >&2
+            sleep 4
+          done
+        fi
       else
         systemctl stop ${lib.escapeShellArg mountUnit} || true
         # The NAS is gone, so a normal unmount can hang or say "busy".
@@ -87,7 +96,9 @@ lib.mkIf cfg.enable {
 
   systemd.services.fox-nas-sync = {
     description = "Mount the NAS at home, unmount elsewhere";
-    after = [ "NetworkManager.service" "mullvad-daemon.service" ];
+    # sops-install-secrets: the CIFS credentials file only exists after it
+    # has run, so at boot an earlier mount attempt had nothing to read.
+    after = [ "NetworkManager.service" "mullvad-daemon.service" "sops-install-secrets.service" ];
     wants = [ "NetworkManager.service" ];
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {

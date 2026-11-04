@@ -50,7 +50,6 @@ let
     ".config/fluent-reader"
     ".config/@filen" ".filen-cli"            # Filen login and CLI login
     ".config/Electron"                       # Filen's IndexedDB (and any Electron app with the default name)
-    "mnt/filen"                              # empty mount point for the Filen app's network drive
     ".local/share/Steam" ".steam"
     ".zoom"
     ".config/chirp"
@@ -79,6 +78,11 @@ in
   # tmpfs mounts as root; hand the top folder to arlo before anything uses it.
   systemd.tmpfiles.rules = [
     "d /home/arlo 0700 arlo users -"
+    # Mount point for the Filen app's network drive. NOT persisted: a persisted
+    # directory is a bind mount, and rclone refuses to mount over something
+    # that is already a mount point ("directory already mounted").
+    "d /home/arlo/mnt 0755 arlo users -"
+    "d /home/arlo/mnt/filen 0755 arlo users -"
     # Syncthing's marker for ~/sync (home/desktop/syncthing.nix). It refuses
     # a folder without one, so that an empty, unmounted folder can't look
     # like "everything was deleted" and wipe the other devices. Made in the

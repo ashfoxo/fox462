@@ -25,7 +25,16 @@
       StartLimitBurst = 5;
     };
     Service = {
+      # If the app crashed last time, rclone can leave a dead FUSE mount behind
+      # ("Transport endpoint is not connected"), which blocks the next mount.
+      # The leading "-" means a failure here (nothing mounted) is fine.
+      ExecStartPre = "-/run/wrappers/bin/fusermount3 -uz %h/mnt/filen";
       ExecStart = "${pkgs.filen-desktop}/bin/filen-desktop";
+      # The network drive is a FUSE mount, and FUSE needs the setuid
+      # fusermount3 wrapper in /run/wrappers/bin. A user service does not get
+      # that directory on its PATH, so without this the drive silently fails
+      # to mount even though the app itself runs fine.
+      Environment = [ "PATH=/run/wrappers/bin:/run/current-system/sw/bin" ];
       Restart = "on-failure";
       RestartSec = 10;
     };

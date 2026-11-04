@@ -51,6 +51,11 @@ let
 in
 {
   ##### Programs #####
+  # Filen's network drive (~/mnt/filen) is a FUSE mount that asks for
+  # allow_other, which fusermount refuses unless /etc/fuse.conf permits it.
+  programs.fuse.enable = true;
+  programs.fuse.userAllowOther = true;
+
   programs.steam = {
     enable = true;
     remotePlay.openFirewall = false;

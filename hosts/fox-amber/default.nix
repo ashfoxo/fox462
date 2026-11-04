@@ -12,6 +12,10 @@
   networking.hostName = "workstation";
   fox.machine = "fox-amber";
 
+  # Ark by IP, not by name: with Mullvad up the name "ark" does not resolve
+  # (lookups go to Mullvad's resolver). Keep a DHCP reservation for it on the router.
+  fox.nas.host = "192.168.1.176";
+
   fox.backup.repository = "s3:https://s3.fr-par.scw.cloud/bagger-amber/fox-amber";
   # Its own Scaleway API key: fox-amber-s3-* in secrets.yaml.
   fox.backup.s3SecretPrefix = "fox-amber-";
