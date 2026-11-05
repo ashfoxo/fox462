@@ -1,36 +1,43 @@
-// Update dropdown: last good run, next scheduled run, why a run was skipped,
-// the error if it failed, and an "update now" button (asks for your password).
-// The update is built for the next boot; it is never switched to while you work.
+// Dropdown for a UnitStatus (backup, update): last good run, next scheduled
+// run, what the last run did, the error if it failed, and a run-now button
+// (asks for your password).
 import QtQuick
 
 Dropdown {
     id: menu
 
+    required property var status
+    property string menuIcon: ""
+    property string menuTitle: ""
+    property string okText: "ok"
+    property string actionText: ""
+    property string busyText: ""
+
     readonly property var c: Config.colors
-    readonly property bool failed: Update.state === "failed"
-    readonly property bool running: Update.state === "running"
-    readonly property bool absent: Update.state === "absent"
+    readonly property bool failed: status.state === "failed"
+    readonly property bool running: status.state === "running"
+    readonly property bool absent: status.state === "absent"
     readonly property var look: ({
-            ok: ["● built, applies at next boot", c.forest_text],
+            ok: ["● " + okText, c.forest_text],
             uptodate: ["● up to date", c.forest_text],
             running: ["● running…", c.teal_text],
             skipped: ["● skipped", c.amber],
             overdue: ["● overdue", c.amber],
             failed: ["● failed", c.rust_text],
-            none: ["● no update yet", c.amber],
+            none: ["● never run yet", c.amber],
             absent: ["● not set up on this machine", c.dim],
             unknown: ["● unknown", c.dim]
-        })[Update.state] ?? ["● " + Update.state, c.dim]
+        })[status.state] ?? ["● " + status.state, c.dim]
 
     onVisibleChanged: {
         if (visible)
-            Update.refresh();
+            status.refresh();
     }
 
     MenuHeader {
-        icon: "\u{F06B0}"
+        icon: menu.menuIcon
         iconColor: menu.failed ? menu.c.rust_text : menu.c.dim
-        title: "update"
+        title: menu.menuTitle
 
         BarText {
             text: menu.look[0]
@@ -44,17 +51,17 @@ Dropdown {
 
         Field {
             label: menu.failed ? "last ok" : "last"
-            value: Update.last ? Fmt.ago(Update.last * 1000) : "never"
-            extra: Update.last ? `(${Fmt.time(Update.last * 1000)})` : ""
+            value: menu.status.last ? Fmt.ago(menu.status.last * 1000) : "never"
+            extra: menu.status.last ? `(${Fmt.time(menu.status.last * 1000)})` : ""
         }
         Field {
             label: "next"
-            value: Update.next ? Fmt.day(Update.next * 1000) : "—"
+            value: menu.status.next ? Fmt.day(menu.status.next * 1000) : "—"
         }
         Field {
-            visible: Update.note !== ""
+            visible: menu.status.note !== "" && !menu.failed
             label: "note"
-            value: Update.note
+            value: menu.status.note
         }
     }
 
@@ -71,7 +78,7 @@ Dropdown {
             width: parent.width - 20
             wrapMode: Text.Wrap
             color: menu.c.rust_text
-            text: Update.error
+            text: menu.status.error
         }
     }
 
@@ -81,7 +88,7 @@ Dropdown {
         enabled: !menu.running
         kind: menu.running ? "plain" : "accent"
         icon: "\u{F0167}"
-        text: menu.running ? "updating…" : "update now"
-        onClicked: Update.start()
+        text: menu.running ? menu.busyText : menu.actionText
+        onClicked: menu.status.start()
     }
 }

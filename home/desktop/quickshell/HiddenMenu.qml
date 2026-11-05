@@ -20,35 +20,19 @@ Dropdown {
         Repeater {
             model: Pads.hidden
 
-            MouseArea {
-                id: row
-
+            ListRow {
                 required property var modelData
 
-                width: parent.width
-                height: 42
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
+                selected: containsMouse
+                textFormat: Text.StyledText
+                // App in green, then the window title. Escaped: titles are
+                // plain text going into markup.
+                text: `<font color="${menu.c.forest_text}">${(modelData.wayland?.appId ?? modelData.lastIpcObject?.class ?? "").toLowerCase()}</font> `
+                    + modelData.title.replace(/&/g, "&amp;").replace(/</g, "&lt;")
                 onClicked: {
                     Pads.unhide(modelData);
                     if (Pads.hidden.length <= 1)
                         menu.dismissed();
-                }
-
-                Rectangle {
-                    anchors.fill: parent
-                    color: row.containsMouse ? menu.c.surf : "transparent"
-                }
-                BarText {
-                    x: 10
-                    width: parent.width - 20
-                    anchors.verticalCenter: parent.verticalCenter
-                    elide: Text.ElideRight
-                    textFormat: Text.StyledText
-                    // App in green, then the window title. Escaped: titles
-                    // are plain text going into markup.
-                    text: `<font color="${menu.c.forest_text}">${(row.modelData.wayland?.appId ?? row.modelData.lastIpcObject?.class ?? "").toLowerCase()}</font> `
-                        + row.modelData.title.replace(/&/g, "&amp;").replace(/</g, "&lt;")
                 }
             }
         }

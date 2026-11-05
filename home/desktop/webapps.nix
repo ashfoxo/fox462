@@ -22,7 +22,7 @@ let
 
   apps = [
     { id = "ente";   name = "Ente";   url = "https://web.ente.io";      host = "web.ente.io";      workspace = 6; }
-    { id = "tuta";   name = "Tuta";   url = "https://app.tuta.com";     host = "app.tuta.com";     workspace = 5; }
+    { id = "tuta";   name = "Tuta";   url = "https://app.tuta.com";     host = "app.tuta.com"; }
     { id = "claude"; name = "Claude"; url = "https://claude.ai";        host = "claude.ai";        workspace = 3; }
     { id = "elk";    name = "Elk";    url = "https://elk.zone";         host = "elk.zone";         workspace = 5; }
     { id = "gmail";  name = "Gmail";  url = "https://mail.google.com";  host = "mail.google.com";  workspace = 5; }

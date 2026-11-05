@@ -117,9 +117,9 @@ lib.mkIf cfg.enable {
       Restart = "on-failure";
       RestartSec = "10min";
 
-      # Stamp the time of each successful run, for the lock screen's backup
-      # chip (lockscreen.nix). ExecStartPost only runs if backup and prune
-      # both succeeded. /var/lib/restic-status is persisted in
+      # Stamp the time of each successful run, for the bar's backup item
+      # (home/desktop/quickshell/StatusItems.qml). ExecStartPost only runs
+      # if backup and prune both succeeded. /var/lib/restic-status is persisted in
       # modules/impermanence.nix, so the stamp survives the root wipe at boot.
       StateDirectory = "restic-status";
       StateDirectoryMode = "0755";

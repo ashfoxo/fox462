@@ -101,26 +101,37 @@ Row {
         open: root.bar.open === "netbird"
         onClicked: root.bar.toggle("netbird")
     }
+    UnitStatus {
+        id: backupStatus
+        unit: "restic-backups-s3"
+        args: ["/var/lib/restic-status/last-success"]   // stamped by modules/services/restic.nix
+    }
+    UnitStatus {
+        id: updateStatus
+        unit: "nixos-update"
+        args: ["/var/lib/nixos-update/last-success", "/var/lib/nixos-update/result"]
+    }
+
     BarButton {
         id: backupItem
         icon: "\u{F006F}"
-        text: ({ failed: "failed", overdue: "overdue", none: "none yet" })[Backup.state] ?? ""
-        color: Backup.state === "failed" ? root.c.rust_text
-            : (Backup.state === "overdue" || Backup.state === "none") ? root.c.amber
-            : Backup.state === "running" ? root.c.teal_text
+        text: ({ failed: "failed", overdue: "overdue", none: "none yet" })[backupStatus.state] ?? ""
+        color: backupStatus.state === "failed" ? root.c.rust_text
+            : (backupStatus.state === "overdue" || backupStatus.state === "none") ? root.c.amber
+            : backupStatus.state === "running" ? root.c.teal_text
             : root.c.dim
         open: root.bar.open === "backup"
         onClicked: root.bar.toggle("backup")
     }
     BarButton {
         id: updateItem
-        visible: Update.state !== "absent"
+        visible: updateStatus.state !== "absent"
         icon: "\u{F06B0}"
-        text: ({ failed: "update failed", overdue: "update overdue", skipped: "update skipped", ok: "update ready" })[Update.state] ?? ""
-        color: Update.state === "failed" ? root.c.rust_text
-            : (Update.state === "overdue" || Update.state === "skipped" || Update.state === "none") ? root.c.amber
-            : Update.state === "running" ? root.c.teal_text
-            : Update.state === "ok" ? root.c.forest_text
+        text: ({ failed: "update failed", overdue: "update overdue", skipped: "update skipped", ok: "update ready" })[updateStatus.state] ?? ""
+        color: updateStatus.state === "failed" ? root.c.rust_text
+            : (updateStatus.state === "overdue" || updateStatus.state === "skipped" || updateStatus.state === "none") ? root.c.amber
+            : updateStatus.state === "running" ? root.c.teal_text
+            : updateStatus.state === "ok" ? root.c.forest_text
             : root.c.dim
         open: root.bar.open === "update"
         onClicked: root.bar.toggle("update")
@@ -233,46 +244,31 @@ Row {
     }
 
     // ---- dropdowns ------------------------------------------------------------
-    MullvadMenu {
-        bar: root.bar
-        anchorItem: vpnItem
-        visible: root.bar.open === "vpn"
-        onDismissed: root.bar.open = ""
-    }
-    NetBirdMenu {
-        bar: root.bar
-        anchorItem: netbirdItem
-        visible: root.bar.open === "netbird"
-        onDismissed: root.bar.open = ""
-    }
-    BackupMenu {
+    // Each opens while the bar's `open` is its name (Dropdown.qml).
+    MullvadMenu { bar: root.bar; anchorItem: vpnItem; name: "vpn" }
+    NetBirdMenu { bar: root.bar; anchorItem: netbirdItem; name: "netbird" }
+    UnitMenu {
         bar: root.bar
         anchorItem: backupItem
-        visible: root.bar.open === "backup"
-        onDismissed: root.bar.open = ""
+        name: "backup"
+        status: backupStatus
+        menuIcon: "\u{F006F}"
+        menuTitle: "backup"
+        actionText: "back up now"
+        busyText: "backing up…"
     }
-    UpdateMenu {
+    UnitMenu {
         bar: root.bar
         anchorItem: updateItem
-        visible: root.bar.open === "update"
-        onDismissed: root.bar.open = ""
+        name: "update"
+        status: updateStatus
+        menuIcon: "\u{F06B0}"
+        menuTitle: "update"
+        okText: "built, applies at next boot"
+        actionText: "update now"
+        busyText: "updating…"
     }
-    WifiMenu {
-        bar: root.bar
-        anchorItem: wifiItem
-        visible: root.bar.open === "wifi"
-        onDismissed: root.bar.open = ""
-    }
-    BluetoothMenu {
-        bar: root.bar
-        anchorItem: btItem
-        visible: root.bar.open === "bt"
-        onDismissed: root.bar.open = ""
-    }
-    VolumeMenu {
-        bar: root.bar
-        anchorItem: volItem
-        visible: root.bar.open === "vol"
-        onDismissed: root.bar.open = ""
-    }
+    WifiMenu { bar: root.bar; anchorItem: wifiItem; name: "wifi" }
+    BluetoothMenu { bar: root.bar; anchorItem: btItem; name: "bt" }
+    VolumeMenu { bar: root.bar; anchorItem: volItem; name: "vol" }
 }

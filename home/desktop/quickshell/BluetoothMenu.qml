@@ -67,51 +67,26 @@ Dropdown {
             Repeater {
                 model: menu.devices
 
-                MouseArea {
-                    id: row
-
+                ListRow {
                     required property var modelData
                     readonly property bool busy: modelData.state === BluetoothDeviceState.Connecting
                         || modelData.state === BluetoothDeviceState.Disconnecting
 
-                    width: parent.width
-                    height: 42
-                    cursorShape: Qt.PointingHandCursor
+                    selected: modelData.connected
+                    icon: menu.iconFor(modelData)
+                    iconColor: modelData.connected ? menu.c.forest_text : menu.c.dim
+                    text: modelData.name.toLowerCase()
+                    note: busy ? (modelData.connected ? "disconnecting…" : "connecting…")
+                        : modelData.connected ? "connected"
+                        : "connect"
+                    noteColor: busy ? menu.c.teal_text
+                        : modelData.connected ? menu.c.forest_text
+                        : menu.c.faint
                     onClicked: {
                         if (modelData.connected)
                             modelData.disconnect();
                         else
                             modelData.connect();
-                    }
-
-                    Rectangle {
-                        anchors.fill: parent
-                        color: row.modelData.connected ? menu.c.surf : "transparent"
-                    }
-                    Row {
-                        x: 10
-                        anchors.verticalCenter: parent.verticalCenter
-
-                        BarText {
-                            text: menu.iconFor(row.modelData) + " "
-                            color: row.modelData.connected ? menu.c.forest_text : menu.c.dim
-                        }
-                        BarText {
-                            text: row.modelData.name.toLowerCase()
-                        }
-                    }
-                    BarText {
-                        anchors {
-                            right: parent.right
-                            rightMargin: 10
-                            verticalCenter: parent.verticalCenter
-                        }
-                        text: row.busy ? (row.modelData.connected ? "disconnecting…" : "connecting…")
-                            : row.modelData.connected ? "connected"
-                            : "connect"
-                        color: row.busy ? menu.c.teal_text
-                            : row.modelData.connected ? menu.c.forest_text
-                            : menu.c.faint
                     }
                 }
             }

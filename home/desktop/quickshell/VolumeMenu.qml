@@ -106,36 +106,16 @@ Dropdown {
         Repeater {
             model: menu.outputs
 
-            MouseArea {
-                id: row
-
+            ListRow {
                 required property var modelData
                 readonly property bool current: modelData === menu.sink
 
-                width: parent.width
-                height: 38
-                cursorShape: Qt.PointingHandCursor
+                selected: current
+                icon: current ? "●" : "○"
+                iconColor: current ? menu.c.forest_text : menu.c.faint
+                text: menu.label(modelData)
+                textColor: current ? menu.c.fg : menu.c.dim
                 onClicked: Pipewire.preferredDefaultAudioSink = modelData
-
-                Rectangle {
-                    anchors.fill: parent
-                    color: row.current ? menu.c.surf : "transparent"
-                }
-                Row {
-                    x: 10
-                    anchors.verticalCenter: parent.verticalCenter
-
-                    BarText {
-                        text: row.current ? "● " : "○ "
-                        color: row.current ? menu.c.forest_text : menu.c.faint
-                    }
-                    BarText {
-                        width: menu.panelWidth - 100
-                        elide: Text.ElideRight
-                        text: menu.label(row.modelData)
-                        color: row.current ? menu.c.fg : menu.c.dim
-                    }
-                }
             }
         }
     }

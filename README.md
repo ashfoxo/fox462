@@ -71,7 +71,7 @@ hashes come from encrypted secrets.
 
 **Backups.** Nightly [restic](https://restic.net) to an S3-compatible bucket
 (Scaleway), encrypted client-side, with 7 daily, 4 weekly, 6 monthly and 1
-yearly snapshots kept. The lock screen shows when the last one succeeded.
+yearly snapshots kept. The bar shows when the last one succeeded.
 
 **Unattended updates (laptop).** Once a day `nix flake update` runs and the
 result is built for the next boot, never switched to while you work, then

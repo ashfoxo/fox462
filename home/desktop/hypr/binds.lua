@@ -28,23 +28,6 @@ bind(mod .. " + R",      exec("fuzzel"),                    "Apps: Launcher")
 bind(mod .. " + slash",  exec("hypr-cheatsheet"),           "Help: This cheat sheet")
 bind(mod .. " + SHIFT + P", exec("display-main"),           "Displays: Pick the main display (bar and lock screen)")
 
--- Focus the app if it's already open, otherwise launch it. `needle` is any
--- piece of the window class (see hyprctl clients), matched as plain text.
-local function focus_or_launch(needle, cmd)
-    return function()
-        for _, w in ipairs(hl.get_windows()) do
-            if w.class and string.find(w.class, needle, 1, true) then
-                hl.dispatch(hl.dsp.focus({ window = w }))
-                return
-            end
-        end
-        hl.exec_cmd(cmd)
-    end
-end
-
--- Web apps (webapps.nix) match on their site's host name.
-bind(mod .. " + T", focus_or_launch("app.tuta.com", "webapp-tuta"),   "Apps: Tuta mail")
-
 -----------------
 ---- WINDOWS ----
 -----------------

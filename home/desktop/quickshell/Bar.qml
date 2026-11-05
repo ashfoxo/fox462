@@ -8,7 +8,7 @@ PanelWindow {
     id: bar
 
     // Which dropdown is open ("" for none). Its bar button gets the green
-    // fill: chat, hidden, power, vpn, netbird, backup, update, wifi, bt, vol, clock.
+    // fill: chat, hidden, power, vpn, netbird, backup, update, wifi, bt, vol.
     property string open: ""
     readonly property var monitor: Hyprland.monitorFor(screen)
 
@@ -66,11 +66,9 @@ PanelWindow {
         }
 
         BarButton {
-            id: clock
             text: Qt.formatTime(clockSource.date, "HH:mm")
             bold: true
-            open: bar.open === "clock"
-            onClicked: bar.toggle("clock")
+            interactive: false
         }
 
         BarButton {
@@ -91,17 +89,5 @@ PanelWindow {
         bar: bar
     }
 
-    PowerMenu {
-        bar: bar
-        anchorItem: power
-        visible: bar.open === "power"
-        onDismissed: bar.open = ""
-    }
-
-    CalendarPopup {
-        bar: bar
-        anchorItem: clock
-        visible: bar.open === "clock"
-        onDismissed: bar.open = ""
-    }
+    PowerMenu { bar: bar; anchorItem: power; name: "power" }
 }

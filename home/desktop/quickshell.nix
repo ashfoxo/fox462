@@ -1,8 +1,8 @@
 { pkgs, lib, config, osConfig, ... }:
 
 # Desktop shell (Quickshell): the bar along the top of the screen and its
-# dropdowns (chat, Mullvad, NetBird, backup, Wi-Fi, Bluetooth, volume,
-# calendar), and the notification popups. Replaces Waybar and mako.
+# dropdowns (chat, Mullvad, NetBird, backup, update, Wi-Fi, Bluetooth,
+# volume, power), and the notification popups. Replaces Waybar and mako.
 #
 # The QML is in ./quickshell/ and gets copied into the Nix store together
 # with Config.qml, which is GENERATED below from the settings in this file
@@ -86,8 +86,7 @@ let
 
     scripts = {
       load = loadScript;
-      backup = backupScript;
-      update = updateScript;
+      unit = unitScript;
       brightnessctl = lib.getExe pkgs.brightnessctl;
     };
   };
@@ -129,121 +128,65 @@ let
     '';
   });
 
-  # Backup state for the bar and its dropdown, one per line:
-  #   state ok|running|overdue|failed|none|unknown
-  #   last  <unix time of the last good backup, 0 if never>
-  #   next  <unix time of the next scheduled run, 0 if unknown>
-  #   error <the last error line from the service log>   (only when failed)
-  # (VPN and NetBird don't need a script: the bar asks mullvad and
-  # netbird-wt0 directly.)
-  backupScript = lib.getExe (pkgs.writeShellApplication {
-    name = "qs-backup";
-    runtimeInputs = with pkgs; [ coreutils gnugrep systemd ];
-    text = ''
-      # restic.nix stamps /var/lib/restic-status/last-success after every
-      # successful run.
-      unit=restic-backups-s3
-      stamp=/var/lib/restic-status/last-success
-      last=0
-      [ -e "$stamp" ] && last=$(stat -c %Y "$stamp")
-      age=$(( $(date +%s) - last ))
-
-      state=$(systemctl show -p ActiveState --value "$unit" 2>/dev/null || true)
-      sub=$(systemctl show -p SubState --value "$unit" 2>/dev/null || true)
-      result=$(systemctl show -p Result --value "$unit" 2>/dev/null || true)
-      if [ -z "$state" ] || [ -z "$result" ]; then
-        echo "state unknown"
-      elif [ "$state" = "activating" ] && [ "$sub" != "auto-restart" ]; then
-        echo "state running"
-      elif [ "$sub" = "auto-restart" ] || [ "$result" != "success" ]; then
-        echo "state failed"
-      elif [ "$last" = 0 ]; then
-        echo "state none"
-      elif [ "$age" -gt 93600 ]; then
-        # The timer is daily with up to 1h random delay, so allow 26h.
-        echo "state overdue"
-      else
-        echo "state ok"
-      fi
-      echo "last $last"
-
-      # Empty or "n/a" when nothing is scheduled. (date -d "" would read an
-      # empty string as today 00:00, so check first.)
-      next=$(systemctl show -p NextElapseUSecRealtime --value "$unit.timer" 2>/dev/null || true)
-      if [ -n "$next" ] && [ "$next" != "n/a" ]; then
-        echo "next $(date -d "$next" +%s 2>/dev/null || echo 0)"
-      else
-        echo "next 0"
-      fi
-
-      if [ "$sub" = "auto-restart" ] || { [ -n "$result" ] && [ "$result" != "success" ]; }; then
-        err=$(journalctl -u "$unit" -n 200 -o cat --no-pager 2>/dev/null | grep -iE 'fatal|error' | tail -n1 || true)
-        echo "error ''${err:-see journalctl -u $unit}"
-      fi
-    '';
-  });
-
-  # Update state for the bar and its dropdown (modules/services/auto-update.nix),
-  # one per line:
-  #   state ok|uptodate|running|skipped|failed|overdue|none|absent|unknown
+  # State of a timer-driven root job (the backup, the update) for the bar and
+  # its dropdown: qs-unit <unit> <stamp file> [<result file>]. The stamp is
+  # touched after each good run; the result file, if the job writes one, is
+  # "<state> <note>" (modules/services/auto-update.nix). One per line:
+  #   state ok|uptodate|running|skipped|failed|overdue|none|absent
   #   last  <unix time of the last good run, 0 if never>
   #   next  <unix time of the next scheduled run, 0 if unknown>
-  #   note  <why a run was skipped, or what it did>
+  #   note  <what the last run did or why it skipped>   (only with a result)
   #   error <the last error line>   (only when failed)
-  # "absent" means this machine has no update service (only fox-amber does).
-  updateScript = lib.getExe (pkgs.writeShellApplication {
-    name = "qs-update";
+  # "absent": this machine doesn't have the unit.
+  unitScript = lib.getExe (pkgs.writeShellApplication {
+    name = "qs-unit";
     runtimeInputs = with pkgs; [ coreutils gnugrep systemd ];
     text = ''
-      unit=nixos-update
-      dir=/var/lib/nixos-update
-      load=$(systemctl show -p LoadState --value "$unit" 2>/dev/null || true)
-      if [ "$load" != "loaded" ]; then
-        echo "state absent"
-        echo "last 0"
-        echo "next 0"
+      unit=$1 stamp=$2 resfile=''${3:-}
+      if [ "$(systemctl show -p LoadState --value "$unit" 2>/dev/null)" != loaded ]; then
+        printf 'state absent\nlast 0\nnext 0\n'
         exit 0
       fi
 
       last=0
-      [ -e "$dir/last-success" ] && last=$(stat -c %Y "$dir/last-success")
-      age=$(( $(date +%s) - last ))
+      [ -e "$stamp" ] && last=$(stat -c %Y "$stamp")
       res=""
-      [ -e "$dir/result" ] && res=$(cat "$dir/result")
-      res_state=''${res%% *}
-      res_note=''${res#* }
+      [ -n "$resfile" ] && [ -e "$resfile" ] && res=$(cat "$resfile")
+      rstate=''${res%% *}
+      rnote=''${res#* }
 
-      state=$(systemctl show -p ActiveState --value "$unit" 2>/dev/null || true)
-      sub=$(systemctl show -p SubState --value "$unit" 2>/dev/null || true)
-      result=$(systemctl show -p Result --value "$unit" 2>/dev/null || true)
-      if [ "$state" = "activating" ] && [ "$sub" != "auto-restart" ]; then
-        echo "state running"
-      elif [ "$sub" = "auto-restart" ] || [ "$result" != "success" ] || [ "$res_state" = "failed" ]; then
-        echo "state failed"
-      elif [ "$res_state" = "skipped" ]; then
-        echo "state skipped"
-      elif [ "$last" = 0 ]; then
-        echo "state none"
-      elif [ "$age" -gt 93600 ]; then
-        # The timer is daily with up to 1h random delay, so allow 26h.
-        echo "state overdue"
-      elif [ "$res_state" = "uptodate" ]; then
-        echo "state uptodate"
-      else
-        echo "state ok"
+      active=$(systemctl show -p ActiveState --value "$unit")
+      sub=$(systemctl show -p SubState --value "$unit")
+      result=$(systemctl show -p Result --value "$unit")
+      if [ "$active" = activating ] && [ "$sub" != auto-restart ]; then state=running
+      elif [ "$sub" = auto-restart ] || [ "$result" != success ] || [ "$rstate" = failed ]; then state=failed
+      elif [ "$rstate" = skipped ]; then state=skipped
+      elif [ "$last" = 0 ]; then state=none
+      # Both are daily with up to 1h random delay, so allow 26h.
+      elif [ $(( $(date +%s) - last )) -gt 93600 ]; then state=overdue
+      elif [ "$rstate" = uptodate ]; then state=uptodate
+      else state=ok
       fi
+      echo "state $state"
       echo "last $last"
 
+      # Empty or "n/a" when nothing is scheduled (and date -d "" would read
+      # an empty string as today 00:00).
       next=$(systemctl show -p NextElapseUSecRealtime --value "$unit.timer" 2>/dev/null || true)
-      if [ -n "$next" ] && [ "$next" != "n/a" ]; then
+      if [ -n "$next" ] && [ "$next" != n/a ]; then
         echo "next $(date -d "$next" +%s 2>/dev/null || echo 0)"
       else
         echo "next 0"
       fi
 
-      [ -n "$res" ] && echo "note $res_note"
-      if [ "$res_state" = "failed" ]; then
-        echo "error $res_note"
+      [ -n "$res" ] && echo "note $rnote"
+      if [ "$state" = failed ]; then
+        if [ "$rstate" = failed ]; then
+          err=$rnote
+        else
+          err=$(journalctl -u "$unit" -n 200 -o cat --no-pager 2>/dev/null | grep -iE 'fatal|error' | tail -n1 || true)
+        fi
+        echo "error ''${err:-see journalctl -u $unit}"
       fi
     '';
   });

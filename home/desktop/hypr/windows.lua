@@ -95,7 +95,7 @@ function M.pop()
     end
 end
 
--- Super + H. Tuck the focused window away; the bar's "hidden" item lists
+-- Super + X. Tuck the focused window away; the bar's "hidden" item lists
 -- them and brings them back. On a scratchpad it just hides the scratchpad.
 function M.hide()
     return function()

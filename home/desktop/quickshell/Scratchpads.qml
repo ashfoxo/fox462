@@ -54,16 +54,6 @@ Row {
         onClicked: root.bar.toggle("hidden")
     }
 
-    ChatMenu {
-        bar: root.bar
-        anchorItem: chat
-        visible: root.bar.open === "chat"
-        onDismissed: root.bar.open = ""
-    }
-    HiddenMenu {
-        bar: root.bar
-        anchorItem: hidden
-        visible: root.bar.open === "hidden"
-        onDismissed: root.bar.open = ""
-    }
+    ChatMenu { bar: root.bar; anchorItem: chat; name: "chat" }
+    HiddenMenu { bar: root.bar; anchorItem: hidden; name: "hidden" }
 }

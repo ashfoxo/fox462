@@ -15,7 +15,8 @@
 # A failed build puts flake.lock back. The previous boot entries stay.
 #
 # Try it now: sudo systemctl start nixos-update, then journalctl -u nixos-update
-# The bar's update item (home/desktop/quickshell/Update.qml) reads /var/lib/nixos-update.
+# The bar's update item reads /var/lib/nixos-update (UnitStatus in
+# home/desktop/quickshell/StatusItems.qml).
 { config, pkgs, lib, ... }:
 
 let

@@ -3,12 +3,13 @@
 // the bar) or pressing Escape closes it.
 //
 // It's a layer-shell window like the bar (not a popup), placed just under
-// the bar at the item's left edge and kept on screen. That way it can take
-// the keyboard (the Wi-Fi password box) without the compositor's popup
-// rules getting in the way. The window is a fixed `maxHeight` tall and
-// see-through so it never resizes while open; the panel inside grows and
-// shrinks with its contents, and clicks below the panel pass through (the
-// mask) and close it.
+// the bar at the item's left edge and kept on screen. The window is a fixed
+// `maxHeight` tall and see-through so it never resizes while open; the
+// panel inside grows and shrinks with its contents, and clicks below the
+// panel pass through (the mask) and close it.
+//
+// `name` ties it to its bar item: it shows while the bar's `open` is that
+// name, and closing it clears `open`.
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
@@ -19,12 +20,14 @@ PanelWindow {
 
     required property var bar
     required property Item anchorItem
+    required property string name
     property int panelWidth: Config.dropdown.width
     property int maxHeight: 640
-    // Take keyboard focus when clicked (for the Wi-Fi password box).
-    property bool keyboard: false
     default property alias content: body.data
     signal dismissed
+
+    visible: bar.open === name
+    onDismissed: bar.open = ""
 
     // Line up with the item's left edge (skipping its group gap), but
     // never past the right edge of the screen.
@@ -42,7 +45,6 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.namespace: "quickshell-dropdown"
-    focusable: keyboard
     implicitWidth: panelWidth
     implicitHeight: maxHeight
     color: "transparent"
