@@ -1,6 +1,6 @@
 # fox-red: the Hetzner VPS. It uses the shared server modules, has its own
 # sops keys (.sops.yaml here), and is deployed from the laptop with
-# ./hosts/fox-red/deploy.sh. What it runs is the list of services below.
+# ./deploy.sh fox-red. What it runs is the list of services below.
 #
 # All timers are UTC. Local is EST/EDT, so subtract 5 or 4.
 #

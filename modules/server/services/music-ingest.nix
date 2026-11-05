@@ -465,23 +465,25 @@ in
       # successful import litters the inbox, which would trip the leftover
       # alert below on every run.
       #
-      # Only sweep directories with no audio left anywhere beneath them. If
-      # audio is still there the album was skipped, and everything in it has to
-      # stay put for you to review. -depth processes children first so a
+      # Only sweep directories holding nothing but known leftovers. Anything
+      # else (audio in any format, or something unknown) means the album was
+      # skipped, and everything in it has to stay put for you to review, and
+      # trips the alert below. -depth processes children first so a
       # multi-disc album whose CD1 was skipped keeps its album-level artwork.
       #
       # Deleting is safe here in a way it would not be elsewhere: Filen still
       # holds the original, and fetchart has already placed the art in the
       # library alongside the tracks.
-      has_audio() {
-        find "$1" -type f \( -iname '*.flac' -o -iname '*.mp3' -o -iname '*.m4a' \
-          -o -iname '*.ogg' -o -iname '*.opus' -o -iname '*.wav' -o -iname '*.wma' \
-          -o -iname '*.aiff' -o -iname '*.ape' -o -iname '*.alac' \) -print -quit \
-          | grep -q .
+      has_keepers() {
+        find "$1" -type f ! \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \
+          -o -iname '*.gif' -o -iname '*.webp' -o -iname '*.log' -o -iname '*.cue' \
+          -o -iname '*.m3u' -o -iname '*.m3u8' -o -iname '*.txt' -o -iname '*.nfo' \
+          -o -iname '*.pdf' -o -iname '*.sfv' -o -iname '*.md5' -o -iname '*.accurip' \) \
+          -print -quit | grep -q .
       }
 
-      find ${inboxDir} -mindepth 1 -depth -type d | while read -r d; do
-        if ! has_audio "$d"; then
+      find ${inboxDir} -mindepth 1 -depth -type d | while IFS= read -r d; do
+        if ! has_keepers "$d"; then
           find "$d" -type f -delete
           rmdir "$d" 2>/dev/null || true
         fi

@@ -44,8 +44,9 @@ in
   environment.systemPackages = [ config.services.forgejo.package ];
 
   # Native module, not a container. Two consequences:
-  #   - It upgrades with the channel via system.autoUpgrade, so it is NOT in
-  #     the container-updates loop and must not be added to it.
+  #   - It upgrades with nixpkgs, only when ./deploy.sh runs (no autoUpgrade;
+  #     the health check nags when that's overdue), so it is NOT in the
+  #     container-updates loop and must not be added to it.
   #   - services.forgejo.package defaults to forgejo-lts, so this holds an LTS
   #     line rather than chasing every feature release.
   #
@@ -58,7 +59,7 @@ in
   # authorized_keys entries embed the absolute store path of the running
   # binary, so an upgrade followed by a gc historically broke both. The
   # module's preStart rewrites those paths on every start, which covers both
-  # nix.gc above and autoUpgrade below. If it ever drifts anyway:
+  # nix.gc and upgrades. If it ever drifts anyway:
   #   forgejo doctor check --run authorized-keys --fix
   services.forgejo = {
     enable = true;

@@ -64,6 +64,12 @@ in
         fi
       done
 
+      # No autoUpgrade: security fixes only land with ./deploy.sh, so nag when it's overdue.
+      NIXPKGS_AGE=$(( ($(date +%s) - ${toString inputs.nixpkgs.lastModified}) / 86400 ))
+      if [ "$NIXPKGS_AGE" -gt 21 ]; then
+        problems+=("nixpkgs is ''${NIXPKGS_AGE} days old: run ./deploy.sh")
+      fi
+
       # Host-specific checks (fox.server.monitoring.extraChecks).
       ${config.fox.server.monitoring.extraChecks}
 

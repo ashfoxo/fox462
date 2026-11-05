@@ -24,7 +24,7 @@
 # *tls.clientHelloMsg". fox-blue stays home and is always reachable, so
 # fox-amber dials it and fox-blue only accepts. fox-red is always on, so both
 # dial it and it dials nobody (its config ignores the addresses below,
-# see hosts/fox-red/configuration.nix). That way the laptop amd the desktop
+# see modules/server/services/syncthing.nix). That way the laptop and the desktop
 # sync through fox-red even when they're never on together.
 #
 # The phone has no address: it dials all three (set up by hand in
