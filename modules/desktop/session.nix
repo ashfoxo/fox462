@@ -49,13 +49,11 @@ in
 
   # PAM services
   # hyprlock: touch yak-olive to unlock (u2f is "sufficient", same as sudo).
-  # Typing your password still works as a fallback, and a typed password
-  # also unlocks GPG via pam_gnupg. A touch can't unlock GPG, so after a
-  # touch unlock, pass / Bitwarden ask for the GPG passphrase themselves.
+  # Typing your password still works as a fallback. GPG is unlocked by the
+  # YubiKey's card PIN, not the login password (desktop/programs.nix).
   # (The u2f and sudo settings themselves are in core/hardening.nix.)
   security.pam.services.hyprlock = {
     u2fAuth = true;
-    gnupg.enable = true;
     # A touch only works in the first 10 minutes of a lock, and never after a
     # resume from suspend; otherwise only the password. The lock start time
     # and the flag are written by home/desktop/lock-screen.nix and
@@ -73,9 +71,5 @@ in
       ''}" ];
     };
   };
-  # A password typed at tuigreet unlocks GPG too. (The boot-time automatic
-  # login types none, so there the hyprlock unlock does it.)
-  security.pam.services.greetd.gnupg.enable = true;
-
   environment.sessionVariables = sessionVars;
 }

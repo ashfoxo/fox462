@@ -1,6 +1,6 @@
 { pkgs, ... }:
 
-# Pull the YubiKey out and the screen locks at once; if it isn't back within
+# Pull the YubiKey out and the screen locks after 1 s; if it isn't back within
 # 10 seconds the machine powers off. Only counts if a YubiKey has been plugged
 # in since boot, so using the machine without your key never triggers it.
 # (Panic power-off without a key: Super + Ctrl + Shift + Esc, hypr/binds.lua.)
@@ -14,14 +14,21 @@ let
 
   onRemove = pkgs.writeShellScript "yubikey-removed" ''
     [ -e /run/yubikey-armed ] || exit 0
+    present() {
+      for v in /sys/bus/usb/devices/*/idVendor; do
+        [ "$(cat "$v" 2>/dev/null)" = "${vendor}" ] && return 0
+      done
+      return 1
+    }
+    # A loose plug drops out for a split second; don't lock for that.
+    sleep 1
+    present && exit 0
     ${pkgs.systemd}/bin/loginctl lock-sessions
     [ -e /run/yubikey-away ] && exit 0
-    sleep 10
+    sleep 9
     [ -e /run/yubikey-away ] && exit 0
     # Still gone? (Reinserting stops this unit through the udev rule below.)
-    for v in /sys/bus/usb/devices/*/idVendor; do
-      [ "$(cat "$v" 2>/dev/null)" = "${vendor}" ] && exit 0
-    done
+    present && exit 0
     exec ${systemctl} poweroff --force
   '';
 

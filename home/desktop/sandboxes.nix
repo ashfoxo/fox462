@@ -126,7 +126,8 @@ let
   #
   # drm = true adds Google's Widevine module (unfree), which streaming sites
   # need to play video. It's added by the wrapper, so Chromium isn't rebuilt.
-  makeWebApp = name: { drm ? false }: makeGuiSandbox {
+  # keepLogin = false: nothing on disk, so you log in again after every boot.
+  makeWebApp = name: { drm ? false, keepLogin ? true }: makeGuiSandbox {
     package =
       if drm
       then pkgs.ungoogled-chromium.override { enableWideVine = true; }
@@ -134,8 +135,8 @@ let
     inherit name;
     extraEnv = { NIXOS_OZONE_WL = "1"; };
     # The login: cookies, site storage. History and caches stay in RAM.
-    persist = map (d: ".config/chromium/Default/" + d)
-      [ "Network" "Local Storage" "IndexedDB" "Session Storage" ];
+    persist = lib.optionals keepLogin (map (d: ".config/chromium/Default/" + d)
+      [ "Network" "Local Storage" "IndexedDB" "Session Storage" ]);
   };
 in
 {
@@ -230,11 +231,13 @@ in
   # (~/.local/share/sandboxes/webapp-<id>), so each app is a fully separate
   # browser profile: separate cookies, logins and storage. No --user-data-dir
   # needed. Not installed directly; webapps.nix wraps each in a launcher.
-  webapp-ente    = makeWebApp "webapp-ente" { };
-  webapp-tuta    = makeWebApp "webapp-tuta" { };
+  # Photos and email: logins kept in RAM only (AUDIT.md C6).
+  # Claude joins them as the last step of the audit work.
+  webapp-ente    = makeWebApp "webapp-ente" { keepLogin = false; };
+  webapp-tuta    = makeWebApp "webapp-tuta" { keepLogin = false; };
   webapp-claude  = makeWebApp "webapp-claude" { };
   webapp-elk     = makeWebApp "webapp-elk" { };
-  webapp-gmail   = makeWebApp "webapp-gmail" { };
+  webapp-gmail   = makeWebApp "webapp-gmail" { keepLogin = false; };
   webapp-messages = makeWebApp "webapp-messages" { };
   webapp-appletv = makeWebApp "webapp-appletv" { drm = true; };
   webapp-spotify = makeWebApp "webapp-spotify" { drm = true; };

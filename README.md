@@ -44,7 +44,7 @@ go out of date.
 
 **A home that forgets.** `/home/arlo` is a tmpfs and is empty at every boot.
 Only the folders listed in `modules/ephemeral-home.nix` survive (they live in
-`/persist/home/arlo`). Pull the YubiKey and the screen locks; if it isn't
+`/persist/home/arlo`). Pull the YubiKey and the screen locks after a second; if it isn't
 back in 10 seconds the machine powers off. `Super + Ctrl + Shift + Esc`
 powers off at once, key or no key.
 
@@ -64,8 +64,9 @@ deliberate exceptions (Zoom and a plain Firefox use `mullvad-exclude`).
 servers, with inbound connections blocked (except Syncthing's port). Wi-Fi MAC addresses are randomised
 per network.
 
-**Hardening.** `sudo` wants a YubiKey touch or password every time, with no
-cached session. SSH is key-only. Kernel pointer and `dmesg` leaks are closed
+**Hardening.** `sudo` wants the YubiKey PIN and a touch, or the password, every
+time, with no cached session. No SSH server, and no text logins on the other
+consoles. The GPG key behind `pass` lives on the YubiKeys. Kernel pointer and `dmesg` leaks are closed
 and core dumps are off. User accounts are immutable, and their password
 hashes come from encrypted secrets.
 
@@ -110,7 +111,7 @@ hosts/<name>/          One folder per machine: hardware + what's unique to it
 modules/               System-level NixOS modules
   personal.nix           The bundle every laptop/desktop imports
   options.nix            The few knobs that differ per machine (fox.*)
-  core/                  Nix settings, users, SSH, hardening, USB allowlist, time zone
+  core/                  Nix settings, users, hardening, USB allowlist, time zone
   desktop/               Login (greetd) and Hyprland session, audio, fonts, system apps
   hardware/              laptop.nix (power, thermals), nvidia.nix
   network/               Mullvad + NetBird, SSH to the phone

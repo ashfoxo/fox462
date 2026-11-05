@@ -61,14 +61,17 @@ in
     remotePlay.openFirewall = false;
   };
 
+  # The GPG encryption key lives on the YubiKeys' OpenPGP applet: pass and the
+  # Secret Service ask for the card PIN, which stays cached while it's plugged in.
+  hardware.gpgSmartcards.enable = true;  # udev access for scdaemon
   programs.gnupg.agent = {
     enable = true;
     enableSSHSupport = false; # Bitwarden owns SSH_AUTH_SOCK
     settings = {
-      # Asked once, then remembered for 8 hours (with or without the YubiKey).
-      # The unlocked key stays in RAM that long; a power-off clears it.
-      default-cache-ttl = 28800;
-      max-cache-ttl = 28800;
+      # Remembered for at most 30 minutes, so a seized running laptop doesn't
+      # hold the unlocked `pass` key for long (AUDIT.md C14).
+      default-cache-ttl = 1800;
+      max-cache-ttl = 1800;
     };
   };
 

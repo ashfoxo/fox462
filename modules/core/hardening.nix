@@ -9,6 +9,10 @@
   security.pam.services.sudo.rules.auth.u2f.settings.pinverification = 1;
   security.sudo.extraConfig = "Defaults timestamp_timeout=0";  # no 5-min cache
 
+  # No text logins on Ctrl+Alt+F2..F6, so nobody at the locked laptop can guess
+  # passwords there (AUDIT.md C12). Root keeps its password for emergency mode.
+  services.logind.settings.Login = { NAutoVTs = 0; ReserveVT = 0; };
+
   ##### Kernel hardening #####
   boot.kernel.sysctl = {
     # Hostile-LAN routing tricks: ignore ICMP redirects and source routing.
