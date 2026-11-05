@@ -6,12 +6,9 @@ keys:
   # The shared secrets key (ssh-ed25519 ...ByqOU in Bitwarden), on every
   # personal machine at /persist/var/lib/sops-nix/secrets_ed25519.
   - &shared age1km55ryjshszh55ynhxdph50smzkm7mkhj0cekutg6lm8z67jvujqxt2clx
-  # TRANSITION: the laptop's host key. Remove after the switch (README.md, step C5).
-  - &workstation-host age1vyssyn73mtutp48msnsqjng0hsy365pzvqdxxzz3p6mmllqumq3srsnmty
 
 creation_rules:
   - path_regex: secrets/(secrets\.yaml|phone-ssh-key\.enc)$
     key_groups:
       - age:
           - *shared
-          - *workstation-host
