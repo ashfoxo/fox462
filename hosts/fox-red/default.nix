@@ -36,7 +36,6 @@
   fox.server = {
     domain = "arlofox.net";               # blog, Git
     privateDomain = "emberfox.net";       # NetBird-only sites
-    ssh.allowUsers = [ "arlo" ];          # Forgejo adds its own
     backup.repository = "s3:https://s3.fr-par.scw.cloud/bagger-red";
   };
 
@@ -49,16 +48,10 @@
 
   networking.hostName = "fox-red";
 
-  # arlo's password lives in /etc/shadow, set with passwd, and is NOT captured
-  # by the restic paths below. A bare-metal restore produces an account that
-  # cannot sudo until you reset it from a console.
-  users.users.arlo = {
-    isNormalUser = true;
-    extraGroups = [ "wheel" ];
-    openssh.authorizedKeys.keys = [
-      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB/Hsbetd/RG8hDEsngAOd5BfOn2/xLbP5Gm8P1ZViB7"
-    ];
-  };
+  # This server's own Bitwarden key, "fox-red - main" (the rest: server/base.nix).
+  users.users.arlo.openssh.authorizedKeys.keys = [
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOTGiuFvi1cEpBHjp5KXTf4r5ElMoo+YTgqbQx82r2CB"
+  ];
 
   ############################################################################
   # Upgrades

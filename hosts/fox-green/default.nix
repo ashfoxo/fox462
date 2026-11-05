@@ -26,7 +26,6 @@
   nixpkgs.hostPlatform = "x86_64-linux";
 
   fox.server = {
-    ssh.allowUsers = [ "arlo" ];
     # Caddy for the NetBird-only dashboard; nothing public, so 80 and 443
     # stay closed to the internet.
     caddy.public = false;
@@ -49,13 +48,10 @@
 
   networking.hostName = "fox-green";
 
-  users.users.arlo = {
-    isNormalUser = true;
-    extraGroups = [ "wheel" ];
-    openssh.authorizedKeys.keys = [
-      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB/Hsbetd/RG8hDEsngAOd5BfOn2/xLbP5Gm8P1ZViB7"
-    ];
-  };
+  # This server's own Bitwarden key, "fox-green - main" (the rest: server/base.nix).
+  users.users.arlo.openssh.authorizedKeys.keys = [
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILoCFM8qGVe/CMD2eMsuEQZ8Vghlne9mTGClkDWJaFRo"
+  ];
 
   # Bump flake.nix to nixos-26.11 once it ships (with fox-red, this one
   # first). This line stays: it records the release fox-green was installed

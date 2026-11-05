@@ -36,8 +36,9 @@ central list is ever edited:
 | an extra health check | `fox.server.monitoring.extraChecks` (append to `problems`) |
 
 Values that differ per host (`fox.server.domain`, `.privateDomain`,
-`.backup.repository`, `.ssh.allowUsers`) are set in the host's
-`default.nix`. A server with no sites sets `fox.server.caddy.enable = false`
+`.backup.repository`, and the host's own Bitwarden SSH key in
+`users.users.arlo.openssh.authorizedKeys.keys`) are set in the host's
+`default.nix`. The arlo account and the YubiKey SSH keys are in `base.nix`. A server with no sites sets `fox.server.caddy.enable = false`
 (which also closes 80 and 443); one whose sites are all NetBird-only sets
 `fox.server.caddy.public = false` (443 on the NetBird interface only); and
 one with nothing worth backing up sets `fox.server.backup.enable = false`.

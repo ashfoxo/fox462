@@ -59,7 +59,7 @@
       KbdInteractiveAuthentication = false;
       X11Forwarding = false;
       MaxAuthTries = 5;
-      LoginGraceTime = 30;
+      LoginGraceTime = 60;  # room for a YubiKey touch; 30 timed out (C11)
       # Who may log in is fox.server.ssh.allowUsers: the host adds its own
       # account, and services that need SSH (Forgejo) add theirs.
       AllowUsers = config.fox.server.ssh.allowUsers;
@@ -67,6 +67,22 @@
   };
 
   security.sudo.execWheelOnly = true;
+
+  # arlo on every server. Its password is in /etc/shadow, set with passwd,
+  # and NOT in any backup: a bare-metal restore can't sudo until you reset it
+  # from the provider's console. Keys: the YubiKeys below work on every
+  # server; each host adds its own Bitwarden key in hosts/<name>/default.nix.
+  fox.server.ssh.allowUsers = [ "arlo" ];
+  users.users.arlo = {
+    isNormalUser = true;
+    extraGroups = [ "wheel" ];
+    openssh.authorizedKeys.keys = [
+      # YubiKeys (touch to log in; ~/.ssh/id_ed25519_sk_*, recoverable from
+      # the key itself with `ssh-keygen -K`)
+      "sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAIAwe5WM34JF9GAxeq+4IfAN9ChEegmlgRmliDg/YRpU0AAAAC3NzaDpmb3gtZGVu yak-amber"
+      "sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29tAAAAIMGPAv8yRUjUKHQiE5HtHfbpYCsbFcGZyLmXmlVjPE6zAAAAC3NzaDpmb3gtZGVu yak-olive"
+    ];
+  };
 
   ############################################################################
   # fail2ban
