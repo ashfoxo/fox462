@@ -3,7 +3,7 @@
   # other USB attacks on a powered-on machine).
   #
   # Devices already plugged in when the daemon starts are kept, so a boot never
-  # locks out the keyboard or fox-blue's USB root disk. Allow a new one for
+  # locks out the keyboard or a USB root disk. Allow a new one for
   # this session with `sudo usbguard list-devices` then
   # `sudo usbguard allow-device <id>`. To keep it across reboots, add a rule
   # below (`sudo usbguard generate-policy` prints the current set).

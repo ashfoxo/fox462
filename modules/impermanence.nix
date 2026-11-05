@@ -41,9 +41,10 @@
   };
 
   # Root wipe (systemd stage 1): move @root into old_roots, delete snapshots
-  # older than 7 days, create a fresh empty @root. The recursive delete exists
-  # because @root has nested subvolumes (srv, tmp, var/tmp, var/lib/machines,
-  # var/lib/portables). -mindepth 1 keeps find from returning old_roots itself.
+  # older than a day (a safety net, not an archive), create a fresh empty
+  # @root. The recursive delete exists because @root has nested subvolumes
+  # (srv, tmp, var/tmp, var/lib/machines, var/lib/portables).
+  # -mindepth 1 keeps find from returning old_roots itself.
   boot.initrd.systemd.services.rollback = {
     description = "Rollback BTRFS root subvolume to a pristine state";
     wantedBy = [ "initrd.target" ];
@@ -70,7 +71,7 @@
         btrfs subvolume delete "$1"
       }
 
-      for i in $(find /mnt/old_roots/ -mindepth 1 -maxdepth 1 -mtime +7); do
+      for i in $(find /mnt/old_roots/ -mindepth 1 -maxdepth 1 -mtime +0); do
         delete_subvolume_recursively "$i"
       done
 

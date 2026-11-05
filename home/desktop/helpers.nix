@@ -63,14 +63,15 @@ in
   # The lock screen itself is in lockscreen.nix.
   # Lock and screen-off times are per host (fox.desktop.lockAfter /
   # screenOffAfter): the laptop locks at 5 min and blanks at 5.5, the
-  # desktop at 10 and 15. Separate from the laptop's 1h logind idle suspend
-  # (modules/hardware/laptop.nix). Closing the lid suspends (logind
-  # default); before_sleep_cmd locks first.
+  # desktop at 10 and 15. Separate from the laptop's 1h idle power-off
+  # (modules/hardware/laptop.nix); the lid powers off too. Suspend is by hand
+  # only, and before_sleep_cmd locks first. A good unlock clears the
+  # password-only flag a resume sets (modules/desktop/session.nix).
   services.hypridle = {
     enable = true;
     settings = {
       general = {
-        lock_cmd = "${pkgs.procps}/bin/pgrep -x hyprlock || ${pkgs.hyprlock}/bin/hyprlock";
+        lock_cmd = "${pkgs.procps}/bin/pgrep -x hyprlock || { ${pkgs.hyprlock}/bin/hyprlock && rm -f \"$XDG_RUNTIME_DIR/password-only\"; }";
         before_sleep_cmd = "${pkgs.systemd}/bin/loginctl lock-session";
         # Lua-config syntax: `hyprctl dispatch` takes an hl.dsp call now.
         # The old `hyprctl dispatch dpms on` fails silently under Lua.

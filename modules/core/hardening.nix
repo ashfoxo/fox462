@@ -1,10 +1,12 @@
 {
-  # sudo: touch yak-olive OR type password
+  # sudo: yak-olive's PIN plus a touch, OR type password. The key is worn all
+  # the time, so a touch alone would give root to whoever has you and the laptop.
   security.pam.u2f = {
     control = "sufficient";
     settings.cue = true;   # prints "Please touch the FIDO authenticator."
   };
   security.pam.services.sudo.u2fAuth = true;
+  security.pam.services.sudo.rules.auth.u2f.settings.pinverification = 1;
   security.sudo.extraConfig = "Defaults timestamp_timeout=0";  # no 5-min cache
 
   ##### Kernel hardening #####

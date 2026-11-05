@@ -56,6 +56,17 @@ in
   security.pam.services.hyprlock = {
     u2fAuth = true;
     gnupg.enable = true;
+    # After a resume from suspend the touch is skipped and only the password
+    # works, until that unlock (modules/hardware/laptop.nix sets the flag,
+    # helpers.nix clears it). The check fails -> pam skips the u2f line.
+    rules.auth.password-only = {
+      order = config.security.pam.services.hyprlock.rules.auth.u2f.order - 100;
+      control = "[success=ignore default=1]";
+      modulePath = "${pkgs.linux-pam}/lib/security/pam_exec.so";
+      args = [ "quiet" "${pkgs.writeShellScript "touch-allowed" ''
+        [ ! -e "/run/user/$(${pkgs.coreutils}/bin/id -u "$PAM_USER")/password-only" ]
+      ''}" ];
+    };
   };
   # A password typed at tuigreet unlocks GPG too. (The boot-time automatic
   # login types none, so there the hyprlock unlock does it.)

@@ -1,4 +1,5 @@
-// Power dropdown (the button right of the clock). Suspend goes on one
+// Power dropdown (the button right of the clock). Suspend (powers off by
+// itself after an hour, modules/hardware/laptop.nix) goes on one
 // click; reboot and power off turn rust and ask for a second click, and
 // forget it after a few seconds or when the dropdown closes.
 import QtQuick
@@ -33,7 +34,7 @@ Dropdown {
     PopButton {
         width: parent.width
         icon: "\u{F04B2}"
-        text: "suspend"
+        text: "suspend 1h"
         onClicked: menu.run("suspend")
     }
 

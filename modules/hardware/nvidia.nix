@@ -1,14 +1,14 @@
 { config, pkgs, ... }:
 {
-  # NVIDIA, Turing or newer (fox-blue's RTX 2060 Super). The open kernel
+  # NVIDIA, Turing or newer. The open kernel
   # module is what NVIDIA recommends from Turing on.
   services.xserver.videoDrivers = [ "nvidia" ];
 
   hardware.nvidia = {
     open = true;
     modesetting.enable = true;    # required for Wayland
-    # Saves video memory across sleep. fox-blue never sleeps, but this keeps
-    # a manual suspend from coming back to a corrupted screen.
+    # Saves video memory across sleep, so a suspend doesn't come back
+    # to a corrupted screen.
     powerManagement.enable = true;
     nvidiaSettings = false;        # X11 tool; nothing to configure under Wayland
     package = config.boot.kernelPackages.nvidiaPackages.stable;

@@ -2,8 +2,8 @@
 {
   ##### Boot #####
   boot.loader.systemd-boot.enable = true;
-  # Hosts that boot from a removable drive set this to false, so installing
-  # never writes a boot entry into the machine's firmware (see fox-blue).
+  # A host that boots from a removable drive sets this to false, so installing
+  # never writes a boot entry into the machine's firmware.
   boot.loader.efi.canTouchEfiVariables = lib.mkDefault true;
   boot.loader.systemd-boot.configurationLimit = 10;
   # No editing the kernel command line from the boot menu.
@@ -11,8 +11,7 @@
 
   # TODO(later): Secure Boot with lanzaboote (own keys, signed UKIs), plus
   # TPM2 or FIDO2 measured unlock, so /boot can't be swapped by an evil
-  # maid. Caveats: fox-blue boots from a USB SSD next to an untouched
-  # Windows drive, so key enrollment there needs care. Not started.
+  # maid. Laptop only; the VPSes boot BIOS GRUB. Not started.
 
   # Modern systemd initrd. The root wipe lives in
   # boot.initrd.systemd.services.rollback (impermanence.nix).

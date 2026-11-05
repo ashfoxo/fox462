@@ -4,9 +4,9 @@
 # bucket (S3-compatible, Paris region).
 #
 # Needs these keys in secrets.yaml (edited via sops), where <prefix> is the
-# host's fox.backup.s3SecretPrefix (e.g. "fox-blue-"):
+# host's fox.backup.s3SecretPrefix (e.g. "fox-amber-"):
 #   restic-password                - repository encryption password, shared by
-#                                    every host (also kept in Bitwarden)
+#                                    by the personal hosts (also in Bitwarden)
 #   <prefix>s3-access-key-id       - that host's Scaleway API access key
 #   <prefix>s3-secret-access-key   - that host's Scaleway API secret key
 # Per-host settings are in modules/options.nix.

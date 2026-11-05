@@ -34,8 +34,8 @@ in
         default = "";
         description = ''
           Prefix for this host's Scaleway key names in secrets.yaml, for a
-          host with its own API key: "fox-blue-" reads
-          fox-blue-s3-access-key-id and fox-blue-s3-secret-access-key.
+          host with its own API key: "fox-amber-" reads
+          fox-amber-s3-access-key-id and fox-amber-s3-secret-access-key.
         '';
       };
       extraExclude = mkOption {

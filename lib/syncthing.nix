@@ -21,27 +21,19 @@
 # once, port 22000 to port 22000, TCP can merge the two attempts into one
 # connection where both sides think they called ("simultaneous open"), and
 # Syncthing fails with "unexpected handshake message of type
-# *tls.clientHelloMsg". fox-blue stays home and is always reachable, so
-# fox-amber dials it and fox-blue only accepts. fox-red is always on, so both
-# dial it and it dials nobody (its config ignores the addresses below,
-# see modules/server/services/syncthing.nix). That way the laptop and the desktop
-# sync through fox-red even when they're never on together.
+# *tls.clientHelloMsg". fox-red is always on, so everyone dials it and it
+# dials nobody (its config ignores the addresses below, see
+# modules/server/services/syncthing.nix).
 #
-# The phone has no address: it dials all three (set up by hand in
+# The phone has no address: it dials the others (set up by hand in
 # Syncthing-Fork, which has no Nix config) and they only accept. It syncs
-# with whichever are on: the computers directly when they're around, fox-red
-# always.
+# with the laptop directly when it's on, and with fox-red always.
 #
 # Only NetBird is used: no LAN discovery, no global discovery, no relays.
 {
   fox-amber = {
     id = "HKKMYM6-CYFPSSJ-NB2EQX7-XOS2TP7-N5ZPRFZ-F5TYIY7-QYKV3GE-SRLDTAJ";
     address = "";
-    folders = [ "minecraft-instances" "sync" ];
-  };
-  fox-blue = {
-    id = "TQSKPYI-PE26SDB-2ILNBQB-ZYKH3AR-U4ACAGE-M7DBQHZ-6DRQVBN-WAEADQ3";
-    address = "100.73.59.52";
     folders = [ "minecraft-instances" "sync" ];
   };
   fox-red = {

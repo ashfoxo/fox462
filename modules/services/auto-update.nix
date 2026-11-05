@@ -1,5 +1,7 @@
-# Unattended updates for the laptop, on the backup's schedule (daily, with up
-# to an hour of random delay, and at the next boot if the machine was off).
+# Unattended updates for the laptop: checked every hour, run at most once a
+# day. A run that was skipped (metered network, uncommitted edits, offline) is
+# tried again the next hour, so committing your edits lets the day's update
+# go ahead within the hour.
 #
 # Each run, as root, in /home/arlo/fox-den:
 #   1. Does nothing on a metered network (mark your phone hotspot with
@@ -41,7 +43,15 @@ let
       # Any unexpected failure (e.g. nix flake update can't reach GitHub) shows
       # in the bar instead of leaving yesterday's result up.
       set -E
-      trap 'result failed "update failed, see journalctl -u nixos-update"' ERR
+      # The day's attempt is cleared too, so the next hour tries again.
+      trap 'rm -f "$dir/last-attempt"; result failed "update failed, see journalctl -u nixos-update"' ERR
+
+      # From the timer: one real attempt a day (last-attempt, stamped below once
+      # an update starts). A skipped run leaves no stamp and retries next hour.
+      # Started by hand (the bar), it always runs.
+      if [ -n "''${TRIGGER_UNIT:-}" ] && [ -n "$(find "$dir/last-attempt" -mmin -1200 2>/dev/null)" ]; then
+        exit 0
+      fi
 
       # notify <title> <text>: a desktop notification, if arlo is logged in.
       notify() {
@@ -60,8 +70,8 @@ let
       esac
 
       if ! nm-online -q -t 60; then
-        result failed "no network"
-        exit 1
+        result skipped "no network"
+        exit 0
       fi
 
       if [ ! -d "$repo/.git" ]; then
@@ -74,6 +84,7 @@ let
         exit 0
       fi
 
+      touch "$dir/last-attempt"
       as_user nix flake update --flake "$repo"
 
       if as_user git -C "$repo" diff --quiet -- flake.lock; then
@@ -131,13 +142,13 @@ in
     };
   };
 
-  # Same schedule as the backup (restic.nix).
+  # Hourly; the script itself keeps it to one real attempt a day.
   systemd.timers.nixos-update = {
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnCalendar = "daily";
+      OnCalendar = "hourly";
       Persistent = true;
-      RandomizedDelaySec = "1h";
+      RandomizedDelaySec = "10min";
     };
   };
 }

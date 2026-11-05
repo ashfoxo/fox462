@@ -1,7 +1,7 @@
 # fox-den
 
-A single [Nix flake](https://nixos.wiki/wiki/Flakes) that builds four NixOS
-machines: a laptop, a desktop PC, and two small cloud servers. Everything about
+A single [Nix flake](https://nixos.wiki/wiki/Flakes) that builds three NixOS
+machines: a laptop and two small cloud servers. Everything about
 them is in this repo: disk layout, desktop, apps, VPN, backups, and
 encrypted secrets. Rebuild from a fresh install and you get the same machine
 back.
@@ -15,21 +15,20 @@ use it as a starting point. It is not a ready-to-run distro. See
 | Host | What it is | Config |
 | --- | --- | --- |
 | `fox-amber` | Laptop (Intel); on the network it goes by `workstation` | `hosts/fox-amber/` |
-| `fox-blue` | Desktop PC (Ryzen, NVIDIA) that boots NixOS from a portable SSD and leaves the internal Windows drive alone | `hosts/fox-blue/` |
 | `fox-red` | Hetzner VPS running a blog, Git forge, RSS reader, music server and more | `hosts/fox-red/` |
 | `fox-green` | RackNerd VPS in New York: watches fox-red (and is watched by it), and runs two NetBird exit nodes for the phone, one through Mullvad | `hosts/fox-green/` |
 
-The laptop and desktop share almost everything through `modules/personal.nix`.
-A host file only says what's different: its hardware, monitors, backup bucket.
+A personal machine gets everything through `modules/personal.nix`, so a
+future desktop only says what's different: its hardware, monitors, backup bucket.
 The servers are separate and each has its own README
 ([fox-red](hosts/fox-red/README.md), [fox-green](hosts/fox-green/README.md)).
 
-## What the laptop and desktop get
+## What the personal machines get
 
 **A wiped-every-boot root.** The disk is LUKS-encrypted btrfs with four
 subvolumes (`@root`, `@home`, `@nix`, `@persist`). At each boot `@root` is
 moved aside and replaced with an empty one, and only what's listed in
-`modules/impermanence.nix` survives. Old roots are kept for 7 days in case
+`modules/impermanence.nix` survives. Old roots are kept for a day in case
 you forgot to persist something. Unlocking the disk works with a FIDO2 key
 (YubiKey) or a passphrase.
 
@@ -148,7 +147,7 @@ the sandboxes.
 ## Everyday use
 
 Rebuild the machine you're sitting at. A plain `--flake .` picks the output
-named after the hostname, which works on fox-blue:
+named after the hostname, when the two match:
 
 ```bash
 sudo nixos-rebuild switch --flake .
@@ -158,8 +157,7 @@ fox-amber is a mobile machine, so on the network it deliberately goes by a
 generic name (`workstation`) to blend in. Its hostname doesn't match its
 flake output, so name it: `sudo nixos-rebuild switch --flake .#fox-amber`.
 
-Rebuild a specific one: `sudo nixos-rebuild switch --flake .#fox-blue`. Use
-`boot` instead of `switch` to apply at next boot.
+Use `boot` instead of `switch` to apply at next boot.
 
 Deploy a server (fox-red or fox-green), from a clean git checkout:
 
