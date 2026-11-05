@@ -244,7 +244,6 @@ in
     description = "Update Navidrome, AudioMuse and its plugin together";
     path = [ pkgs.curl pkgs.coreutils pkgs.systemd ];
     serviceConfig.Type = "oneshot";
-    onFailure = [ "notify-music-stack-update-failed.service" ];
     script = ''
       set -uo pipefail
       changed=0
@@ -307,15 +306,7 @@ in
     };
   };
 
-  systemd.services.notify-music-stack-update-failed = {
-    description = "Push an ntfy alert when the music stack update fails";
-    serviceConfig.Type = "oneshot";
-    script = ''
-      ${notify} "${config.networking.hostName}: music update FAILED" \
-        "music-stack-update failed. journalctl -u music-stack-update" \
-        high
-    '';
-  };
+  fox.server.monitoring.alertOnFailure.music-stack-update.title = "music update FAILED";
 
   # Nightly proof that similar songs really come from AudioMuse. Navidrome
   # quietly falls back to Last.fm when the plugin breaks, so "Navidrome

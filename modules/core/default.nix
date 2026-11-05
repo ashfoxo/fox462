@@ -2,6 +2,7 @@
 # hardware: Nix itself, the arlo user and its secrets, hardening, time.
 {
   imports = [
+    ../common
     ./nix.nix
     ./users.nix
     ./hardening.nix

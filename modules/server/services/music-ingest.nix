@@ -52,36 +52,14 @@
 #   is locked". Hence /var/lib/beets on local disk, and hence it must be backed
 #   up, since it no longer rides along with the music.
 #
-# WHAT IT NEEDS FROM THE HOST:
-#
-#   1. Import this next to services/music.nix (Navidrome).
-#
-#   2. Navidrome's volume must point at the library, not the mount root, or it
-#      indexes the inbox too and half-tagged files appear and vanish from the
-#      library as they pass through:
-#          -  "/mnt/music:/music:ro,rslave"
-#          +  "/mnt/music/library:/music:ro,rslave"
-#      The AssertPathIsMountPoint on docker-navidrome stays at /mnt/music: the
-#      assert is about the mount, and the mount has not moved.
-#
-#   3. Secrets header additions:
-#          navidrome-api.env  ND_USER= / ND_PASSWORD= for an ADMIN account.
-#                             startScan is admin-only.
-#          filen-rclone.env   RCLONE_CONFIG_FILEN_*. PASSWORD and API_KEY are
-#                             `rclone obscure` output, which is reversible
-#                             encoding, not encryption: treat as plaintext.
-#                             Changing the Filen account password invalidates
-#                             the API key; re-export it.
-#
-# ORDER OF OPERATIONS, first time:
-#
-#   a. sudo nixos-rebuild dry-run          # then switch
-#   b. sudo systemctl start docker-navidrome && check the album count
-#   c. adopt what you already own into the beets DB, in place:
-#          printf 'import:\n  copy: no\n  move: no\n' > /tmp/adopt.yaml
-#          sudo music-beet --config /tmp/adopt.yaml import -A -W /mnt/music/library
-#   d. sudo systemctl start music-reconcile.service   # READ THE SUMMARY
-#   e. sudo systemctl start music-ingest.service
+# SECRETS IT NEEDS:
+#   navidrome-api.env  ND_USER= / ND_PASSWORD= for an ADMIN account.
+#                      startScan is admin-only.
+#   filen-rclone.env   RCLONE_CONFIG_FILEN_*. PASSWORD and API_KEY are
+#                      `rclone obscure` output, which is reversible
+#                      encoding, not encryption: treat as plaintext.
+#                      Changing the Filen account password invalidates
+#                      the API key; re-export it.
 
 { config, pkgs, lib, srv, ... }:
 let
@@ -389,7 +367,6 @@ in
       IOSchedulingClass = "idle";
     };
 
-    onFailure = [ "notify-music-ingest-failed.service" ];
 
     environment = {
       BEETSDIR = stateDir;
@@ -533,13 +510,5 @@ in
     };
   };
 
-  systemd.services.notify-music-ingest-failed = {
-    description = "Push an ntfy alert when the music ingest fails";
-    serviceConfig.Type = "oneshot";
-    script = ''
-      ${notify} "${config.networking.hostName}: music ingest FAILED" \
-        "music-ingest failed. journalctl -u music-ingest" \
-        high
-    '';
-  };
+  fox.server.monitoring.alertOnFailure.music-ingest.title = "music ingest FAILED";
 }

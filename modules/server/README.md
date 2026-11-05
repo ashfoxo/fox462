@@ -11,7 +11,7 @@ modules/server/
                   Caddy header/log blocks, as `srv`
   secrets.nix     fox.server.secretNames -> hosts/<host>/secrets/<name>
   base.nix        firewall, kernel hardening, Nix, SSH, fail2ban, journald
-  netbird.nix  podman.nix  caddy.nix  backup.nix  monitoring.nix  packages.nix
+  netbird.nix  podman.nix  caddy.nix  backup.nix  monitoring.nix  alerts.nix  packages.nix
   watch.nix       which server's Gatus checks and alerts for which (data, not a module)
   services/       one file per service; a host imports the ones it runs
 ```
@@ -30,8 +30,9 @@ central list is ever edited:
 | its state backed up | `fox.server.backup.paths` (and `.exclude`) |
 | a database snapshotted | `fox.server.backup.sqlite`, or `.prepare` for a dump command |
 | restart-loop alerts | `fox.server.monitoring.watchUnits` |
+| an alert when a unit fails | `fox.server.monitoring.alertOnFailure.<unit>.title` |
 | an SSH account | `fox.server.ssh.allowUsers` |
-| an alert on failure | `${notify} "${config.networking.hostName}: thing FAILED" "..." high` |
+| an alert from inside a script | `${notify} "${config.networking.hostName}: thing FAILED" "..." high` |
 | a heartbeat the other server expects | `${heartbeat} <name> true` (or `false "why"`), and the name under the host's `heartbeats` in `watch.nix` |
 | an extra health check | `fox.server.monitoring.extraChecks` (append to `problems`) |
 

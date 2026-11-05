@@ -1,5 +1,6 @@
 # Baseline for a server: firewall, kernel hardening, Nix settings, SSH,
-# fail2ban, journald and the everyday tools.
+# fail2ban, journald and the everyday tools. What the laptop shares with the
+# servers (most sysctls, Nix and garbage collection) is in modules/common.
 { config, pkgs, lib, inputs, srv, ... }:
 {
   # ntfy-alert.env: NTFY_URL= / NTFY_TOKEN=   (shell-sourceable). How every
@@ -19,33 +20,14 @@
   # Kernel hardening
   ############################################################################
 
+  # The shared sysctls are in common/hardening.nix. Strict reverse-path
+  # filtering is server-only: it breaks the laptop's VPN routing.
   boot.kernel.sysctl = {
-    "kernel.dmesg_restrict" = 1;
-    "kernel.kptr_restrict" = 2;
-    "kernel.sysrq" = 0;
-    "kernel.yama.ptrace_scope" = 1;
-    "net.ipv4.conf.all.accept_redirects" = 0;
-    "net.ipv4.conf.default.accept_redirects" = 0;
-    "net.ipv4.conf.all.send_redirects" = 0;
-    "net.ipv4.conf.default.send_redirects" = 0;
-    "net.ipv6.conf.all.accept_redirects" = 0;
-    "net.ipv6.conf.default.accept_redirects" = 0;
-    "net.ipv4.conf.all.accept_source_route" = 0;
-    "net.ipv4.conf.default.accept_source_route" = 0;
-    "net.ipv6.conf.all.accept_source_route" = 0;
     "net.ipv4.conf.all.rp_filter" = 1;
     "net.ipv4.conf.default.rp_filter" = 1;
-    "net.ipv4.icmp_echo_ignore_broadcasts" = 1;
-    "net.ipv4.tcp_syncookies" = 1;
   };
 
   nix.settings.allowed-users = [ "root" "@wheel" ];
-
-  nix.gc = {
-    automatic = true;
-    dates = "weekly";
-    options = "--delete-older-than 30d";
-  };
 
   ############################################################################
   # SSH
@@ -110,7 +92,4 @@
     SystemMaxUse=500M
     MaxRetentionSec=1month
   '';
-
-  # Flakes on the server itself, so deploy.sh can build here.
-  nix.settings.experimental-features = [ "nix-command" "flakes" ];
 }

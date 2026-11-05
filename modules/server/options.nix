@@ -95,6 +95,22 @@ in
       '';
     };
 
+    monitoring.alertOnFailure = mkOption {
+      type = types.attrsOf (types.submodule {
+        options = {
+          title = mkOption { type = types.str; description = "Alert title, after \"<host>: \"."; };
+          priority = mkOption { type = types.str; default = "high"; };
+        };
+      });
+      default = { };
+      example = { music-ingest.title = "music ingest FAILED"; };
+      description = ''
+        Units that push an ntfy alert when they fail, keyed by unit name
+        (without .service). monitoring.nix adds the onFailure hook and the
+        notify-<unit>-failed service.
+      '';
+    };
+
     monitoring.extraChecks = mkOption {
       type = types.lines;
       default = "";

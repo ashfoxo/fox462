@@ -14,33 +14,7 @@
   services.logind.settings.Login = { NAutoVTs = 0; ReserveVT = 0; };
 
   ##### Kernel hardening #####
-  boot.kernel.sysctl = {
-    # Hostile-LAN routing tricks: ignore ICMP redirects and source routing.
-    "net.ipv4.conf.all.accept_redirects" = 0;
-    "net.ipv4.conf.default.accept_redirects" = 0;
-    "net.ipv6.conf.all.accept_redirects" = 0;
-    "net.ipv6.conf.default.accept_redirects" = 0;
-    "net.ipv4.conf.all.send_redirects" = 0;
-    "net.ipv4.conf.all.accept_source_route" = 0;
-    "net.ipv6.conf.all.accept_source_route" = 0;
-
-    # Local info leaks / attack surface. Side effect: non-root `dmesg` fails.
-    "kernel.kptr_restrict" = 2;
-    "kernel.dmesg_restrict" = 1;
-    "kernel.unprivileged_bpf_disabled" = 1;
-    "net.core.bpf_jit_harden" = 2;
-
-    # Forensics / live-seizure hardening.
-    "kernel.sysrq" = 0;                    # no magic-key tricks at the keyboard
-    "kernel.yama.ptrace_scope" = 2;        # only root may ptrace
-    "kernel.kexec_load_disabled" = 1;      # no loading a new kernel over this one
-    "kernel.perf_event_paranoid" = 3;
-    "dev.tty.ldisc_autoload" = 0;
-    "fs.protected_symlinks" = 1;
-    "fs.protected_hardlinks" = 1;
-    "fs.protected_fifos" = 2;
-    "fs.protected_regular" = 2;
-  };
+  # The sysctls are shared with the servers: common/hardening.nix.
 
   # Wipe memory on allocation and free, so freed secrets don't linger in RAM
   # for a cold-boot or live-memory read.

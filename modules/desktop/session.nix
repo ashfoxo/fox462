@@ -48,9 +48,9 @@ in
   };
 
   # PAM services
-  # hyprlock: touch yak-olive to unlock (u2f is "sufficient", same as sudo).
-  # Typing your password still works as a fallback. GPG is unlocked by the
-  # YubiKey's card PIN, not the login password (desktop/programs.nix).
+  # hyprlock: touch a YubiKey to unlock (u2f is "sufficient", same as sudo).
+  # Typing your password still works as a fallback. GPG is unlocked by a
+  # YubiKey touch at login, not the login password (home/desktop/gpg-unlock.nix).
   # (The u2f and sudo settings themselves are in core/hardening.nix.)
   security.pam.services.hyprlock = {
     u2fAuth = true;

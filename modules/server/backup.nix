@@ -79,16 +79,9 @@ lib.mkIf cfg.enable {
     ];
   };
 
-  systemd.services.restic-backups-offsite.onFailure = [ "notify-backup-failed.service" ];
-
-  systemd.services.notify-backup-failed = {
-    description = "Push an ntfy alert when the offsite backup fails";
-    serviceConfig.Type = "oneshot";
-    script = ''
-      ${notify} "${host}: backup FAILED" \
-        "restic-backups-offsite failed. journalctl -u restic-backups-offsite" \
-        urgent
-    '';
+  fox.server.monitoring.alertOnFailure = {
+    restic-backups-offsite = { title = "backup FAILED"; priority = "urgent"; };
+    restic-check-offsite = { title = "repo check FAILED"; priority = "urgent"; };
   };
 
   # Monthly integrity check. Plain `restic check` validates the repository
@@ -116,9 +109,8 @@ lib.mkIf cfg.enable {
       Type = "oneshot";
       EnvironmentFile = config.services.restic.backups.offsite.environmentFile;
     };
-    onFailure = [ "notify-check-failed.service" ];
-    # Deliberately no `|| true` and no exit 0. Unlike the alerting path in
-    # notify above, this unit failing IS the signal.
+    # Deliberately no `|| true` and no exit 0: this unit failing IS the signal
+    # (alertOnFailure above).
     script = ''
       ${pkgs.restic}/bin/restic check --read-data-subset=5%
     '';
@@ -131,15 +123,5 @@ lib.mkIf cfg.enable {
       RandomizedDelaySec = "30m";
       Persistent = true;
     };
-  };
-
-  systemd.services.notify-check-failed = {
-    description = "Push an ntfy alert when the repository check fails";
-    serviceConfig.Type = "oneshot";
-    script = ''
-      ${notify} "${host}: repo check FAILED" \
-        "restic check found a problem offsite. journalctl -u restic-check-offsite" \
-        urgent
-    '';
   };
 }

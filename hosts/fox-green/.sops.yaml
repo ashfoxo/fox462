@@ -1,12 +1,5 @@
 # Who can decrypt fox-green's secrets: your workstation and fox-green. Not
 # fox-red, so neither server can read the other's.
-#
-# Fill both in before the first ./secret.sh fox-green ...:
-#   workstation: the workstation key from hosts/fox-red/.sops.yaml (the one
-#                that isn't fox-red's: compare with
-#                ssh fox-red cat /etc/ssh/ssh_host_ed25519_key.pub | nix run nixpkgs#ssh-to-age)
-#   fox-green:   ssh-keyscan -t ed25519 <fox-green's public IP> | nix run nixpkgs#ssh-to-age
-#                (after nixos-infect, which keeps the host key from then on)
 creation_rules:
   - path_regex: ^secrets/
     key_groups:

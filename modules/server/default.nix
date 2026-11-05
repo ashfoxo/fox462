@@ -6,6 +6,7 @@
 {
   imports = [
     inputs.sops-nix.nixosModules.sops
+    ../common
     ./options.nix
     ./helpers.nix
     ./secrets.nix
@@ -15,6 +16,7 @@
     ./caddy.nix
     ./backup.nix
     ./monitoring.nix
+    ./alerts.nix
     ./packages.nix
   ];
 }

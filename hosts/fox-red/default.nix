@@ -2,15 +2,8 @@
 # sops keys (.sops.yaml here), and is deployed from the laptop with
 # ./deploy.sh fox-red. What it runs is the list of services below.
 #
-# All timers are UTC. Local is EST/EDT, so subtract 5 or 4.
-#
-# Nightly order, deliberately non-overlapping:
-#   01:00        postgres dump (HOST instance only, i.e. miniflux)
-#   01:30-01:50  restic offsite backup, which first dumps Postgres and SQLite
-#   02:10-02:25  music ingest: Filen -> beets -> Navidrome
-#   03:00-05:00  autoUpgrade -- PAUSED for the rebuild, see Upgrades below
-#   05:30        similar-songs check: Navidrome -> AudioMuse plugin
-#   Sun 06:00    music stack update: Navidrome, AudioMuse, plugin together
+# All timers are UTC (local is EST/EDT: subtract 5 or 4). The nightly order
+# is in README.md, "Nightly schedule".
 { config, pkgs, lib, inputs, ... }:
 {
   imports = [

@@ -179,6 +179,8 @@ in
 
   };
 
+  fox.server.monitoring.alertOnFailure.notesnook-update.title = "Notesnook update FAILED";
+
   systemd.services = {
 
     # Named network, so the containers find each other by name.
@@ -260,7 +262,6 @@ in
       description = "Update the Notesnook server images";
       path = [ pkgs.coreutils pkgs.systemd ];
       serviceConfig.Type = "oneshot";
-      onFailure = [ "notify-notesnook-update-failed.service" ];
       script = ''
         set -uo pipefail
         changed=0
@@ -283,16 +284,6 @@ in
           echo "Notesnook images unchanged"
         fi
         exit $failed
-      '';
-    };
-
-    notify-notesnook-update-failed = {
-      description = "Push an ntfy alert when the Notesnook update fails";
-      serviceConfig.Type = "oneshot";
-      script = ''
-        ${notify} "${host}: Notesnook update FAILED" \
-          "notesnook-update failed. journalctl -u notesnook-update" \
-          high
       '';
     };
 
