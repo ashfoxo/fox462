@@ -51,14 +51,6 @@
   fox.desktop.lockMonitor = "DP-2";
   fox.desktop.barHost = "fox-blue";
 
-  ##### NAS #####
-  # A desk machine on Ethernet: Ark mounts whenever the cable is up, never
-  # over Wi-Fi (modules/network/nas.nix).
-  fox.nas = {
-    wifiSsid = null;
-    wired = true;
-  };
-
   ##### Games #####
   # Steam is shared (modules/desktop/programs.nix). gamemode lets games ask
   # for the performance CPU governor while they run: `gamemoderun %command%`
