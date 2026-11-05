@@ -13,6 +13,10 @@
   # services.pass-secret-service provides from ~/.password-store.
   ELECTRON_EXTRA_LAUNCH_ARGS = "--password-store=gnome-libsecret";
 
+  # Claude Code keeps .claude.json inside this folder instead of next to it,
+  # so the one persisted folder (modules/ephemeral-home.nix) holds everything.
+  CLAUDE_CONFIG_DIR = "$HOME/.claude";
+
   # Deliberately no ELECTRON_OZONE_PLATFORM_HINT. Forcing "x11" globally put
   # every Electron app on one shared XWayland server, where they can observe
   # each other's input. If a single app misbehaves under native Wayland, scope

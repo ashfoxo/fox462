@@ -56,15 +56,20 @@ in
   security.pam.services.hyprlock = {
     u2fAuth = true;
     gnupg.enable = true;
-    # After a resume from suspend the touch is skipped and only the password
-    # works, until that unlock (modules/hardware/laptop.nix sets the flag,
-    # helpers.nix clears it). The check fails -> pam skips the u2f line.
-    rules.auth.password-only = {
+    # A touch only works in the first 10 minutes of a lock, and never after a
+    # resume from suspend; otherwise only the password. The lock start time
+    # and the flag are written by home/desktop/lock-screen.nix and
+    # modules/hardware/laptop.nix. The check fails -> pam skips the u2f line.
+    rules.auth.touch-window = {
       order = config.security.pam.services.hyprlock.rules.auth.u2f.order - 100;
       control = "[success=ignore default=1]";
       modulePath = "${pkgs.linux-pam}/lib/security/pam_exec.so";
       args = [ "quiet" "${pkgs.writeShellScript "touch-allowed" ''
-        [ ! -e "/run/user/$(${pkgs.coreutils}/bin/id -u "$PAM_USER")/password-only" ]
+        PATH=${pkgs.coreutils}/bin
+        run=/run/user/$(id -u "$PAM_USER")
+        [ ! -e "$run/password-only" ] || exit 1
+        at=$(cat "$run/locked-at" 2>/dev/null) || exit 1
+        [ $(( $(date +%s) - at )) -le 600 ]
       ''}" ];
     };
   };

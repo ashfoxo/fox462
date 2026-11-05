@@ -65,13 +65,13 @@ in
   # screenOffAfter): the laptop locks at 5 min and blanks at 5.5, the
   # desktop at 10 and 15. Separate from the laptop's 1h idle power-off
   # (modules/hardware/laptop.nix); the lid powers off too. Suspend is by hand
-  # only, and before_sleep_cmd locks first. A good unlock clears the
-  # password-only flag a resume sets (modules/desktop/session.nix).
+  # only, and before_sleep_cmd locks first. Locking goes through
+  # lock-screen.nix, which also times the touch window.
   services.hypridle = {
     enable = true;
     settings = {
       general = {
-        lock_cmd = "${pkgs.procps}/bin/pgrep -x hyprlock || { ${pkgs.hyprlock}/bin/hyprlock && rm -f \"$XDG_RUNTIME_DIR/password-only\"; }";
+        lock_cmd = "${import ./lock-screen.nix pkgs}/bin/lock-screen";
         before_sleep_cmd = "${pkgs.systemd}/bin/loginctl lock-session";
         # Lua-config syntax: `hyprctl dispatch` takes an hl.dsp call now.
         # The old `hyprctl dispatch dpms on` fails silently under Lua.

@@ -81,7 +81,7 @@ in
 
       -- Lock immediately on login, so autologin boots to the lock screen.
       hl.on("hyprland.start", function()
-          hl.exec_cmd("hyprlock")
+          hl.exec_cmd("${import ./lock-screen.nix pkgs}/bin/lock-screen")
           -- Chat apps (and any scratchpad marked autostart) start hidden
           -- in their scratchpads; rules.lua sends them there silently.
     '' + lib.concatMapStrings (p: lib.optionalString ((p.chat or false) || (p.autostart or false))
