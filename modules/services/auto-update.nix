@@ -38,6 +38,11 @@ let
       # result <state> <text>: what the bar shows. States: ok, uptodate, skipped, failed.
       result() { printf '%s %s\n' "$1" "$2" > "$dir/result"; }
 
+      # Any unexpected failure (e.g. nix flake update can't reach GitHub) shows
+      # in the bar instead of leaving yesterday's result up.
+      set -E
+      trap 'result failed "update failed, see journalctl -u nixos-update"' ERR
+
       # notify <title> <text>: a desktop notification, if arlo is logged in.
       notify() {
         uid=$(id -u ${user})
