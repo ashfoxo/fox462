@@ -14,9 +14,12 @@ let
 
   onRemove = pkgs.writeShellScript "yubikey-removed" ''
     [ -e /run/yubikey-armed ] || exit 0
+    # Only a key usbguard allowed counts: a blocked fake "Yubico" device still
+    # shows up in sysfs, with authorized = 0 (AUDIT.md C13).
     present() {
-      for v in /sys/bus/usb/devices/*/idVendor; do
-        [ "$(cat "$v" 2>/dev/null)" = "${vendor}" ] && return 0
+      for d in /sys/bus/usb/devices/*; do
+        [ "$(cat "$d/idVendor" 2>/dev/null)" = "${vendor}" ] &&
+          [ "$(cat "$d/authorized" 2>/dev/null)" = 1 ] && return 0
       done
       return 1
     }
@@ -24,11 +27,11 @@ let
     sleep 1
     present && exit 0
     ${pkgs.systemd}/bin/loginctl lock-sessions
-    [ -e /run/yubikey-away ] && exit 0
-    sleep 9
-    [ -e /run/yubikey-away ] && exit 0
-    # Still gone? (Reinserting stops this unit through the udev rule below.)
-    present && exit 0
+    for _ in 1 2 3 4 5 6 7 8 9; do
+      sleep 1
+      [ -e /run/yubikey-away ] && exit 0
+      present && exit 0
+    done
     exec ${systemctl} poweroff --force
   '';
 
@@ -60,8 +63,7 @@ in
   services.udev.extraRules = ''
     ACTION=="add", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ENV{PRODUCT}=="${vendor}/*", \
       RUN+="${pkgs.coreutils}/bin/touch /run/yubikey-armed", \
-      RUN+="${pkgs.coreutils}/bin/rm -f /run/yubikey-away", \
-      RUN+="${systemctl} --no-block stop yubikey-removed.service"
+      RUN+="${pkgs.coreutils}/bin/rm -f /run/yubikey-away"
     ACTION=="remove", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ENV{PRODUCT}=="${vendor}/*", \
       RUN+="${systemctl} --no-block start yubikey-removed.service"
   '';

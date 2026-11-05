@@ -66,7 +66,7 @@ per network.
 
 **Hardening.** `sudo` wants the YubiKey PIN and a touch, or the password, every
 time, with no cached session. No SSH server, and no text logins on the other
-consoles. The GPG key behind `pass` lives on the YubiKeys. Kernel pointer and `dmesg` leaks are closed
+consoles. The GPG key behind `pass` opens with a YubiKey touch at login. Kernel pointer and `dmesg` leaks are closed
 and core dumps are off. User accounts are immutable, and their password
 hashes come from encrypted secrets.
 

@@ -11,6 +11,7 @@
     ./defaults.nix   # default apps (what opens links and files)
     ./theme.nix      # GTK, Qt and cursor look
     ./filen.nix
+    ./gpg-unlock.nix # one YubiKey touch at login unlocks pass
     ./syncthing.nix  # Minecraft instances, synced over NetBird
     ./displays.nix   # Super + Shift + P: pick the main display
   ];
