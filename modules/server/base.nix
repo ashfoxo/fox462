@@ -1,7 +1,7 @@
 # Baseline for a server: firewall, kernel hardening, Nix settings, SSH,
 # fail2ban, journald and the everyday tools. What the laptop shares with the
 # servers (most sysctls, Nix and garbage collection) is in modules/common.
-{ config, pkgs, lib, inputs, srv, ... }:
+{ config, lib, ... }:
 {
   # ntfy-alert.env: NTFY_URL= / NTFY_TOKEN=   (shell-sourceable). How every
   # alert on the server reaches your phone (see helpers.nix).

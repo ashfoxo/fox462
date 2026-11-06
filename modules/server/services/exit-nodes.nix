@@ -34,7 +34,7 @@
 # exit once IPv6 is turned on for the NetBird network; NetBird then adds ::/0
 # alongside every exit node's 0.0.0.0/0. The direct exit has no IPv6 to give,
 # so it refuses IPv6 at once and the phone falls back to IPv4.
-{ config, pkgs, lib, inputs, srv, ... }:
+{ config, pkgs, lib, srv, ... }:
 let
   cfg = config.fox.server.exitNodes;
   ip = "${pkgs.iproute2}/bin/ip";

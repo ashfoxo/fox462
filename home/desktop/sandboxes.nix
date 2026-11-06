@@ -26,7 +26,7 @@ let
   # app. Folders only, since a file can't be bound before it exists.
   # extraBindRw: a function of sloth (nixpak's path helpers) returning more
   # read-write binds, e.g. sloth: [ [ host-path sandbox-path ] ].
-  makeGuiSandbox = { package, name, state ? "ram", persist ? [ ], extraBindRw ? (sloth: []), extraDev ? [], extraEnv ? {}, rawPipeWire ? false, machineId ? false }:
+  makeGuiSandbox = { package, name, state ? "ram", persist ? [ ], extraBindRw ? (_sloth: []), extraDev ? [], extraEnv ? {}, rawPipeWire ? false, machineId ? false }:
     (mkNixPak {
       config = { sloth, ... }: {
         app.package = package;
@@ -231,7 +231,7 @@ in
   # (~/.local/share/sandboxes/webapp-<id>), so each app is a fully separate
   # browser profile: separate cookies, logins and storage. No --user-data-dir
   # needed. Not installed directly; webapps.nix wraps each in a launcher.
-  # Photos and email: logins kept in RAM only (AUDIT.md C6).
+  # Photos and email: logins kept in RAM only, so a seized laptop holds none.
   # Claude joins them as the last step of the audit work.
   webapp-ente    = makeWebApp "webapp-ente" { keepLogin = false; };
   webapp-tuta    = makeWebApp "webapp-tuta" { keepLogin = false; };

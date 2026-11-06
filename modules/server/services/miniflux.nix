@@ -1,5 +1,5 @@
 # Miniflux: RSS reader, private (rss.<privateDomain>).
-{ config, pkgs, lib, inputs, srv, ... }:
+{ config, ... }:
 let
   priv = config.fox.server.privateDomain;
 in

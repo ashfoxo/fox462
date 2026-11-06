@@ -12,7 +12,7 @@
 # is in this repo, so a rebuild from scratch is the restore.
 #
 # See README.md in this folder for setting it up.
-{ config, pkgs, lib, inputs, ... }:
+{ ... }:
 {
   imports = [
     ./hardware-configuration.nix

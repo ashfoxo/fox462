@@ -1,4 +1,4 @@
-{ pkgs, lib, ... }:
+{ pkgs, ... }:
 
 # Voice notes: record, transcribe offline, drop into Notesnook. Move anything
 # you want to keep out of RAM before shutting down.

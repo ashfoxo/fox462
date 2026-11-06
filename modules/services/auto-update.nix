@@ -10,8 +10,9 @@
 #   2. `nix flake update`, as arlo, so no root-owned files appear in the repo.
 #   3. `nixos-rebuild boot`: builds, and makes it the next boot's default. It is
 #      never switched to while you work.
-#   4. Commits flake.lock as "Update <date>" with the package changes (`nvd`) in
-#      the message. It does NOT push; do that by hand: git push origin main.
+#   4. Commits flake.lock as "flake.lock: update inputs (<date>)", with the
+#      package changes (`nvd`) in the message. It does NOT push; do that by
+#      hand: git push origin main.
 # A failed build puts flake.lock back. The previous boot entries stay.
 #
 # Try it now: sudo systemctl start nixos-update, then journalctl -u nixos-update
@@ -105,7 +106,7 @@ let
       diff=$(nvd diff /run/current-system /nix/var/nix/profiles/system | sed 's/\x1b\[[0-9;]*m//g')
 
       as_user git -C "$repo" add flake.lock
-      if ! as_user git -C "$repo" commit -q -m "Update $(date +%F)" -m "$diff"; then
+      if ! as_user git -C "$repo" commit -q -m "flake.lock: update inputs ($(date +%F))" -m "$diff"; then
         result failed "built, but the commit failed"
         notify "Update built" "The commit failed; flake.lock is changed but not committed."
         exit 1

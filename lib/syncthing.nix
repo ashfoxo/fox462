@@ -12,9 +12,10 @@
 #            out entirely. Unset, it pairs with every device that shares a
 #            folder with it.
 #   untrusted optional: true for a device that gets only encrypted data
-#            (fox-red, AUDIT.md C10). The others encrypt toward it with each
-#            folder's password: sops secret syncthing-<folder>-password on the
-#            computers, typed into the folder's share on the phone.
+#            (fox-red, so the VPS never holds plaintext). The others encrypt
+#            toward it with each folder's password: sops secret
+#            syncthing-<folder>-password on the computers, typed into the
+#            folder's share on the phone.
 #
 # Folders:
 #   minecraft-instances  Prism Launcher's instances (home/desktop/syncthing.nix)

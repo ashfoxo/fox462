@@ -37,7 +37,7 @@ let
     ".config/VSCodium" ".vscode-oss"
     # Claude Code: chats, memory, settings and login. CLAUDE_CONFIG_DIR
     # (lib/session-vars.nix) moves .claude.json in here too. Chat history and
-    # the login token are on disk by choice (see AUDIT.md C6 for the trade-off).
+    # the login token are on disk by choice: convenience over a seized-laptop risk.
     ".claude"
     ".config/libreoffice"
     ".config/darktable"

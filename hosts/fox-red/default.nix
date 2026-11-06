@@ -4,7 +4,7 @@
 #
 # All timers are UTC (local is EST/EDT: subtract 5 or 4). The nightly order
 # is in README.md, "Nightly schedule".
-{ config, pkgs, lib, inputs, ... }:
+{ ... }:
 {
   imports = [
     ./hardware-configuration.nix

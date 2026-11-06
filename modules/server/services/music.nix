@@ -1,5 +1,5 @@
 # The music stack: Navidrome, AudioMuse, and the jobs that keep them in step.
-{ config, pkgs, lib, inputs, srv, ... }:
+{ config, pkgs, srv, ... }:
 let
   inherit (srv) notify podman;
   # Shared by AudioMuse's web app and worker. Secrets come from audiomuse.env.

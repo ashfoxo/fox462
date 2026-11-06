@@ -1,4 +1,4 @@
-{ pkgs, lib, ... }:
+{ lib, ... }:
 
 # Default apps: what opens when you click a link or a file (xdg-open,
 # links in other apps). Writes ~/.config/mimeapps.list.

@@ -1,7 +1,7 @@
 # ntfy: push notifications, and the channel every alert on the server uses.
 # Public (ntfy.<privateDomain>, on an ordinary certificate) so phones can
 # reach it from anywhere; the private wildcard stays NetBird-only.
-{ config, pkgs, lib, inputs, srv, ... }:
+{ config, srv, ... }:
 let
   inherit (srv) secHeaders plainLog;
   priv = config.fox.server.privateDomain;

@@ -7,7 +7,7 @@
 #
 # Its configuration is all here and in watch.nix; the only state is check
 # history in /var/lib/private/gatus, which isn't backed up.
-{ config, pkgs, lib, inputs, srv, ... }:
+{ config, lib, ... }:
 let
   host = config.networking.hostName;
   watch = import ../watch.nix;

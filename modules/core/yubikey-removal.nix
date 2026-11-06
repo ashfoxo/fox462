@@ -15,7 +15,7 @@ let
   onRemove = pkgs.writeShellScript "yubikey-removed" ''
     [ -e /run/yubikey-armed ] || exit 0
     # Only a key usbguard allowed counts: a blocked fake "Yubico" device still
-    # shows up in sysfs, with authorized = 0 (AUDIT.md C13).
+    # shows up in sysfs, with authorized = 0.
     present() {
       for d in /sys/bus/usb/devices/*; do
         [ "$(cat "$d/idVendor" 2>/dev/null)" = "${vendor}" ] &&

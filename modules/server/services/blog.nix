@@ -1,5 +1,5 @@
 # The blog: built on push by a Forgejo runner, served by Caddy.
-{ config, pkgs, lib, inputs, srv, ... }:
+{ config, pkgs, srv, ... }:
 let
   domain = config.fox.server.domain;
   inherit (srv) notify plainLog secHeaders;

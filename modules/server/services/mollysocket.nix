@@ -1,5 +1,5 @@
 # MollySocket: Signal push through ntfy. Outbound only.
-{ config, pkgs, lib, inputs, srv, ... }:
+{ config, ... }:
 {
   # molly.env: MollySocket registration (MOLLY_* variables)
   fox.server.secretNames = [ "molly.env" ];

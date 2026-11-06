@@ -1,5 +1,5 @@
 # Nightly restic backup and its monthly integrity check.
-{ config, pkgs, lib, inputs, srv, ... }:
+{ config, pkgs, lib, srv, ... }:
 let
   inherit (srv) notify heartbeat;
   cfg = config.fox.server.backup;

@@ -14,7 +14,7 @@
 #   webapps.nix        Chromium web apps (Tuta, Claude, Gmail, ...)
 #   dev.nix, filen.nix, voicenotes.nix
 
-# TODO(audit): the unsandboxed apps below (notesnook, typora, libreoffice,
+# TODO: the unsandboxed apps below (notesnook, typora, libreoffice,
 # darktable, kdenlive, feishin, zoom) could move into nixpak sandboxes, with
 # their state in RAM where that is workable. Decide per app: documents and
 # photo libraries need a folder that survives. vscodium, bitwarden (SSH agent),

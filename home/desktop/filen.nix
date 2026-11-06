@@ -17,7 +17,7 @@
       After = [ "graphical-session.target" ];
       PartOf = [ "graphical-session.target" ];
 
-      # ADDED. Restart=on-failure plus a bad ExecStart is an infinite loop:
+      # Restart=on-failure plus a bad ExecStart is an infinite loop:
       # a start-limit-hit unit is loud in the journal and stops; a bare
       # restart loop just quietly eats CPU every 10s forever. These make it
       # give up after 5 tries in 5 minutes so you actually find out.

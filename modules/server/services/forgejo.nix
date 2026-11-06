@@ -1,5 +1,5 @@
 # Forgejo: the Git forge.
-{ config, pkgs, lib, inputs, srv, ... }:
+{ config, pkgs, srv, ... }:
 let
   domain = config.fox.server.domain;
   inherit (srv) secHeadersDeferCSP mkLog;

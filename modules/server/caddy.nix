@@ -2,7 +2,7 @@
 # plugin, the private wildcard); each service adds its own site from its own
 # file (fox.server.privateSites for NetBird-only names, or
 # services.caddy.virtualHosts for public ones).
-{ config, pkgs, lib, inputs, srv, ... }:
+{ config, pkgs, lib, srv, ... }:
 let
   inherit (srv) secHeaders plainLog;
   priv = config.fox.server.privateDomain;

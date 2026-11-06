@@ -1,8 +1,5 @@
 # Podman, the only container runtime on a server.
-{ config, pkgs, lib, inputs, srv, ... }:
-let
-  inherit (srv) podman;
-in
+{ srv, ... }:
 {
   # Podman, run as root by systemd, with no daemon. Docker is gone: a root
   # daemon listening for commands was one more thing that could be abused.

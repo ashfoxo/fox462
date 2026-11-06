@@ -1,6 +1,6 @@
 # Generated on fox-green with nixos-generate-config --show-hardware-config,
 # plus where GRUB goes and the zram swap the install came with.
-{ config, lib, pkgs, modulesPath, ... }:
+{ modulesPath, ... }:
 {
   imports = [ (modulesPath + "/profiles/qemu-guest.nix") ];
 

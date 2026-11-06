@@ -26,7 +26,7 @@
 #
 # Mail (sign-up confirmation, email 2FA, password reset) goes out through
 # Purelymail's SMTP on port 587; Hetzner blocks outbound 25 and 465.
-{ config, pkgs, lib, inputs, srv, ... }:
+{ config, pkgs, srv, ... }:
 let
   inherit (srv) notify podman;
   host = config.networking.hostName;

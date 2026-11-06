@@ -1,5 +1,5 @@
 # NetBird client.
-{ config, pkgs, lib, inputs, srv, ... }:
+{ config, ... }:
 {
   # netbird-setup-key: one-time NetBird setup key. Only used for the first
   # enrolment; after that it can expire harmlessly.

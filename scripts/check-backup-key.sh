@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Checks what a host's backup key may do to its Scaleway bucket (AUDIT.md C3).
+# Checks what a host's backup key may do to its Scaleway bucket: it must not
+# be able to delete old versions, so a stolen key can't destroy the backups.
 # Run as root on the host that owns the key:
 #
 #   laptop:  sudo bash scripts/check-backup-key.sh /run/secrets/rendered/restic-s3-env bagger-amber

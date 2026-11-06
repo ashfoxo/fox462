@@ -1,6 +1,6 @@
 # The tools every server has on its PATH. (Directories a service needs are
 # made by that service's own file.)
-{ config, pkgs, lib, inputs, srv, ... }:
+{ pkgs, ... }:
 {
   environment.systemPackages = with pkgs; [
     curl

@@ -1,7 +1,7 @@
 # Threshold alerting for the host itself.
 { config, pkgs, lib, inputs, srv, ... }:
 let
-  inherit (srv) notify heartbeat podman;
+  inherit (srv) notify heartbeat;
 in
 {
   # heartbeat.env: where heartbeats go (see helpers.nix). Every server has

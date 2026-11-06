@@ -29,7 +29,7 @@ let
   sharing = folder: lib.attrNames (lib.filterAttrs (_: d: lib.elem folder d.folders) peers);
 
   # The same, as Syncthing wants them: an untrusted peer (fox-red) gets the
-  # folder encrypted with its password (lib/syncthing.nix, AUDIT.md C10).
+  # folder encrypted with its password (lib/syncthing.nix).
   shareWith = folder: map (name:
     if peers.${name}.untrusted or false then {
       inherit name;

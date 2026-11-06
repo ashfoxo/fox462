@@ -8,7 +8,7 @@
   networking.firewall.enable = true;
   # wt0 is not trusted. Peers get only the ports opened per port on wt0:
   # just Syncthing's 22000 (below). Everything else this
-  # machine does over NetBird is outbound (send/fetch, Navidrome, Miniflux).
+  # machine does over NetBird is outbound (Syncthing, Navidrome, Miniflux).
   # To allow more: networking.firewall.interfaces.wt0.allowedTCPPorts.
   networking.firewall.checkReversePath = "loose";
 
