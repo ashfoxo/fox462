@@ -38,8 +38,14 @@ in
   # the computers directly when they're on, and with fox-red always.
   #
   # Runs as the syncthing system user; the files are in
-  # /var/lib/syncthing/minecraft-instances and /var/lib/syncthing/sync.
-  # Nobody works on them here: it only passes on what the others send.
+  # /var/lib/syncthing/minecraft-instances and /var/lib/syncthing/sync,
+  # encrypted: fox-red is an untrusted device (lib/syncthing.nix, AUDIT.md
+  # C10) and never has the folder passwords. It only passes on what the
+  # others send, and its backups hold ciphertext too.
+  # Switching a folder to or from receiveencrypted on a running server needs
+  # the folder deleted first (DELETE /rest/config/folders/<id>, then let
+  # syncthing-init re-add it): Syncthing refuses to change the type in place,
+  # and syncthing-init retries forever.
   # Web UI: ssh -L 8384:localhost:8384 fox-red, then http://localhost:8384.
   # Logs: journalctl -u syncthing
   services.syncthing =
@@ -62,6 +68,7 @@ in
           id = "minecraft-instances";
           label = "Minecraft instances";
           path = "${config.services.syncthing.dataDir}/minecraft-instances";
+          type = "receiveencrypted";  # ciphertext only (AUDIT.md C10)
           devices = sharing "minecraft-instances";
           versioning = {
             type = "simple";
@@ -73,6 +80,7 @@ in
           id = "sync";
           label = "sync";
           path = "${config.services.syncthing.dataDir}/sync";
+          type = "receiveencrypted";
           devices = sharing "sync";
           versioning = {
             type = "simple";

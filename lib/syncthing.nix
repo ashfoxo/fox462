@@ -11,6 +11,10 @@
 #   onlyWith optional: the only machines it pairs with; the others leave it
 #            out entirely. Unset, it pairs with every device that shares a
 #            folder with it.
+#   untrusted optional: true for a device that gets only encrypted data
+#            (fox-red, AUDIT.md C10). The others encrypt toward it with each
+#            folder's password: sops secret syncthing-<folder>-password on the
+#            computers, typed into the folder's share on the phone.
 #
 # Folders:
 #   minecraft-instances  Prism Launcher's instances (home/desktop/syncthing.nix)
@@ -40,6 +44,7 @@
     id = "KPXV26X-WCTDXXJ-O5YC6UW-QXPPLWN-4SSMULV-RHN3B4Z-BA5XE6Q-C4DAHQ6";
     address = "100.73.156.82";
     folders = [ "minecraft-instances" "sync" ];
+    untrusted = true;
   };
   # The Pixel, running Syncthing-Fork. It dials the others, so no address.
   phone = {

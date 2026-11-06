@@ -21,6 +21,12 @@
     neededForUsers = true;
   };
 
+  # Syncthing folder passwords: fox-red gets these folders only encrypted
+  # (home/desktop/syncthing.nix, AUDIT.md C10). Also in Bitwarden: restoring
+  # fox-red's copy or its backups needs them.
+  sops.secrets.syncthing-sync-password.owner = "arlo";
+  sops.secrets.syncthing-minecraft-instances-password.owner = "arlo";
+
   users.mutableUsers = false;
   users.users.arlo.hashedPasswordFile = config.sops.secrets.arlo-password.path;
   users.users.root.hashedPasswordFile = config.sops.secrets.root-password.path;

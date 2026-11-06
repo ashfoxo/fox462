@@ -28,6 +28,14 @@ let
   # The peers that have a given folder.
   sharing = folder: lib.attrNames (lib.filterAttrs (_: d: lib.elem folder d.folders) peers);
 
+  # The same, as Syncthing wants them: an untrusted peer (fox-red) gets the
+  # folder encrypted with its password (lib/syncthing.nix, AUDIT.md C10).
+  shareWith = folder: map (name:
+    if peers.${name}.untrusted or false then {
+      inherit name;
+      encryptionPasswordFile = osConfig.sops.secrets."syncthing-${folder}-password".path;
+    } else name) (sharing folder);
+
   # Prism runs sandboxed (sandboxes.nix): its home is this folder.
   prism = "${config.home.homeDirectory}/.local/share/sandboxes/prismlauncher/.local/share/PrismLauncher";
 in
@@ -51,7 +59,7 @@ in
         id = "minecraft-instances";
         label = "Minecraft instances";
         path = "${prism}/instances";
-        devices = sharing "minecraft-instances";
+        devices = shareWith "minecraft-instances";
         # The last 5 versions of a changed or deleted file are kept in
         # instances/.stversions, in case a sync goes the wrong way.
         versioning = {
@@ -64,7 +72,7 @@ in
         id = "sync";
         label = "sync";
         path = "${config.home.homeDirectory}/sync";
-        devices = sharing "sync";
+        devices = shareWith "sync";
         # The last 5 versions of a changed or deleted file are kept in
         # ~/sync/.stversions.
         versioning = {
