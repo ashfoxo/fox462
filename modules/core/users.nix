@@ -26,6 +26,9 @@
   # fox-red's copy or its backups needs them.
   sops.secrets.syncthing-sync-password.owner = "arlo";
   sops.secrets.syncthing-minecraft-instances-password.owner = "arlo";
+  # Unlocks the T7's moose-amber partition without a prompt (udiskie,
+  # home/desktop/helpers.nix).
+  sops.secrets.moose-amber-key.owner = "arlo";
 
   users.mutableUsers = false;
   users.users.arlo.hashedPasswordFile = config.sops.secrets.arlo-password.path;

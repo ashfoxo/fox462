@@ -134,6 +134,12 @@ in
     automount = true;
     notify = true;
     tray = "never"; # mounts show up in yazi; no tray icon needed
+    # moose-amber (the T7's LUKS partition) unlocks with a key file instead
+    # of asking. The key is a sops secret, also enrolled in the partition.
+    settings.device_config = [{
+      id_uuid = "a40ed418-43ae-41d7-9222-3c28543d38e5";
+      keyfile = osConfig.sops.secrets.moose-amber-key.path;
+    }];
   };
   # Home Manager binds udiskie to graphical-session.target. Pin it to the
   # Hyprland session like everything else here.
