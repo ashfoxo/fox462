@@ -1,9 +1,10 @@
 # fox-red
 
 The NixOS configuration for **fox-red**, a Hetzner VPS (4 vCPU, 8 GB RAM,
-40 GB disk, plus a 1 TB Storage Box for music). The whole server is built from
-this repo: one flake, shared server modules, encrypted secrets, and a deploy
-script. fox-red was rebuilt in place in autumn 2026.
+40 GB disk, plus a 1 TB Storage Box for music, podcasts and audiobooks).
+The whole server is built from this repo: one flake, shared server modules,
+encrypted secrets, and a deploy script. fox-red was rebuilt in place in
+autumn 2026.
 
 ## What runs here
 
@@ -19,6 +20,7 @@ services other devices have to reach from anywhere are public.
 | Miniflux | rss.emberfox.net | NetBird | NixOS module |
 | Navidrome | music.emberfox.net | NetBird | Podman |
 | AudioMuse-AI | muse.emberfox.net | NetBird | Podman (web, worker, Postgres) |
+| Audiobookshelf (podcasts, audiobooks) | spoken.emberfox.net | NetBird | NixOS module |
 | Gatus | foxred.emberfox.net | NetBird | NixOS module |
 | Notesnook sync server | notes.emberfox.net (+ auth., events., files. under notes.) | NetBird | Podman (MongoDB, Silo, three apps) |
 | Syncthing (Minecraft instances, `~/sync`) | port 22000 | NetBird | NixOS module |
@@ -56,6 +58,10 @@ NetBird interface only, it also opens TCP 22000 for Syncthing.
   into the Storage Box, and picked up by Navidrome (`music-ingest.nix`).
   AudioMuse analyses the library and supplies Navidrome's "similar songs"
   through its plugin.
+- **Spoken.** Audiobookshelf downloads podcasts into the Storage Box's
+  `spoken` folder and serves audiobooks from it. `spoken.nix` copies podcasts
+  up to `Filen:/Media/Spoken` nightly, and audiobooks both ways (copy, never
+  delete).
 - **No Docker.** The few containers run under Podman with fully qualified
   images, no daemon.
 
@@ -178,6 +184,8 @@ only for fox-green, in return. Who checks what is in
 | 01:00 | Miniflux Postgres dump |
 | 01:30–01:50 | restic backup |
 | 02:10 | Music ingest |
+| 02:40 | Spoken sync (podcasts up to Filen, audiobooks both ways) |
+| 03:30 | Audiobookshelf Audiobooks scan (set in its web UI) |
 | 05:30 | Similar-songs check |
 | Sun 06:00 | Navidrome + AudioMuse update |
 | Sun 06:30 | Notesnook image update |

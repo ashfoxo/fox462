@@ -19,6 +19,7 @@
     ../../modules/server/services/music-ingest.nix
     ../../modules/server/services/notesnook.nix
     ../../modules/server/services/ntfy.nix
+    ../../modules/server/services/spoken.nix
     ../../modules/server/services/syncthing.nix
   ];
 

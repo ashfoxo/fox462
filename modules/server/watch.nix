@@ -40,6 +40,7 @@ in
       { name = "rss"; url = "https://rss.emberfox.net/healthcheck"; conditions = [ "[STATUS] == 200" certOk ]; }
       { name = "music"; url = "https://music.emberfox.net/ping"; conditions = [ "[STATUS] < 500" ]; }
       { name = "audiomuse"; url = "https://muse.emberfox.net"; conditions = [ "[STATUS] < 500" ]; }
+      { name = "spoken"; url = "https://spoken.emberfox.net/healthcheck"; conditions = [ "[STATUS] == 200" ]; }
       { name = "notes"; url = "https://notes.emberfox.net"; conditions = [ "[STATUS] < 500" ]; }
       { name = "notes-auth"; url = "https://auth.notes.emberfox.net"; conditions = [ "[STATUS] < 500" "[CERTIFICATE_EXPIRATION] > 240h" ]; }
       { name = "status"; url = "https://foxred.emberfox.net/health"; conditions = [ "[STATUS] == 200" ]; }
