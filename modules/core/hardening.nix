@@ -16,6 +16,22 @@
   ##### Kernel hardening #####
   # The sysctls are shared with the servers: common/hardening.nix.
 
+  # No kernel modules load once boot is done, so root can't slip one in.
+  # Anything needed later must load at boot: these are what Mullvad, NetBird,
+  # Bluetooth, the Filen drive and USB drives, audio and tethering use after
+  # login. A device that stops working when plugged in later needs its module
+  # here (dmesg says "module loading disabled"); pick an older generation at
+  # boot to get back in meanwhile.
+  security.lockKernelModules = true;
+  boot.kernelModules = [
+    "nf_tables" "nft_ct" "nft_fib_ipv4" "nft_fib_ipv6" "nft_masq" "nft_nat"
+    "nft_chain_nat" "nft_reject_inet" "nft_compat" "xt_conntrack" "xt_pkttype"
+    "xt_tcpudp" "wireguard" "tun"
+    "bnep" "rfcomm" "hidp"
+    "fuse" "usb_storage" "uas" "exfat" "ext4"
+    "snd_usb_audio" "cdc_ether" "cdc_ncm" "rndis_host"
+  ];
+
   # Wipe memory on allocation and free, so freed secrets don't linger in RAM
   # for a cold-boot or live-memory read.
   boot.kernelParams = [

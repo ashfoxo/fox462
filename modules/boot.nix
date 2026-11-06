@@ -1,17 +1,28 @@
-{ lib, ... }:
+{ lib, pkgs, inputs, ... }:
 {
+  imports = [ inputs.lanzaboote.nixosModules.lanzaboote ];
+
   ##### Boot #####
-  boot.loader.systemd-boot.enable = true;
+  # Secure Boot with our own keys: lanzaboote replaces systemd-boot's
+  # installer and signs every boot entry, so a swapped kernel or initrd on
+  # /boot won't boot. It keeps the systemd-boot settings below (entry limit,
+  # no editor) and signs fwupd's firmware-update app too. Keys are created on
+  # the first rebuild in /var/lib/sbctl (persisted). One-time firmware steps,
+  # and what to do if it won't boot: README.md, "Secure Boot".
+  boot.loader.systemd-boot.enable = false;
+  boot.lanzaboote = {
+    enable = true;
+    pkiBundle = "/var/lib/sbctl";
+    autoGenerateKeys.enable = true;
+  };
+  environment.systemPackages = [ pkgs.sbctl ];  # enroll-keys, verify, status
+
   # A host that boots from a removable drive sets this to false, so installing
   # never writes a boot entry into the machine's firmware.
   boot.loader.efi.canTouchEfiVariables = lib.mkDefault true;
   boot.loader.systemd-boot.configurationLimit = 10;
   # No editing the kernel command line from the boot menu.
   boot.loader.systemd-boot.editor = false;
-
-  # TODO(later): Secure Boot with lanzaboote (own keys, signed UKIs), plus
-  # TPM2 or FIDO2 measured unlock, so /boot can't be swapped by an evil
-  # maid. Laptop only; the VPSes boot BIOS GRUB. Not started.
 
   # Modern systemd initrd. The root wipe lives in
   # boot.initrd.systemd.services.rollback (impermanence.nix).

@@ -181,6 +181,37 @@ through it, and through writing a new service.
 
 Update everything: `nix flake update`, then rebuild.
 
+## Secure Boot
+
+The laptop boots with Secure Boot on, using its own keys instead of
+Microsoft's ([lanzaboote](https://github.com/nix-community/lanzaboote),
+`modules/boot.nix`). Every boot entry is signed on each rebuild, so a kernel
+or initrd swapped on `/boot` won't boot. Kernel modules can't load once boot
+is done (`modules/core/hardening.nix`).
+
+One-time setup on a new machine (the menu names are a Dell Latitude's):
+
+1. Rebuild. This creates the keys in `/var/lib/sbctl` and signs the boot
+   files. `sudo sbctl verify` should list the `.efi` files under
+   `/boot/EFI/Linux` and `/boot/EFI/BOOT` as signed.
+2. Reboot once with Secure Boot still off, to check it boots.
+3. In the firmware (F2 at the logo): set an **Admin Password** (Security),
+   then under Secure Boot → Expert Key Management turn on **Custom Mode** and
+   **Delete All Keys**. That puts the firmware in Setup Mode.
+4. Boot NixOS and run `sudo sbctl enroll-keys --tpm-eventlog`. This enrolls
+   only your keys, plus the checksums of the option ROMs this machine
+   actually loads. If sbctl refuses because of option ROMs, use
+   `--microsoft` instead.
+5. Back in the firmware, turn **Secure Boot Enable** on. After booting,
+   `bootctl status` shows `Secure Boot: enabled (user)`.
+
+Keep the Admin Password somewhere safe: without it, Secure Boot can't be
+turned off or re-keyed, and Dell can't reset it on most models.
+
+If it won't boot after an update, pick an older generation in the boot menu
+(they're all signed). If nothing boots, enter the firmware with the Admin
+Password and turn Secure Boot off.
+
 ## Secrets
 
 Secrets are encrypted with [sops](https://github.com/getsops/sops) and
