@@ -30,67 +30,30 @@ Dropdown {
     }
 
     // ---- volume ----
-    Row {
-        width: parent.width
-        spacing: 12
-
-        MouseArea {
-            width: 24
-            height: 24
-            cursorShape: Qt.PointingHandCursor
-            onClicked: {
-                if (menu.sink?.audio)
-                    menu.sink.audio.muted = !menu.muted;
-            }
-
-            BarText {
-                anchors.centerIn: parent
-                text: menu.muted ? "\u{F0581}" : "\u{F057E}"
-                color: menu.muted ? menu.c.amber : menu.c.dim
-            }
+    SliderRow {
+        icon: menu.muted ? "\u{F0581}" : "\u{F057E}"
+        iconColor: menu.muted ? menu.c.amber : menu.c.dim
+        clickable: true
+        value: menu.volume
+        dimmed: menu.muted
+        valueText: menu.muted ? "muted" : `${Math.round(menu.volume * 100)}%`
+        valueColor: menu.muted ? menu.c.amber : menu.c.fg
+        onIconClicked: {
+            if (menu.sink?.audio)
+                menu.sink.audio.muted = !menu.muted;
         }
-        Slider {
-            width: parent.width - 24 - 64 - 24
-            value: menu.volume
-            dimmed: menu.muted
-            onMoved: v => {
-                if (menu.sink?.audio)
-                    menu.sink.audio.volume = v;
-            }
-        }
-        BarText {
-            width: 64
-            horizontalAlignment: Text.AlignRight
-            anchors.verticalCenter: parent.verticalCenter
-            text: menu.muted ? "muted" : `${Math.round(menu.volume * 100)}%`
-            color: menu.muted ? menu.c.amber : menu.c.fg
+        onMoved: v => {
+            if (menu.sink?.audio)
+                menu.sink.audio.volume = v;
         }
     }
 
     // ---- brightness (laptop screen only) ----
-    Row {
+    SliderRow {
         visible: Brightness.available
-        width: parent.width
-        spacing: 12
-
-        BarText {
-            width: 24
-            horizontalAlignment: Text.AlignHCenter
-            anchors.verticalCenter: parent.verticalCenter
-            text: "\u{F00DF}"
-            color: menu.c.dim
-        }
-        Slider {
-            width: parent.width - 24 - 64 - 24
-            value: Brightness.value
-            onMoved: v => Brightness.set(v)
-        }
-        BarText {
-            width: 64
-            horizontalAlignment: Text.AlignRight
-            anchors.verticalCenter: parent.verticalCenter
-            text: `${Math.round(Brightness.value * 100)}%`
-        }
+        icon: "\u{F00DF}"
+        value: Brightness.value
+        onMoved: v => Brightness.set(v)
     }
 
     Divider {}

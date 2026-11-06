@@ -90,16 +90,8 @@ Dropdown {
 
     Divider {}
 
-    MouseArea {
-        width: parent.width
-        height: more.implicitHeight
-        cursorShape: Qt.PointingHandCursor
+    FooterLink {
+        text: "more in nmtui \u{F0142}"
         onClicked: menu.nmtui()
-
-        BarText {
-            id: more
-            text: "more in nmtui \u{F0142}"
-            color: menu.c.dim
-        }
     }
 }

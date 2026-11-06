@@ -29,6 +29,10 @@
   # Unlocks the T7's moose-amber partition without a prompt (udiskie,
   # home/desktop/helpers.nix).
   sops.secrets.moose-amber-key.owner = "arlo";
+  # The bar's now playing (home/desktop/quickshell.nix): your own non-admin
+  # Navidrome login (ND_USER= / ND_PASSWORD=) and an Audiobookshelf API token.
+  sops.secrets.navidrome-user.owner = "arlo";
+  sops.secrets.abs-token.owner = "arlo";
 
   users.mutableUsers = false;
   users.users.arlo.hashedPasswordFile = config.sops.secrets.arlo-password.path;

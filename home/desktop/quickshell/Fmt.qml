@@ -17,6 +17,14 @@ Singleton {
         return `${Math.floor(s / 86400)}d`;
     }
 
+    // 83 -> "1:23", 3723 -> "1:02:03"
+    function clock(seconds) {
+        const s = Math.max(0, Math.floor(seconds));
+        const pad = n => String(n).padStart(2, "0");
+        const m = `${Math.floor(s / 60) % 60}:${pad(s % 60)}`;
+        return s >= 3600 ? `${Math.floor(s / 3600)}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}` : m;
+    }
+
     function ago(unixMs) {
         return duration((Date.now() - unixMs) / 1000) + " ago";
     }

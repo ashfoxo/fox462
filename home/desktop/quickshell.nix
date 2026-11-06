@@ -1,8 +1,8 @@
 { pkgs, lib, config, osConfig, ... }:
 
 # Desktop shell (Quickshell): the bar along the top of the screen and its
-# dropdowns (chat, Mullvad, NetBird, backup, update, Wi-Fi, Bluetooth,
-# volume, power), and the notification popups. Replaces Waybar and mako.
+# dropdowns (chat, now playing, Mullvad, NetBird, backup, update, Wi-Fi,
+# Bluetooth, volume, power), and the notification popups. Replaces Waybar and mako.
 #
 # The QML is in ./quickshell/ and gets copied into the Nix store together
 # with Config.qml, which is GENERATED below from the settings in this file
@@ -87,6 +87,7 @@ let
     scripts = {
       load = loadScript;
       unit = unitScript;
+      nowplaying = nowPlayingScript;
       brightnessctl = lib.getExe pkgs.brightnessctl;
     };
   };
@@ -188,6 +189,44 @@ let
         fi
         echo "error ''${err:-see journalctl -u $unit}"
       fi
+    '';
+  });
+
+  # What you're playing on other devices, one JSON object per line:
+  #   {"src":"music"|"spoken","title","artist","player","position","duration"}
+  # position is -1 when unknown (Navidrome doesn't report it). Each server is
+  # asked separately; one that's unreachable (NetBird down) just adds nothing.
+  # Credentials go to curl on stdin (-K -), so they never show in ps.
+  nowPlayingScript = lib.getExe (pkgs.writeShellApplication {
+    name = "qs-nowplaying";
+    runtimeInputs = with pkgs; [ coreutils curl jq ];
+    text = ''
+      # ND_USER and ND_PASSWORD.
+      # shellcheck disable=SC1091
+      . ${osConfig.sops.secrets.navidrome-user.path}
+      salt=$(head -c 8 /dev/urandom | od -An -tx1 | tr -d ' \n')
+      token=$(printf '%s%s' "$ND_PASSWORD" "$salt" | md5sum | cut -d' ' -f1)
+      printf 'url = "https://music.emberfox.net/rest/getNowPlaying?u=%s&t=%s&s=%s&v=1.16.1&c=quickshell&f=json"\n' \
+          "$(jq -rn --arg u "$ND_USER" '$u | @uri')" "$token" "$salt" \
+        | curl -sf --max-time 8 -K - \
+        | jq -c --arg u "$ND_USER" '."subsonic-response".nowPlaying.entry // [] | .[]
+            | select(.username == $u)
+            | {src: "music", title, artist: (.artist // ""), player: (.playerName // ""),
+               position: -1, duration: (.duration // 0)}' \
+        || true
+
+      # Your open session isn't visible to a non-admin token, so: your newest
+      # listening session, if a client synced it in the last 90s (they sync
+      # every 10-15s while playing; a pause stops the syncs).
+      printf 'url = "https://spoken.emberfox.net/api/me/listening-sessions?itemsPerPage=1"\nheader = "Authorization: Bearer %s"\n' \
+          "$(cat ${osConfig.sops.secrets.abs-token.path})" \
+        | curl -sf --max-time 8 -K - \
+        | jq -c --argjson now "$(date +%s%3N)" '.sessions[0] // empty
+            | select($now - .updatedAt < 90000)
+            | {src: "spoken", title: .displayTitle, artist: (.displayAuthor // ""),
+               player: (.deviceInfo.clientName // ""),
+               position: (.currentTime // 0), duration: (.duration // 0)}' \
+        || true
     '';
   });
 

@@ -65,21 +65,9 @@ Dropdown {
         }
     }
 
-    Rectangle {
+    ErrorBox {
         visible: menu.failed
-        width: parent.width
-        height: errorText.implicitHeight + 20
-        color: menu.c.surf
-
-        BarText {
-            id: errorText
-            x: 10
-            y: 10
-            width: parent.width - 20
-            wrapMode: Text.Wrap
-            color: menu.c.rust_text
-            text: menu.status.error
-        }
+        text: menu.status.error
     }
 
     PopButton {

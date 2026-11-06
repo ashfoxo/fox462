@@ -1,7 +1,9 @@
 // Status on the right, in groups:
 //   rec | load (only when high) | vpn netbird backup | wifi bt volume profile battery | dnd
 // While things are fine an item is just its icon; text shows up only when
-// it needs you. Amber = heads-up, rust = something's wrong.
+// it needs you. vpn, netbird and backup go away entirely while fine, and
+// come back while the mouse is over the status. Amber = heads-up, rust =
+// something's wrong.
 // Click vpn, netbird, backup, wifi, bluetooth or volume for its dropdown.
 // Volume also scrolls; the power profile cycles on click; the bell turns
 // do not disturb on and off.
@@ -25,6 +27,10 @@ Row {
     }
 
     readonly property bool loadShown: Load.cpuState !== "ok" || Load.ramState !== "ok" || Load.tempState !== "ok"
+
+    HoverHandler {
+        id: hover
+    }
 
     // ---- voice note recording (voicenotes.nix): only while recording --------
     BarButton {
@@ -81,20 +87,26 @@ Row {
     }
 
     // ---- vpn, netbird, backup -----------------------------------------------
+    // vpn, netbird and backup hide while healthy; hovering the status shows
+    // them (and an open dropdown keeps its item).
+    Item {
+        visible: root.loadShown && (vpnItem.visible || netbirdItem.visible || backupItem.visible || updateItem.visible)
+        width: root.groupGap
+        height: 1
+    }
     BarButton {
         id: vpnItem
-        gap: root.loadShown ? root.groupGap : 0
+        visible: Mullvad.state !== "connected" || hover.hovered || open
         icon: "\u{F0483}"
         text: ({ disconnected: "vpn off", connecting: "connecting", disconnecting: "disconnecting", error: "vpn error" })[Mullvad.state] ?? ""
-        color: Mullvad.state === "connected" ? root.c.forest_text
-            : (Mullvad.state === "disconnected" || Mullvad.state === "error") ? root.c.rust_text
-            : (Mullvad.state === "connecting" || Mullvad.state === "disconnecting") ? root.c.amber
-            : root.c.dim
+        color: ({ connected: root.c.forest_text, disconnected: root.c.rust_text, error: root.c.rust_text,
+                  connecting: root.c.amber, disconnecting: root.c.amber })[Mullvad.state] ?? root.c.dim
         open: root.bar.open === "vpn"
         onClicked: root.bar.toggle("vpn")
     }
     BarButton {
         id: netbirdItem
+        visible: !NetBird.up || hover.hovered || open
         icon: "\u{F06F3}"
         text: NetBird.needsLogin ? "login" : NetBird.down ? "down" : ""
         color: NetBird.down ? root.c.amber : NetBird.off ? root.c.faint : root.c.dim
@@ -114,12 +126,11 @@ Row {
 
     BarButton {
         id: backupItem
+        visible: backupStatus.state !== "ok" || hover.hovered || open
         icon: "\u{F006F}"
         text: ({ failed: "failed", overdue: "overdue", none: "none yet" })[backupStatus.state] ?? ""
-        color: backupStatus.state === "failed" ? root.c.rust_text
-            : (backupStatus.state === "overdue" || backupStatus.state === "none") ? root.c.amber
-            : backupStatus.state === "running" ? root.c.teal_text
-            : root.c.dim
+        color: ({ failed: root.c.rust_text, overdue: root.c.amber, none: root.c.amber,
+                  running: root.c.teal_text })[backupStatus.state] ?? root.c.dim
         open: root.bar.open === "backup"
         onClicked: root.bar.toggle("backup")
     }
@@ -128,11 +139,8 @@ Row {
         visible: updateStatus.state !== "absent"
         icon: "\u{F06B0}"
         text: ({ failed: "update failed", overdue: "update overdue", skipped: "update skipped", ok: "update ready" })[updateStatus.state] ?? ""
-        color: updateStatus.state === "failed" ? root.c.rust_text
-            : (updateStatus.state === "overdue" || updateStatus.state === "skipped" || updateStatus.state === "none") ? root.c.amber
-            : updateStatus.state === "running" ? root.c.teal_text
-            : updateStatus.state === "ok" ? root.c.forest_text
-            : root.c.dim
+        color: ({ failed: root.c.rust_text, overdue: root.c.amber, skipped: root.c.amber, none: root.c.amber,
+                  running: root.c.teal_text, ok: root.c.forest_text })[updateStatus.state] ?? root.c.dim
         open: root.bar.open === "update"
         onClicked: root.bar.toggle("update")
     }

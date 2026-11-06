@@ -95,19 +95,11 @@ Dropdown {
 
     Divider {}
 
-    MouseArea {
-        width: parent.width
-        height: pair.implicitHeight
-        cursorShape: Qt.PointingHandCursor
+    FooterLink {
+        text: "pair new device in bluetui \u{F0142}"
         onClicked: {
             Quickshell.execDetached(["ghostty", "-e", "bluetui"]);
             menu.dismissed();
-        }
-
-        BarText {
-            id: pair
-            text: "pair new device in bluetui \u{F0142}"
-            color: menu.c.dim
         }
     }
 }

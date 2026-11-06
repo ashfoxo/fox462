@@ -84,23 +84,12 @@ Dropdown {
     }
 
     // ---- down: what's wrong ----
-    Rectangle {
+    ErrorBox {
         visible: NetBird.down
-        width: parent.width
-        height: problem.implicitHeight + 20
-        color: menu.c.surf
-
-        BarText {
-            id: problem
-            x: 10
-            y: 10
-            width: parent.width - 20
-            wrapMode: Text.Wrap
-            color: menu.c.amber
-            text: NetBird.needsLogin ? "needs login: run netbird-wt0 up in a terminal"
-                : NetBird.error !== "" ? NetBird.error
-                : "status: " + NetBird.status.toLowerCase()
-        }
+        textColor: menu.c.amber
+        text: NetBird.needsLogin ? "needs login: run netbird-wt0 up in a terminal"
+            : NetBird.error !== "" ? NetBird.error
+            : "status: " + NetBird.status.toLowerCase()
     }
     Field {
         visible: NetBird.down
