@@ -34,7 +34,8 @@
       allow id 413c:2105 serial "" name "Dell USB Keyboard" hash "wqROqDHTqC75UkiKSyBDwVpJWESb5wGrSNY6N0VRTSs=" with-interface 03:01:01
 
       # Storage
-      allow id 04e8:61fb serial "S6NRNS0XA18467X" name "PSSD T7 Shield" hash "+sLq4q77LEUVmR/to3kM/X3i+hg969yaRZnhrHecfMI=" with-interface { 08:06:50 08:06:62 }
+      # No hash: it differs between USB 2 and USB 3 ports. The serial pins it.
+      allow id 04e8:61fb serial "S6NRNS0XA18467X" name "PSSD T7 Shield" with-interface { 08:06:50 08:06:62 }
     '';
   };
 }
