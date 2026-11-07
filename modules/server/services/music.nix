@@ -160,6 +160,10 @@ in
           ND_ENABLETRANSCODING = "true";
           ND_TRANSCODINGCACHESIZE = "1GB";
           ND_ENABLEINSIGHTS = "false";
+          # Re-tagged or moved files otherwise linger as greyed-out "missing"
+          # ghost albums forever. Only on full scans, so a CIFS hiccup during
+          # an hourly scan can't wipe play counts and stars.
+          ND_SCANNER_PURGEMISSING = "full";
 
           # The AudioMuse plugin, /var/lib/navidrome/plugins/audiomuseai.ndp,
           # kept current by music-stack-update. Its URL and API token are set
