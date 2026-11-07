@@ -18,6 +18,8 @@ MouseArea {
     property int gap: 0
     // Status-only items: no hand cursor.
     property bool interactive: true
+    // Longer text is cut with "…" (0 = never cut).
+    property real maxTextWidth: 0
 
     implicitWidth: gap + content.implicitWidth + 12
     implicitHeight: Config.bar.height
@@ -46,6 +48,8 @@ MouseArea {
             visible: button.text !== ""
             // A space after the icon, in the same mono font.
             text: (button.icon !== "" ? " " : "") + button.text
+            width: button.maxTextWidth > 0 ? Math.min(implicitWidth, button.maxTextWidth) : implicitWidth
+            elide: Text.ElideRight
             color: button.open ? Config.colors.fg : button.color
             font.bold: button.bold || button.open
         }

@@ -193,39 +193,83 @@ let
   });
 
   # What you're playing on other devices, one JSON object per line:
-  #   {"src":"music"|"spoken","title","artist","player","position","duration"}
-  # position is -1 when unknown (Navidrome doesn't report it). Each server is
-  # asked separately; one that's unreachable (NetBird down) just adds nothing.
-  # Credentials go to curl on stdin (-K -), so they never show in ps.
+  #   {"src":"music"|"spoken","title","artist","player","position","duration","cover"}
+  # position is -1 when unknown (Navidrome doesn't report it). cover is a
+  # local file, or "" if there's none. Each server is asked separately; one
+  # that's unreachable (NetBird down) just adds nothing.
+  # Credentials go to curl on stdin (-K -), so they never show in ps, and
+  # covers are downloaded here so they never reach the bar either.
   nowPlayingScript = lib.getExe (pkgs.writeShellApplication {
     name = "qs-nowplaying";
-    runtimeInputs = with pkgs; [ coreutils curl jq ];
+    runtimeInputs = with pkgs; [ coreutils curl findutils jq ];
     text = ''
+      # Covers, kept in RAM for 12h so a track's cover downloads once.
+      dir="''${XDG_RUNTIME_DIR:-/tmp}/qs-nowplaying"
+      mkdir -p "$dir"
+      chmod 700 "$dir"
+      find "$dir" -type f -mmin +720 -delete
+
+      # cover <file name> <command...>: runs the command into the file unless
+      # it's there already, then prints the file's path (nothing on failure).
+      cover() {
+        f="$dir/$(printf '%s' "$1" | tr -c 'A-Za-z0-9_.-' _)"
+        shift
+        [ -s "$f" ] || { "$@" > "$f.tmp" && mv "$f.tmp" "$f"; } || rm -f "$f.tmp"
+        if [ -s "$f" ]; then printf '%s' "$f"; fi
+      }
+
+      # ---- Navidrome ----
       # ND_USER and ND_PASSWORD.
       # shellcheck disable=SC1091
       . ${osConfig.sops.secrets.navidrome-user.path}
       salt=$(head -c 8 /dev/urandom | od -An -tx1 | tr -d ' \n')
       token=$(printf '%s%s' "$ND_PASSWORD" "$salt" | md5sum | cut -d' ' -f1)
-      printf 'url = "https://music.emberfox.net/rest/getNowPlaying?u=%s&t=%s&s=%s&v=1.16.1&c=quickshell&f=json"\n' \
-          "$(jq -rn --arg u "$ND_USER" '$u | @uri')" "$token" "$salt" \
-        | curl -sf --max-time 8 -K - \
+      auth="u=$(jq -rn --arg u "$ND_USER" '$u | @uri')&t=$token&s=$salt&v=1.16.1&c=quickshell"
+      nd() {
+        printf 'url = "https://music.emberfox.net/rest/%s?%s&%s"\n' "$1" "$auth" "$2" \
+          | curl -sf --max-time 8 -K -
+      }
+
+      nd getNowPlaying f=json \
         | jq -c --arg u "$ND_USER" '."subsonic-response".nowPlaying.entry // [] | .[]
             | select(.username == $u)
             | {src: "music", title, artist: (.artist // ""), player: (.playerName // ""),
-               position: -1, duration: (.duration // 0)}' \
+               position: -1, duration: (.duration // 0), art: (.coverArt // "")}' \
+        | while IFS= read -r e; do
+            art=$(jq -r .art <<<"$e")
+            c=""
+            if [ -n "$art" ]; then
+              c=$(cover "nd-$art" nd getCoverArt "id=$(jq -rn --arg a "$art" '$a | @uri')&size=160") || c=""
+            fi
+            jq -c --arg c "$c" '.cover = $c | del(.art)' <<<"$e"
+          done \
         || true
+
+      # ---- Audiobookshelf ----
+      abs_token=$(cat ${osConfig.sops.secrets.abs-token.path})
+      abs() {
+        printf 'url = "https://spoken.emberfox.net/api/%s"\nheader = "Authorization: Bearer %s"\n' "$1" "$abs_token" \
+          | curl -sf --max-time 8 -K -
+      }
 
       # Your open session isn't visible to a non-admin token, so: your newest
       # listening session, if a client synced it in the last 90s (they sync
       # every 10-15s while playing; a pause stops the syncs).
-      printf 'url = "https://spoken.emberfox.net/api/me/listening-sessions?itemsPerPage=1"\nheader = "Authorization: Bearer %s"\n' \
-          "$(cat ${osConfig.sops.secrets.abs-token.path})" \
-        | curl -sf --max-time 8 -K - \
+      abs 'me/listening-sessions?itemsPerPage=1' \
         | jq -c --argjson now "$(date +%s%3N)" '.sessions[0] // empty
             | select($now - .updatedAt < 90000)
             | {src: "spoken", title: .displayTitle, artist: (.displayAuthor // ""),
                player: (.deviceInfo.clientName // ""),
-               position: (.currentTime // 0), duration: (.duration // 0)}' \
+               position: (.currentTime // 0), duration: (.duration // 0),
+               item: (.libraryItemId // "")}' \
+        | while IFS= read -r e; do
+            item=$(jq -r .item <<<"$e")
+            c=""
+            if [ -n "$item" ]; then
+              c=$(cover "abs-$item" abs "items/$item/cover?width=160") || c=""
+            fi
+            jq -c --arg c "$c" '.cover = $c | del(.item)' <<<"$e"
+          done \
         || true
     '';
   });

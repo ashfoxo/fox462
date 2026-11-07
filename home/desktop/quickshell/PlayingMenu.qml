@@ -1,6 +1,7 @@
-// Now playing dropdown: each player here (title, artist · player, previous
-// and next, play-pause on the icon, seekable progress), then what's playing
-// on your other devices (Navidrome, Audiobookshelf), read-only.
+// Now playing dropdown: each player here (cover, title, artist · player,
+// previous and next, play-pause on the icon, seekable progress), then what's
+// playing on your other devices (Navidrome, Audiobookshelf), read-only.
+// The little bars bounce while a track plays.
 import QtQuick
 
 Dropdown {
@@ -35,11 +36,24 @@ Dropdown {
 
             Item {
                 width: parent.width
-                height: Math.max(names.implicitHeight, buttons.implicitHeight)
+                height: Math.max(art.height, names.implicitHeight, buttons.implicitHeight)
 
+                Image {
+                    id: art
+                    visible: status === Image.Ready
+                    width: visible ? 48 : 0
+                    height: width
+                    anchors.verticalCenter: parent.verticalCenter
+                    source: player.p.trackArtUrl ?? ""
+                    sourceSize: Qt.size(96, 96)
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true
+                }
                 Column {
                     id: names
-                    width: parent.width - buttons.width - 12
+                    x: art.width > 0 ? art.width + 12 : 0
+                    width: parent.width - x - buttons.width - 12
+                    anchors.verticalCenter: parent.verticalCenter
 
                     BarText {
                         width: parent.width
@@ -62,6 +76,10 @@ Dropdown {
                     }
                     spacing: 8
 
+                    Bounce {
+                        anchors.verticalCenter: parent.verticalCenter
+                        running: menu.visible && player.p.isPlaying
+                    }
                     PopButton {
                         visible: player.p.canGoPrevious
                         small: true
@@ -99,26 +117,56 @@ Dropdown {
     Repeater {
         model: Playing.remote
 
-        Column {
+        Item {
+            id: remote
+
             required property var modelData
 
             width: parent.width
+            height: Math.max(remoteArt.height, remoteNames.implicitHeight)
 
-            BarText {
-                width: parent.width
-                elide: Text.ElideRight
-                font.bold: true
-                text: (modelData.src === "spoken" ? "\u{F02CB} " : "\u{F075A} ") + modelData.title
+            Image {
+                id: remoteArt
+                visible: status === Image.Ready
+                width: visible ? 48 : 0
+                height: width
+                anchors.verticalCenter: parent.verticalCenter
+                source: remote.modelData.cover ? "file://" + remote.modelData.cover : ""
+                sourceSize: Qt.size(96, 96)
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
             }
-            BarText {
-                width: parent.width
-                elide: Text.ElideRight
-                color: menu.c.dim
-                text: [
-                    modelData.artist,
-                    (modelData.player || modelData.src).toLowerCase(),
-                    modelData.position >= 0 ? `${Fmt.clock(modelData.position)} / ${Fmt.clock(modelData.duration)}` : ""
-                ].filter(x => x).join(" · ")
+            Column {
+                id: remoteNames
+                x: remoteArt.width > 0 ? remoteArt.width + 12 : 0
+                width: parent.width - x - remoteBounce.width - 12
+                anchors.verticalCenter: parent.verticalCenter
+
+                BarText {
+                    width: parent.width
+                    elide: Text.ElideRight
+                    font.bold: true
+                    text: (remote.modelData.src === "spoken" ? "\u{F02CB} " : "\u{F075A} ") + remote.modelData.title
+                }
+                BarText {
+                    width: parent.width
+                    elide: Text.ElideRight
+                    color: menu.c.dim
+                    text: [
+                        remote.modelData.artist,
+                        (remote.modelData.player || remote.modelData.src).toLowerCase(),
+                        remote.modelData.position >= 0 ? `${Fmt.clock(remote.modelData.position)} / ${Fmt.clock(remote.modelData.duration)}` : ""
+                    ].filter(x => x).join(" · ")
+                }
+            }
+            // Everything listed here is playing (paused ones drop off the server's list).
+            Bounce {
+                id: remoteBounce
+                anchors {
+                    right: parent.right
+                    verticalCenter: parent.verticalCenter
+                }
+                running: menu.visible
             }
         }
     }

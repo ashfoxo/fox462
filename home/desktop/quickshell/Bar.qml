@@ -35,6 +35,7 @@ PanelWindow {
     }
 
     Row {
+        id: leftSide
         anchors {
             left: parent.left
             leftMargin: 14
@@ -58,14 +59,16 @@ PanelWindow {
         }
 
         // Shown while something plays here or on your other devices, or is
-        // paused here. Long titles are cut so the status keeps its place.
+        // paused here. The title gets whatever space is free between the
+        // left side and the status (at most 400px) and is cut with "…".
         BarButton {
             id: playing
-            readonly property string label: Playing.label
 
-            visible: label !== ""
+            visible: Playing.label !== ""
             icon: "\u{F075A}"
-            text: label.length > 40 ? label.slice(0, 39) + "…" : label
+            text: Playing.label
+            // 14 + 14 margins, 24 breathing room, 18 spacer, ~40 icon and padding.
+            maxTextWidth: Math.max(60, Math.min(400, bar.width - leftSide.width - status.width - tray.width - clock.width - power.width - 110))
             color: Playing.playing ? Config.colors.fg : Config.colors.faint
             iconColor: Playing.playing ? Config.colors.forest_text : Config.colors.faint
             open: bar.open === "playing"
@@ -78,14 +81,17 @@ PanelWindow {
         }
 
         StatusItems {
+            id: status
             bar: bar
         }
 
         Tray {
+            id: tray
             bar: bar
         }
 
         BarButton {
+            id: clock
             text: Qt.formatTime(clockSource.date, "HH:mm")
             bold: true
             interactive: false
