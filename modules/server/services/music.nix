@@ -88,7 +88,8 @@ in
 
 
   # This box is infrastructure, not backup: it holds music, podcasts and
-  # audiobooks (spoken.nix), all of which also live in Filen. Group-writable
+  # audiobooks (spoken.nix), and video (jellyfin.nix), all of which also live
+  # in Filen. Group-writable
   # so Audiobookshelf, in the navidrome group, can save podcast episodes and
   # uploads. seal is here because the Storage Box is reached across the
   # public internet on 445, and vers=3.1.1 alone signs the session without

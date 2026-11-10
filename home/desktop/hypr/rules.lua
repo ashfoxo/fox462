@@ -15,7 +15,8 @@ local workspaces = {
     [5] = { "^zoom$" },                                                        -- Comms (chat apps are scratchpads)
     [6] = { "^darktable$", "^org\\.kde\\.kdenlive$" },                           -- Creative
     [7] = { "^CHIRP$", "^WSJT-X$" },                                           -- Radio
-    [8] = { "^steam$", "^org\\.prismlauncher\\.PrismLauncher$" },                -- Entertainment
+    [8] = { "^steam$", "^org\\.prismlauncher\\.PrismLauncher$",
+            "^org\\.jellyfin\\.JellyfinDesktop$" },                            -- Entertainment
 }
 
 for ws, classes in pairs(workspaces) do

@@ -22,10 +22,13 @@ remote_dir="/home/arlo/$name"
 
 cd "$(git rev-parse --show-toplevel)"
 
-# Whatever reaches the server is a commit you can point back to.
+# A switch or boot must be a commit you can point back to. test and
+# dry-build may try uncommitted work: test is gone at the next reboot.
 if [ -n "$(git status --porcelain)" ]; then
-  echo "deploy.sh: uncommitted changes. Commit first, then deploy." >&2
-  exit 1
+  case "$action" in
+    test|dry-build) echo "deploy.sh: deploying UNCOMMITTED changes ($action)" >&2 ;;
+    *) echo "deploy.sh: uncommitted changes. Commit first, or use test." >&2; exit 1 ;;
+  esac
 fi
 
 [ -d "hosts/$name" ] || { echo "deploy.sh: no hosts/$name in this repo." >&2; exit 1; }

@@ -71,6 +71,7 @@ in
 
     # --- Media ---------------------------------------------------------------
     pkgs.feishin               # Navidrome music
+    pkgs.jellyfin-desktop      # Jellyfin movies and TV (mpv inside, so it direct-plays)
     pkgs.fluent-reader         # RSS (AppImage; can't be sandboxed, see sandboxes.nix)
     pkgs.vlc                   # backup player; mpv is the default (defaults.nix)
 

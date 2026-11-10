@@ -19,6 +19,9 @@ let
   # names it). foxgreen.emberfox.net points here too, by its own DNS record.
   green = "100.73.109.161";
 
+  # fox-copper's NetBird address.
+  copper = "100.73.144.205";
+
   # Caddy renews 30 days out, so under 10 days left means renewal is failing.
   certOk = "[CERTIFICATE_EXPIRATION] > 240h";
 in
@@ -41,6 +44,7 @@ in
       { name = "music"; url = "https://music.emberfox.net/ping"; conditions = [ "[STATUS] < 500" ]; }
       { name = "audiomuse"; url = "https://muse.emberfox.net"; conditions = [ "[STATUS] < 500" ]; }
       { name = "spoken"; url = "https://spoken.emberfox.net/healthcheck"; conditions = [ "[STATUS] == 200" ]; }
+      { name = "jellyfin"; url = "https://jellyfin.emberfox.net/health"; conditions = [ "[STATUS] == 200" ]; }
       { name = "notes"; url = "https://notes.emberfox.net"; conditions = [ "[STATUS] < 500" ]; }
       { name = "notes-auth"; url = "https://auth.notes.emberfox.net"; conditions = [ "[STATUS] < 500" "[CERTIFICATE_EXPIRATION] > 240h" ]; }
       { name = "status"; url = "https://foxred.emberfox.net/health"; conditions = [ "[STATUS] == 200" ]; }
@@ -59,6 +63,16 @@ in
     endpoints = [
       { name = "status"; url = "https://foxgreen.emberfox.net/health"; conditions = [ "[STATUS] == 200" certOk ]; }
       { name = "ssh"; url = "tcp://${green}:22"; interval = "5m"; conditions = [ "[CONNECTED] == true" ]; }
+    ];
+  };
+
+  # Also down after every reboot until the disk is unlocked over SSH, so an
+  # alert after a power cut means "go unlock it".
+  fox-copper = {
+    watchedBy = "fox-red";
+    heartbeats.health = "15m";
+    endpoints = [
+      { name = "ssh"; url = "tcp://${copper}:22"; interval = "5m"; conditions = [ "[CONNECTED] == true" ]; }
     ];
   };
 }

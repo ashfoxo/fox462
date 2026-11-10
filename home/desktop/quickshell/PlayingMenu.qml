@@ -1,6 +1,6 @@
 // Now playing dropdown: each player here (cover, title, artist · player,
 // previous and next, play-pause on the icon, seekable progress), then what's
-// playing on your other devices (Navidrome, Audiobookshelf), read-only.
+// playing on your other devices (Navidrome, Audiobookshelf, Jellyfin), read-only.
 // The little bars bounce while a track plays.
 import QtQuick
 
@@ -146,7 +146,7 @@ Dropdown {
                     width: parent.width
                     elide: Text.ElideRight
                     font.bold: true
-                    text: (remote.modelData.src === "spoken" ? "\u{F02CB} " : "\u{F075A} ") + remote.modelData.title
+                    text: Playing.icon(remote.modelData.src) + " " + remote.modelData.title
                 }
                 BarText {
                     width: parent.width

@@ -25,7 +25,7 @@
   boot.loader.systemd-boot.editor = false;
 
   # Modern systemd initrd. The root wipe lives in
-  # boot.initrd.systemd.services.rollback (impermanence.nix).
+  # boot.initrd.systemd.services.rollback (root-wipe.nix).
   # postDeviceCommands is not supported here (the build fails an assertion),
   # so don't reintroduce it.
   boot.initrd.systemd.enable = true;
@@ -33,7 +33,7 @@
   # LUKS devices and all fileSystems entries (including /persist with
   # neededForBoot = true) live in each host's hardware-configuration.nix.
   # Don't define boot.initrd.luks.devices.<name>.device here too; that's an
-  # eval conflict. The LUKS device must be named "cryptroot" on every host:
+  # eval conflict. The LUKS device must be named "cryptroot" on every personal host:
   # the rollback script and the options below refer to it by that name.
   #
   # /nix and /persist must be their own subvolumes, not inside @root, or the

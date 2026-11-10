@@ -25,6 +25,8 @@ trap 'rm -f "$out.tmp"' EXIT
 if [ -t 0 ]; then
   IFS= read -rsp "$name (typing hidden): " value
   echo
+  # A paste can bring a \r or stray spaces, which break HTTP headers.
+  value="$(printf '%s' "$value" | tr -d '\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
   printf '%s\n' "$value"
 else
   cat

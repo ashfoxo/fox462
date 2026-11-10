@@ -1,8 +1,7 @@
-// After the workspaces: every scratchpad, then +chat, then hidden windows.
-// Same look as the workspaces: a scratchpad's tag is bright while its app
-// is running, faint while it isn't, and filled green while it's showing
-// on this monitor. Click toggles
-// it, same as its key (starting the app first if needed).
+// After the workspaces: the scratchpads that are running, then +chat, then
+// hidden windows. A scratchpad's tag shows only while its app runs (its key
+// still starts it), filled green while it's showing on this monitor.
+// Click toggles it, same as its key.
 // Chat apps don't get tags: they're all behind +chat, with the number of
 // messages waiting (see ChatMenu). "hidden N" shows while windows are
 // hidden with Super + X; click it to bring one back (see HiddenMenu).
@@ -22,8 +21,8 @@ Row {
 
         BarButton {
             required property var modelData
+            visible: open || Pads.isRunning(modelData)
             text: modelData.name
-            color: Pads.isRunning(modelData) ? Config.colors.fg : Config.colors.faint
             open: root.showing === modelData.name
             onClicked: Pads.toggle(modelData)
         }

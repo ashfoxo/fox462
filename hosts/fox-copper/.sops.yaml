@@ -1,0 +1,8 @@
+# Who can decrypt fox-copper's secrets: your workstation and fox-copper (its
+# host key, /persist/etc/ssh/ssh_host_ed25519_key; private half in Bitwarden).
+creation_rules:
+  - path_regex: ^secrets/
+    key_groups:
+      - age:
+          - age17pt5w706p9xlp7qytmwwuf3jpncre7vls5a4uyqsykwlpgx4n5kslw957h
+          - age1cxprxtccfm8c63z9nmy5pn96k2nmgrekvjg8ucl2swx6tdcm3y2smvtjn8

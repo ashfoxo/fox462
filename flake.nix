@@ -41,6 +41,13 @@
       url = "github:nix-community/lanzaboote/v1.2.0";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # Declarative partitioning: hosts/<name>/disko.nix is the disk layout,
+    # and nixos-anywhere uses it to wipe, partition and install in one go.
+    disko = {
+      url = "github:nix-community/disko";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = inputs@{ nixpkgs, ... }:
@@ -61,6 +68,19 @@
         fox-amber   = mkHost "fox-amber";     # laptop (hostName: workstation)
         fox-red     = mkHost "fox-red";       # server (Hetzner VPS)
         fox-green   = mkHost "fox-green";     # server (RackNerd VPS, New York): watches fox-red, exit nodes
+        fox-copper  = mkHost "fox-copper";    # server (spare laptop at home, bare metal)
       };
+
+      # nix flake check: shellcheck the standalone scripts and run their tests.
+      # shortcut: scripts inside Nix strings (systemd `script =`) aren't checked;
+      # move one to scripts/ when it grows enough to need it.
+      checks.x86_64-linux.scripts =
+        nixpkgs.legacyPackages.x86_64-linux.runCommand "scripts-check"
+          { nativeBuildInputs = [ nixpkgs.legacyPackages.x86_64-linux.shellcheck ]; } ''
+            cd ${./.}
+            shellcheck -S warning *.sh scripts/*.sh
+            bash scripts/dvd-classify-test.sh
+            touch $out
+          '';
     };
 }

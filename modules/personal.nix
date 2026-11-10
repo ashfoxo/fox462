@@ -14,7 +14,6 @@
     ./network/phone.nix
     ./services/restic.nix
 
-    inputs.impermanence.nixosModules.impermanence
     inputs.sops-nix.nixosModules.sops
     inputs.home-manager.nixosModules.home-manager
     ./home-manager.nix

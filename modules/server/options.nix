@@ -38,6 +38,16 @@ in
       '';
     };
 
+    filenUnits = mkOption {
+      type = types.listOf types.str;
+      default = [ ];
+      example = [ "media-sync" ];
+      description = ''
+        systemd services that run rclone against Filen. filen.nix gives each
+        one the filen: remote, rclone and the shared flags.
+      '';
+    };
+
     privateSites = mkOption {
       type = types.attrsOf (types.submodule {
         options.upstream = mkOption {

@@ -23,8 +23,7 @@ let
   remote = "filen:/Media/Spoken";
 in
 {
-  # filen-rclone.env is described in music-ingest.nix; listing it twice is harmless.
-  fox.server.secretNames = [ "filen-rclone.env" ];
+  fox.server.filenUnits = [ "spoken-sync" ];
 
   # 8000 is AudioMuse's; 13378 is Audiobookshelf's usual port.
   services.audiobookshelf = {
@@ -56,7 +55,6 @@ in
     };
     serviceConfig = {
       Type = "oneshot";
-      EnvironmentFile = [ "/run/secrets/filen-rclone.env" ];
       TimeoutStartSec = "6h";
       ProtectSystem = "strict";
       ReadWritePaths = [ "/mnt/music" ];
@@ -66,8 +64,6 @@ in
       Nice = 10;
       IOSchedulingClass = "idle";
     };
-    environment.RCLONE_CONFIG = "/dev/null";
-    path = [ pkgs.rclone ];
     # --size-only: Filen and CIFS share no hash, and comparing mod times
     # across them would risk re-sending everything every night.
     script = ''

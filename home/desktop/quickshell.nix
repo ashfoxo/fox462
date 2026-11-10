@@ -193,7 +193,8 @@ let
   });
 
   # What you're playing on other devices, one JSON object per line:
-  #   {"src":"music"|"spoken","title","artist","player","position","duration","cover"}
+  #   {"src":"music"|"spoken"|"video","title","artist","player","position","duration","cover"}
+  # Only what's actually playing: paused sessions are left out.
   # position is -1 when unknown (Navidrome doesn't report it). cover is a
   # local file, or "" if there's none. Each server is asked separately; one
   # that's unreachable (NetBird down) just adds nothing.
@@ -269,6 +270,52 @@ let
               c=$(cover "abs-$item" abs "items/$item/cover?width=160") || c=""
             fi
             jq -c --arg c "$c" '.cover = $c | del(.item)' <<<"$e"
+          done \
+        || true
+
+      # ---- Jellyfin ----
+      # JF_USER and JF_PASSWORD. Jellyfin wants a login for a token, so the
+      # token is kept next to the covers and a new login happens only when
+      # it's rejected or gone (12h), not every 15s in the activity log.
+      # shellcheck disable=SC1091
+      . ${osConfig.sops.secrets.jellyfin-user.path}
+      jf_token="$dir/jf-token"
+      # Backslash-quoted for curl's config syntax.
+      jf_client='MediaBrowser Client=\"quickshell\", Device=\"${osConfig.networking.hostName}\", DeviceId=\"quickshell-${osConfig.networking.hostName}\", Version=\"1\"'
+      jf() {
+        printf 'url = "https://jellyfin.emberfox.net/%s"\nheader = "Authorization: %s, Token=\\"%s\\""\n' \
+            "$1" "$jf_client" "$(cat "$jf_token" 2>/dev/null)" \
+          | curl -sf --max-time 8 -K -
+      }
+      jf_login() {
+        printf 'url = "https://jellyfin.emberfox.net/Users/AuthenticateByName"\nheader = "Authorization: %s"\nheader = "Content-Type: application/json"\n' "$jf_client" \
+          | curl -sf --max-time 8 -K - \
+              --data-binary @<(jq -n --arg u "$JF_USER" --arg p "$JF_PASSWORD" '{Username: $u, Pw: $p}') \
+          | jq -r '.AccessToken // empty' > "$jf_token.tmp" \
+          && [ -s "$jf_token.tmp" ] && mv "$jf_token.tmp" "$jf_token"
+      }
+      sessions=$(jf 'Sessions?activeWithinSeconds=60') \
+        || { jf_login && sessions=$(jf 'Sessions?activeWithinSeconds=60'); } \
+        || sessions='[]'
+
+      # Episodes show "Series S1E3", films their year, music the artist.
+      # Cover: the series poster, album or film.
+      jq -c --arg u "$JF_USER" '.[]
+          | select(.UserName == $u and .NowPlayingItem != null and (.PlayState.IsPaused | not))
+          | .NowPlayingItem as $i
+          | {src: (if $i.Type == "Audio" then "music" else "video" end),
+             title: $i.Name,
+             artist: (if $i.Type == "Episode" then "\($i.SeriesName // "") S\($i.ParentIndexNumber // 0)E\($i.IndexNumber // 0)"
+                      elif $i.Type == "Audio" then ($i.AlbumArtist // ($i.Artists // [])[0] // "")
+                      else ($i.ProductionYear // "" | tostring) end),
+             player: (.DeviceName // .Client // ""),
+             position: ((.PlayState.PositionTicks // 0) / 10000000 | floor),
+             duration: (($i.RunTimeTicks // 0) / 10000000 | floor),
+             art: ($i.SeriesId // $i.AlbumId // $i.Id)}' <<<"$sessions" \
+        | while IFS= read -r e; do
+            art=$(jq -r .art <<<"$e")
+            c=$(cover "jf-$art" jf "Items/$art/Images/Primary?fillHeight=160") || c=""
+            jq -c --arg c "$c" '.cover = $c | del(.art)' <<<"$e"
           done \
         || true
     '';

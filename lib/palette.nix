@@ -51,6 +51,11 @@ rec {
       faint = "87938A";
       line  = "3A463F";
     };
+    # Jellyfin's web UI (fox-red): the same outline grey for borders and
+    # dividers.
+    jellyfin = {
+      inherit (apps.quickshell) line;
+    };
   };
 
   for = app: base // (apps.${app} or { });

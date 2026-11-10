@@ -60,15 +60,18 @@ PanelWindow {
 
         // Shown while something plays here or on your other devices, or is
         // paused here. The title gets whatever space is free between the
-        // left side and the status (at most 400px) and is cut with "…".
+        // left side and the status (at most 400px) and is cut with "…";
+        // under 60px free it hides rather than overlap the left side.
         BarButton {
             id: playing
 
-            visible: Playing.label !== ""
-            icon: "\u{F075A}"
-            text: Playing.label
             // 14 + 14 margins, 24 breathing room, 18 spacer, ~40 icon and padding.
-            maxTextWidth: Math.max(60, Math.min(400, bar.width - leftSide.width - status.width - tray.width - clock.width - power.width - 110))
+            readonly property real room: bar.width - leftSide.width - status.width - tray.width - clock.width - power.width - 110
+
+            visible: Playing.label !== "" && room >= 60
+            icon: Playing.barIcon
+            text: Playing.label
+            maxTextWidth: Math.min(400, room)
             color: Playing.playing ? Config.colors.fg : Config.colors.faint
             iconColor: Playing.playing ? Config.colors.forest_text : Config.colors.faint
             open: bar.open === "playing"

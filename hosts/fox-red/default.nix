@@ -13,6 +13,8 @@
     ../../modules/server/services/blog.nix
     ../../modules/server/services/forgejo.nix
     ../../modules/server/services/gatus.nix
+    ../../modules/server/services/jellyfin.nix
+    ../../modules/server/services/youtube.nix
     ../../modules/server/services/miniflux.nix
     ../../modules/server/services/mollysocket.nix
     ../../modules/server/services/music.nix

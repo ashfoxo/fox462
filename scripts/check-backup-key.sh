@@ -14,7 +14,10 @@
 # everything else denied.
 set -u
 env_file=${1:?env file}; bucket=${2:?bucket}
-set -a; . "$env_file"; set +a
+set -a
+# shellcheck source=/dev/null
+. "$env_file"
+set +a
 
 run() { nix shell nixpkgs#awscli2 -c aws --endpoint-url https://s3.fr-par.scw.cloud --region fr-par "$@"; }
 try() {

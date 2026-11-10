@@ -6,7 +6,8 @@
 #
 # Shape of the thing:
 #
-#   Filen:/Media/Music        the drop point. Never modified from this side.
+#   Filen:/Media/Music        the drop point, Licensed/ and Pirated/ (Archive/
+#     |                       is skipped). Never modified from this side.
 #     |  rclone copy, but only paths absent from seen.list
 #   /mnt/music/inbox          transient. Holds a file for exactly as long as it
 #     |                       takes beets to claim it. What lingers here is what
@@ -68,6 +69,8 @@ let
   stateDir = "/var/lib/beets";
   seenList = "${stateDir}/seen.list";
   remote = "filen:/Media/Music";
+  # Archive is kept in Filen, not streamed; Licensed and Pirated are.
+  filter = "--exclude '/Archive/**'";
 
   ##########################################################################
   # Acoustic fingerprinting
@@ -225,11 +228,7 @@ let
   '';
 in
 {
-  # filen-rclone.env: RCLONE_CONFIG_FILEN_* defining the Filen rclone remote.
-  # PASSWORD and API_KEY are `rclone obscure` output, which is reversible
-  # encoding, not encryption. Treat as plaintext credentials. Re-export the API
-  # key via the Filen CLI if you ever change the account password.
-  fox.server.secretNames = [ "filen-rclone.env" ];
+  fox.server.filenUnits = [ "music-reconcile" "music-resync" "music-ingest" ];
 
   environment.systemPackages = [ pkgs.rclone beetsPkg musicBeet musicReingest ];
 
@@ -271,7 +270,6 @@ in
     };
     serviceConfig = {
       Type = "oneshot";
-      EnvironmentFile = [ "/run/secrets/filen-rclone.env" ];
       TimeoutStartSec = "2h";
       ProtectSystem = "strict";
       ReadWritePaths = [ stateDir "/mnt/music" ];
@@ -279,11 +277,8 @@ in
       PrivateTmp = true;
       NoNewPrivileges = true;
     };
-    environment = {
-      RCLONE_CONFIG = "/dev/null";
-      LC_ALL = "C";
-    };
-    path = [ pkgs.rclone pkgs.coreutils ];
+    environment.LC_ALL = "C";
+    path = [ pkgs.coreutils ];
     script = ''
       set -euo pipefail
       work=$(mktemp -d)
@@ -297,14 +292,14 @@ in
       #
       # check exits non-zero whenever it finds differences, which is the normal
       # outcome here, so its status is deliberately ignored.
-      rclone check ${remote} ${libraryDir} \
+      rclone check ${filter} ${remote} ${libraryDir} \
         --size-only \
         --checkers 8 \
         --missing-on-dst "$work/missing-here.list" \
         --missing-on-src "$work/missing-in-filen.list" \
         --differ "$work/differ.list" || true
 
-      rclone lsf -R --files-only --format p ${remote} | sort > "$work/remote.list"
+      rclone lsf -R --files-only --format p ${filter} ${remote} | sort > "$work/remote.list"
       sort -u "$work/missing-here.list" > "$work/missing.sorted"
 
       # seen.list gets everything EXCEPT what is missing locally. Those stay
@@ -324,6 +319,88 @@ in
       echo "size mismatch:         $(wc -l < "$work/differ.list")  -> not pulled, review by hand"
     '';
   };
+
+  ############################################################################
+  # Resync
+  ############################################################################
+
+  # One-time reset after reorganising music in Filen: the library becomes an
+  # exact mirror of Licensed + Pirated, then the normal ingest takes over.
+  # Started by hand only:  sudo systemctl start music-resync
+  #
+  # DESTRUCTIVE. Everything in the library that isn't in Filen is deleted,
+  # including beets' renamed copies, and beets' database starts over (the
+  # files are re-registered where they are, untouched). Navidrome sees new
+  # paths, so stars, play counts and playlist entries on moved tracks are
+  # lost, and AudioMuse re-analyses them. Dry run first:
+  #   sudo bash -c 'set -a; . /run/secrets/filen-rclone.env; RCLONE_CONFIG=/dev/null \
+  #     rclone sync --dry-run --size-only ${filter} ${remote} ${libraryDir}' 2>&1 | grep -c delete
+  systemd.services.music-resync = {
+    description = "Mirror Filen music into the library, then restart the ingest pipeline";
+    after = [ "network-online.target" "remote-fs.target" ];
+    wants = [ "network-online.target" ];
+    unitConfig = {
+      AssertPathIsMountPoint = "/mnt/music";
+      RequiresMountsFor = "/mnt/music";
+    };
+    serviceConfig = {
+      Type = "oneshot";
+      EnvironmentFile = [ "/run/secrets/navidrome-api.env" ];
+      TimeoutStartSec = "12h";
+      Nice = 10;
+    };
+    environment = {
+      BEETSDIR = stateDir;
+      LC_ALL = "C";
+    };
+    path = [ beetsPkg pkgs.coreutils pkgs.curl pkgs.systemd ];
+    script = ''
+      set -euo pipefail
+
+      # A wrong path or a Filen hiccup that lists nothing would make sync
+      # delete the whole library.
+      rclone lsf -R --files-only --format p ${filter} ${remote} | sort > ${stateDir}/remote.list
+      n=$(wc -l < ${stateDir}/remote.list)
+      [ "$n" -ge 100 ] || { echo "Filen lists only $n music files, refusing to mirror" >&2; exit 1; }
+
+      # No ingest and no Navidrome scans of a half-mirrored library.
+      systemctl stop music-ingest.timer music-ingest.service podman-navidrome.service
+      trap 'systemctl start music-ingest.timer podman-navidrome.service' EXIT
+
+      rclone sync ${filter} ${remote} ${libraryDir} \
+        --size-only --transfers 4 --checkers 8 --retries 3 \
+        --stats 5m --stats-log-level NOTICE
+      rm -rf ${inboxDir}
+      mkdir -p ${inboxDir}
+
+      # beets starts over, registering the files where they are: no moving,
+      # no tag writes, no art.
+      rm -f ${stateDir}/library.db ${stateDir}/state.pickle
+      beet -c ${pkgs.writeText "beets-in-place.yaml" ''
+        import: { move: no, copy: no, write: no }
+        fetchart: { auto: no }
+        embedart: { auto: no }
+      ''} import -q -A ${libraryDir}
+
+      # Everything mirrored counts as ingested, so tonight's run pulls only
+      # what's new after this.
+      mv ${stateDir}/remote.list ${seenList}
+      chmod 600 ${seenList}
+
+      systemctl start podman-navidrome.service
+      salt=$(head -c 12 /dev/urandom | od -An -tx1 | tr -d ' \n')
+      token=$(printf '%s%s' "$ND_PASSWORD" "$salt" | md5sum | cut -d' ' -f1)
+      # A full scan, so Navidrome purges the old paths (ND_SCANNER_PURGEMISSING).
+      curl -fsS -m 30 --retry 12 --retry-all-errors --retry-delay 10 \
+        --get "http://127.0.0.1:4533/rest/startScan" \
+        --data-urlencode "u=$ND_USER" --data-urlencode "t=$token" \
+        --data-urlencode "s=$salt" --data-urlencode "v=1.16.1" \
+        --data-urlencode "c=music-resync" --data-urlencode "fullScan=true" \
+        --data-urlencode "f=json" >/dev/null
+      echo "resync done: $n files mirrored, Navidrome full scan started"
+    '';
+  };
+  fox.server.monitoring.alertOnFailure.music-resync.title = "music resync FAILED";
 
   ############################################################################
   # Ingest
@@ -347,10 +424,7 @@ in
 
     serviceConfig = {
       Type = "oneshot";
-      EnvironmentFile = [
-        "/run/secrets/filen-rclone.env"
-        "/run/secrets/navidrome-api.env"
-      ];
+      EnvironmentFile = [ "/run/secrets/navidrome-api.env" ];
       TimeoutStartSec = "6h";
       # Runs as root because writes must not depend on the navidrome uid; the
       # mount's uid=navidrome makes everything written there navidrome-owned
@@ -370,16 +444,13 @@ in
 
     environment = {
       BEETSDIR = stateDir;
-      # Stops rclone looking for, or creating, a config file. The remote is
-      # defined entirely by the RCLONE_CONFIG_FILEN_* vars in the env file.
-      RCLONE_CONFIG = "/dev/null";
       # comm requires both inputs sorted under the same collation, and the
       # default locale sorts differently than C for anything non-ASCII. Get
       # this wrong and comm silently reports garbage.
       LC_ALL = "C";
     };
 
-    path = [ pkgs.rclone beetsPkg pkgs.chromaprint pkgs.util-linux pkgs.curl
+    path = [ beetsPkg pkgs.chromaprint pkgs.util-linux pkgs.curl
              pkgs.sqlite pkgs.coreutils pkgs.findutils pkgs.gnugrep ];
 
     script = ''
@@ -396,7 +467,7 @@ in
 
       # Full recursive listing of the remote. Cheap relative to transfers, and
       # the only way to notice a file that appeared inside an existing folder.
-      rclone lsf -R --files-only --format p ${remote} | sort > "$work/remote.list"
+      rclone lsf -R --files-only --format p ${filter} ${remote} | sort > "$work/remote.list"
       sort -u ${seenList} > "$work/seen.list"
 
       # Paths present remotely and absent from seen.list.
