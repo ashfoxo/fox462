@@ -74,6 +74,7 @@ in
     pkgs.jellyfin-desktop      # Jellyfin movies and TV (mpv inside, so it direct-plays)
     pkgs.fluent-reader         # RSS (AppImage; can't be sandboxed, see sandboxes.nix)
     pkgs.vlc                   # backup player; mpv is the default (defaults.nix)
+    pkgs.picard                # tag music, then it moves it into ~/drop/Music (fox-red files it)
 
     # --- DVDs: rip to MKV, then compress -------------------------------------
     # MakeMKV: lossless rip of a disc to .mkv (unfree; free key while in beta,

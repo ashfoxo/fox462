@@ -1,14 +1,15 @@
 # Who can decrypt what. After editing this, re-encrypt the matching files:
-#   ./sops.sh updatekeys -y secrets/secrets.yaml secrets/phone-ssh-key.enc
+#   ./sops.sh updatekeys -y secrets/secrets.yaml
 #
 # fox-red keeps its own keys and rules in hosts/fox-red/.sops.yaml.
 keys:
-  # The shared secrets key (ssh-ed25519 ...ByqOU in Bitwarden), on every
-  # personal machine at /persist/var/lib/sops-nix/secrets_ed25519.
-  - &shared age1km55ryjshszh55ynhxdph50smzkm7mkhj0cekutg6lm8z67jvujqxt2clx
+  # The shared secrets key (ssh-ed25519, comment fox-personal-secrets, in
+  # Bitwarden), on every personal machine at
+  # /persist/var/lib/sops-nix/secrets_ed25519. Root-only; never copy it into ~.
+  - &shared age16klnn554dqc3wfz5frma6trwd5p72m8l9f6xsxjev6rq76u50dssddu635
 
 creation_rules:
-  - path_regex: secrets/(secrets\.yaml|phone-ssh-key\.enc)$
+  - path_regex: secrets/secrets\.yaml$
     key_groups:
       - age:
           - *shared

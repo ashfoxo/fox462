@@ -11,8 +11,8 @@
     ./ephemeral-home.nix
     ./desktop
     ./network/vpn.nix
-    ./network/phone.nix
     ./services/restic.nix
+    ./travel.nix
 
     inputs.sops-nix.nixosModules.sops
     inputs.home-manager.nixosModules.home-manager

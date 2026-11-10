@@ -10,6 +10,7 @@ let
     "Documents" "Downloads" "Pictures" "Videos" "Music" "media" "working"
     "fox-den"           # this repo's checkout
     "sync"              # synced to every device by Syncthing (home/desktop/syncthing.nix)
+    "drop"              # new media for fox-red; empties itself (home/desktop/syncthing.nix)
     "torrents"          # qBittorrent downloads
     "sandbox_folders"   # the shared folder of each sandboxed app
     ".password-store"   # pass
@@ -25,7 +26,7 @@ let
     ".local/share/sandboxes/telegram" ".local/share/sandboxes/vesktop"   # their logins only; the rest is in RAM
     ".local/share/sandboxes/webapp-claude" ".local/share/sandboxes/webapp-elk"
     ".local/share/sandboxes/webapp-messages"
-    ".local/share/sandboxes/webapp-appletv" ".local/share/sandboxes/webapp-spotify"
+    ".local/share/sandboxes/webapp-spotify"
     ".local/share/sandboxes/prismlauncher"   # Minecraft worlds, synced by syncthing.nix
     ".local/share/whisper"                   # voice note speech model (public download)
 
@@ -43,6 +44,7 @@ let
     ".config/darktable"
     ".local/share/kdenlive"
     ".config/feishin"
+    ".config/MusicBrainz"                    # Picard's settings (naming script, move-to folder)
     ".config/fluent-reader"
     ".config/@filen" ".filen-cli"            # Filen login and CLI login
     ".config/Electron"                       # Filen's IndexedDB (and any Electron app with the default name)
@@ -83,6 +85,11 @@ in
     # persistent copy only, for the same reason: if ~/sync ever fails to
     # mount, the empty folder left behind has no marker and Syncthing stops.
     "d /persist/home/arlo/sync/.stfolder 0755 arlo users -"
+    "d /persist/home/arlo/drop/.stfolder 0755 arlo users -"
+    "d /persist/home/arlo/drop/Music 0755 arlo users -"
+    "d /persist/home/arlo/drop/Audiobooks 0755 arlo users -"
+    "d /persist/home/arlo/drop/Movies 0755 arlo users -"
+    "d /persist/home/arlo/drop/TV 0755 arlo users -"
   ];
 
   environment.persistence."/persist".users.arlo = { inherit directories files; };

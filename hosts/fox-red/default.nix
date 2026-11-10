@@ -18,7 +18,6 @@
     ../../modules/server/services/miniflux.nix
     ../../modules/server/services/mollysocket.nix
     ../../modules/server/services/music.nix
-    ../../modules/server/services/music-ingest.nix
     ../../modules/server/services/notesnook.nix
     ../../modules/server/services/ntfy.nix
     ../../modules/server/services/spoken.nix

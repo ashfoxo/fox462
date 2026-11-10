@@ -239,7 +239,6 @@ in
   webapp-elk     = makeWebApp "webapp-elk" { };
   webapp-gmail   = makeWebApp "webapp-gmail" { keepLogin = false; };
   webapp-messages = makeWebApp "webapp-messages" { };
-  webapp-appletv = makeWebApp "webapp-appletv" { drm = true; };
   webapp-spotify = makeWebApp "webapp-spotify" { drm = true; };
 
   # Fluent Reader is NOT here: nixpkgs ships it as an AppImage, whose wrapper

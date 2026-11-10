@@ -16,11 +16,15 @@
 #            toward it with each folder's password: sops secret
 #            syncthing-<folder>-password on the computers, typed into the
 #            folder's share on the phone.
+#   plain    optional, with untrusted: folders that device gets unencrypted
+#            anyway (fox-red's drop folder, which it has to read).
 #
 # Folders:
 #   minecraft-instances  Prism Launcher's instances (home/desktop/syncthing.nix)
 #   sync                 ~/sync: anything to have on every device. On the
 #                        phone it's "sync" in internal storage.
+#   drop                 ~/drop: new music, audiobooks, movies and TV for
+#                        fox-red (Music/, Audiobooks/, Movies/, TV/).
 #
 # Only ONE of a pair may have an address the other dials. If both dial at
 # once, port 22000 to port 22000, TCP can merge the two attempts into one
@@ -39,13 +43,14 @@
   fox-amber = {
     id = "HKKMYM6-CYFPSSJ-NB2EQX7-XOS2TP7-N5ZPRFZ-F5TYIY7-QYKV3GE-SRLDTAJ";
     address = "";
-    folders = [ "minecraft-instances" "sync" ];
+    folders = [ "minecraft-instances" "sync" "drop" ];
   };
   fox-red = {
     id = "KPXV26X-WCTDXXJ-O5YC6UW-QXPPLWN-4SSMULV-RHN3B4Z-BA5XE6Q-C4DAHQ6";
     address = "100.73.156.82";
-    folders = [ "minecraft-instances" "sync" ];
+    folders = [ "minecraft-instances" "sync" "drop" ];
     untrusted = true;
+    plain = [ "drop" ];   # media it has to read; see home/desktop/syncthing.nix
   };
   # The Pixel, running Syncthing-Fork. It dials the others, so no address.
   phone = {

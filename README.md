@@ -74,11 +74,11 @@ hashes come from encrypted secrets.
 (Scaleway), encrypted client-side, with 7 daily, 4 weekly, 6 monthly and 1
 yearly snapshots kept. The bar shows when the last one succeeded.
 
-**Unattended updates (laptop).** Once a day `nix flake update` runs and the
-result is built for the next boot, never switched to while you work, then
-`flake.lock` is committed with the package changes in the message. It skips
-metered networks and a repo with uncommitted edits, and doesn't push. The bar
-shows the state (`modules/services/auto-update.nix`).
+**Update check (laptop).** Every 6 hours, as the user and never as root, it
+checks whether the flake's inputs have moved and sends a notification if they
+have. It builds nothing and leaves the repo alone; you update when it suits
+you. It skips metered networks. The bar shows the state
+(`modules/services/auto-update.nix`).
 
 **Small tools.**
 - `Super + Shift + R` records a voice note and transcribes it offline with
@@ -114,8 +114,8 @@ modules/               System-level NixOS modules
   core/                  Nix settings, users, hardening, USB allowlist, time zone
   desktop/               Login (greetd) and Hyprland session, audio, fonts, system apps
   hardware/              laptop.nix (power, thermals), nvidia.nix
-  network/               Mullvad + NetBird, SSH to the phone
-  services/              restic.nix (backups), auto-update.nix (daily updates, laptop)
+  network/               Mullvad + NetBird
+  services/              restic.nix (backups), auto-update.nix (update check, laptop)
   boot.nix, impermanence.nix, ephemeral-home.nix
   server/                The shared server modules (its own README)
 home/                  Home Manager config for the user

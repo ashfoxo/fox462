@@ -1,7 +1,10 @@
-# Syncthing: always-on copy of the Minecraft instances and of ~/sync.
-{ config, lib, ... }:
+# Syncthing: always-on copy of the Minecraft instances and of ~/sync, and the
+# drop folder new media arrives through.
+{ config, lib, pkgs, ... }:
 let
   folders = config.services.syncthing.settings.folders;
+  # On the Storage Box (music.nix), so a dropped movie can't fill the VPS disk.
+  drop = "/mnt/music/drop";
   self = config.networking.hostName;
   all = import ../../../lib/syncthing.nix;
 
@@ -88,6 +91,20 @@ in
           };
         };
 
+        # The drop folder: media you add on the laptop (~/drop), in plain
+        # form, since fox-red has to read it. Receive-only, and deletions from
+        # the laptop are ignored, so the laptop can empty its copy whenever it
+        # likes; drop-sort below moves things out once they've fully arrived.
+        folders.drop = {
+          id = "drop";
+          label = "drop";
+          path = drop;
+          type = "receiveonly";
+          devices = sharing "drop";
+          ignoreDelete = true;
+          ignorePerms = true;   # CIFS: the mount sets every file's mode
+        };
+
         options = {
           localAnnounceEnabled = false;
           globalAnnounceEnabled = false;
@@ -100,4 +117,49 @@ in
 
   # Syncthing's sync port, open to NetBird peers only.
   networking.firewall.interfaces.wt0.allowedTCPPorts = [ 22000 ];
+
+  # The drop folder is on the navidrome-owned CIFS mount.
+  users.users.syncthing.extraGroups = [ "navidrome" ];
+  systemd.services.syncthing.unitConfig.RequiresMountsFor = "/mnt/music";
+
+  # Nightly: once nothing is still arriving, move
+  # each drop subfolder to where its app reads it. A server-side rename, same
+  # share. Half-arrived albums wait for the next night.
+  systemd.services.drop-sort = {
+    description = "Move what arrived in the drop folder to the music, audiobook and video folders";
+    after = [ "syncthing.service" "remote-fs.target" ];
+    unitConfig = {
+      AssertPathIsMountPoint = "/mnt/music";
+      RequiresMountsFor = "/mnt/music";
+    };
+    serviceConfig.Type = "oneshot";
+    environment.RCLONE_CONFIG = "/dev/null";
+    path = with pkgs; [ curl jq gnugrep rclone coreutils ];
+    script = ''
+      set -euo pipefail
+      key=$(grep -oP '(?<=<apikey>)[^<]+' ${config.services.syncthing.configDir}/config.xml)
+      need=$(curl -fsS -H "X-API-Key: $key" "http://${config.services.syncthing.guiAddress}/rest/db/status?folder=drop" | jq .needTotalItems)
+      if [ "$need" != 0 ]; then
+        echo "$need item(s) still arriving; trying again tomorrow"
+        exit 0
+      fi
+      move() {
+        [ -d "${drop}/$1" ] || return 0
+        mkdir -p "$2"
+        rclone move "${drop}/$1" "$2" --delete-empty-src-dirs --exclude '.syncthing.*'
+      }
+      move Music /mnt/music/library   # already tagged in Picard on the laptop
+      move Audiobooks /mnt/music/spoken/Audiobooks
+      move Movies /mnt/music/video/Movies
+      move TV /mnt/music/video/TV
+    '';
+  };
+  systemd.timers.drop-sort = {
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "*-*-* 02:00:00";
+      Persistent = true;
+    };
+  };
+  fox.server.monitoring.alertOnFailure.drop-sort.title = "drop sort FAILED";
 }

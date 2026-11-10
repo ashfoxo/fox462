@@ -6,7 +6,9 @@
 # Everything is H.265 and the phone and laptop play it directly, so nothing
 # here transcodes. Keep it that way: transcoding would swamp fox-red's CPU.
 #
-# Filen is the source of truth, pulled down nightly (media-sync). The
+# Until fox-copper is retired, its rips are still pulled from Filen nightly
+# (media-sync; phase B deletes it). New video comes in through the drop
+# folder (~/drop/{Movies,TV}, server/services/syncthing.nix). The
 # Converted folders are filled by fox-copper (dvd-rip.nix):
 #
 #   Filen:/Media/{TV,Movies}/Converted  --- copy down, nightly --->  /mnt/music/video/{TV,Movies}

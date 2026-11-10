@@ -138,7 +138,7 @@ Row {
         id: updateItem
         visible: updateStatus.state !== "absent"
         icon: "\u{F06B0}"
-        text: ({ failed: "update failed", overdue: "update overdue", skipped: "update skipped", ok: "update ready" })[updateStatus.state] ?? ""
+        text: ({ failed: "update failed", overdue: "update overdue", skipped: "update skipped", ok: "updates available" })[updateStatus.state] ?? ""
         color: ({ failed: root.c.rust_text, overdue: root.c.amber, skipped: root.c.amber, none: root.c.amber,
                   running: root.c.teal_text, ok: root.c.forest_text })[updateStatus.state] ?? root.c.dim
         open: root.bar.open === "update"

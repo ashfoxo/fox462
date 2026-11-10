@@ -54,14 +54,16 @@ NetBird interface only, it also opens TCP 22000 for Syncthing.
   `/var/lib/blog/releases/<commit>` and switch the `current` symlink to it in
   one step. A failed build leaves the live site alone and sends an ntfy
   alert. Old Ghost links (`/rss/`, `/content/images/…`) redirect.
-- **Music.** New music dropped in Filen is pulled nightly, tagged by beets
-  into the Storage Box, and picked up by Navidrome (`music-ingest.nix`).
-  AudioMuse analyses the library and supplies Navidrome's "similar songs"
-  through its plugin.
+- **Drop folder.** New media goes into `~/drop/{Music,Audiobooks,Movies,TV}`
+  on the laptop. Syncthing brings it to the Storage Box, and `drop-sort`
+  (02:00) files it once it has fully arrived (`services/syncthing.nix`). The
+  laptop empties its copy after 3 days; its Filen app backs `~/drop` up.
+- **Music.** Tagged and named in MusicBrainz Picard on the laptop, then
+  dropped: drop-sort puts it straight into the library and Navidrome finds it
+  within the hour (its own scan). AudioMuse analyses the
+  library and supplies Navidrome's "similar songs" through its plugin.
 - **Spoken.** Audiobookshelf downloads podcasts into the Storage Box's
-  `spoken` folder and serves audiobooks from it. `spoken.nix` copies podcasts
-  up to `Filen:/Media/Spoken` nightly, and audiobooks both ways (copy, never
-  delete).
+  `spoken` folder and serves audiobooks from it.
 - **No Docker.** The few containers run under Podman with fully qualified
   images, no daemon.
 
@@ -149,7 +151,7 @@ restic, nightly at 01:30 UTC, to the versioned Scaleway bucket
 dumped first rather than copied live: Miniflux's Postgres, AudioMuse's
 Postgres, Notesnook's MongoDB, and the SQLite files of Navidrome,
 ntfy, Forgejo and MollySocket. Also backed up: Forgejo's whole state directory (repos,
-`app.ini`), Notesnook's attachments, beets' state, the deployed copy of this repo, and the two
+`app.ini`), Notesnook's attachments, the deployed copy of this repo, and the two
 Syncthing folders, the Minecraft instances and `~/sync` (without Syncthing's `.stversions`).
 
 Not backed up: `/var/lib/blog` (rebuilt from git) and the Podman images.
@@ -183,8 +185,7 @@ only for fox-green, in return. Who checks what is in
 | --- | --- |
 | 01:00 | Miniflux Postgres dump |
 | 01:30–01:50 | restic backup |
-| 02:10 | Music ingest |
-| 02:40 | Spoken sync (podcasts up to Filen, audiobooks both ways) |
+| 02:00 | Drop folder sorted into music, audiobooks and video |
 | 03:30 | Audiobookshelf Audiobooks scan (set in its web UI) |
 | 05:30 | Similar-songs check |
 | Sun 06:00 | Navidrome + AudioMuse update |

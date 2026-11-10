@@ -1,19 +1,11 @@
-# Unattended updates for the laptop: checked every hour, run at most once a
-# day. A run that was skipped (metered network, uncommitted edits, offline) is
-# tried again the next hour, so committing your edits lets the day's update
-# go ahead within the hour.
+# Update check for the laptop: every 6 hours, as arlo (never root), it asks
+# whether the flake's inputs have moved and pings you if they have. It builds
+# nothing and never touches the repo; the new lock goes to a scratch file.
+# Update yourself when it suits you:
+#   cd ~/fox-den && nix flake update && sudo nixos-rebuild boot --flake .#fox-amber
 #
-# Each run, as root, in /home/arlo/fox-den:
-#   1. Does nothing on a metered network (mark your phone hotspot with
-#      `nmcli connection modify "<name>" connection.metered yes`), without a
-#      network, or while the repo has uncommitted edits.
-#   2. `nix flake update`, as arlo, so no root-owned files appear in the repo.
-#   3. `nixos-rebuild boot`: builds, and makes it the next boot's default. It is
-#      never switched to while you work.
-#   4. Commits flake.lock as "flake.lock: update inputs (<date>)", with the
-#      package changes (`nvd`) in the message. It does NOT push; do that by
-#      hand: git push origin main.
-# A failed build puts flake.lock back. The previous boot entries stay.
+# Skips metered networks (mark your hotspot with
+# `nmcli connection modify "<name>" connection.metered yes`) and no network.
 #
 # Try it now: sudo systemctl start nixos-update, then journalctl -u nixos-update
 # The bar's update item reads /var/lib/nixos-update (UnitStatus in
@@ -23,42 +15,21 @@
 let
   user = "arlo";
   repo = "/home/${user}/fox-den";
-  host = config.fox.machine;
   dir = "/var/lib/nixos-update";
 
   script = pkgs.writeShellApplication {
     name = "nixos-update";
-    runtimeInputs = with pkgs; [
-      coreutils gnugrep gnused git config.nix.package nixos-rebuild nvd
-      util-linux systemd networkmanager libnotify
-    ];
+    runtimeInputs = with pkgs; [ coreutils jq config.nix.package systemd networkmanager libnotify ];
     text = ''
-      repo=${repo}
       dir=${dir}
-
-      # Run as arlo, with arlo's home so git finds the author and nix its cache.
-      as_user() { runuser -u ${user} -- env HOME=/home/${user} "$@"; }
 
       # result <state> <text>: what the bar shows. States: ok, uptodate, skipped, failed.
       result() { printf '%s %s\n' "$1" "$2" > "$dir/result"; }
-
-      # Any unexpected failure (e.g. nix flake update can't reach GitHub) shows
-      # in the bar instead of leaving yesterday's result up.
       set -E
-      # The day's attempt is cleared too, so the next hour tries again.
-      trap 'rm -f "$dir/last-attempt"; result failed "update failed, see journalctl -u nixos-update"' ERR
+      trap 'result failed "update check failed, see journalctl -u nixos-update"' ERR
 
-      # From the timer: one real attempt a day (last-attempt, stamped below once
-      # an update starts). A skipped run leaves no stamp and retries next hour.
-      # Started by hand (the bar), it always runs.
-      if [ -n "''${TRIGGER_UNIT:-}" ] && [ -n "$(find "$dir/last-attempt" -mmin -1200 2>/dev/null)" ]; then
-        exit 0
-      fi
-
-      # notify <title> <text>: a desktop notification, if arlo is logged in.
       notify() {
-        uid=$(id -u ${user})
-        as_user env DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" \
+        DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(id -u)/bus" \
           notify-send -a "Update" "$1" "$2" || true
       }
 
@@ -70,85 +41,51 @@ let
         1|3) result skipped "metered network"; exit 0 ;;
         *) ;;
       esac
-
       if ! nm-online -q -t 60; then
         result skipped "no network"
         exit 0
       fi
 
-      if [ ! -d "$repo/.git" ]; then
-        result failed "no git repo at $repo"
-        exit 1
-      fi
+      nix flake update --flake ${repo} --output-lock-file "$dir/flake.lock.new"
 
-      if [ -n "$(as_user git -C "$repo" status --porcelain)" ]; then
-        result skipped "uncommitted edits in the repo"
-        exit 0
-      fi
+      # Inputs whose locked revision moved, e.g. "nixpkgs home-manager".
+      changed=$(jq -rn --slurpfile old ${repo}/flake.lock --slurpfile new "$dir/flake.lock.new" '
+        [ $new[0].nodes | to_entries[] | select(.value.locked)
+          | select(.value.locked.rev != $old[0].nodes[.key].locked.rev) | .key ] | join(" ")')
 
-      touch "$dir/last-attempt"
-      as_user nix flake update --flake "$repo"
-
-      if as_user git -C "$repo" diff --quiet -- flake.lock; then
-        result uptodate "nothing new"
-        touch "$dir/last-success"
-        exit 0
-      fi
-
-      if ! nixos-rebuild boot --flake "$repo#${host}" 2>&1 | tee "$dir/build.log"; then
-        as_user git -C "$repo" checkout -- flake.lock
-        err=$(grep -iE 'error' "$dir/build.log" | tail -n1 || true)
-        result failed "''${err:-build failed, see journalctl -u nixos-update}"
-        notify "Update failed" "''${err:-see journalctl -u nixos-update}"
-        exit 1
-      fi
-
-      diff=$(nvd diff /run/current-system /nix/var/nix/profiles/system | sed 's/\x1b\[[0-9;]*m//g')
-
-      as_user git -C "$repo" add flake.lock
-      if ! as_user git -C "$repo" commit -q -m "flake.lock: update inputs ($(date +%F))" -m "$diff"; then
-        result failed "built, but the commit failed"
-        notify "Update built" "The commit failed; flake.lock is changed but not committed."
-        exit 1
-      fi
-
-      result ok "ready for the next boot"
       touch "$dir/last-success"
-      notify "Update ready" "Applies at the next reboot. Push with: git push origin main"
+      if [ -z "$changed" ]; then
+        result uptodate "nothing new"
+        exit 0
+      fi
+      result ok "updates: $changed"
+      # Ping once per new set of updates, not every 6 hours.
+      if [ "$changed" != "$(cat "$dir/notified" 2>/dev/null)" ]; then
+        notify "Updates available" "$changed"
+        printf '%s' "$changed" > "$dir/notified"
+      fi
     '';
   };
 in
 {
-  # nixos-rebuild runs as root and reads arlo's repo; git refuses that without this.
-  programs.git = {
-    enable = true;
-    config.safe.directory = [ repo ];
-  };
-
   systemd.services.nixos-update = {
-    description = "Update flake inputs and build the next boot's system";
+    description = "Check whether the flake inputs have updates";
     after = [ "network-online.target" ];
     wants = [ "network-online.target" ];
-    environment.HOME = "/root";
+    environment.HOME = "/home/${user}";
     serviceConfig = {
       Type = "oneshot";
+      User = user;
       ExecStart = lib.getExe script;
       StateDirectory = "nixos-update";
       StateDirectoryMode = "0755";
-      Restart = "on-failure";
-      RestartSec = "10min";
-    };
-    unitConfig = {
-      StartLimitIntervalSec = "6h";
-      StartLimitBurst = 5;
     };
   };
 
-  # Hourly; the script itself keeps it to one real attempt a day.
   systemd.timers.nixos-update = {
     wantedBy = [ "timers.target" ];
     timerConfig = {
-      OnCalendar = "hourly";
+      OnCalendar = "0/6:00";
       Persistent = true;
       RandomizedDelaySec = "10min";
     };

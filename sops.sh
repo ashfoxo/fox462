@@ -3,7 +3,7 @@
 #
 #   ./sops.sh secrets/secrets.yaml                  edit (micro; re-encrypts on save)
 #   ./sops.sh decrypt secrets/secrets.yaml          print decrypted
-#   ./sops.sh updatekeys -y secrets/secrets.yaml secrets/phone-ssh-key.enc
+#   ./sops.sh updatekeys -y secrets/secrets.yaml
 #                                                   re-encrypt after editing .sops.yaml
 #
 # KEY=/path/to/other_ed25519 ./sops.sh ...   uses a different SSH key.

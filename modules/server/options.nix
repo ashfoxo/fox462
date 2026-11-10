@@ -113,7 +113,7 @@ in
         };
       });
       default = { };
-      example = { music-ingest.title = "music ingest FAILED"; };
+      example = { drop-sort.title = "drop sort FAILED"; };
       description = ''
         Units that push an ntfy alert when they fail, keyed by unit name
         (without .service). monitoring.nix adds the onFailure hook and the

@@ -23,9 +23,8 @@ in
   # storagebox-creds   username= / password= for the CIFS mount
   # navidrome.env      ND_PASSWORDENCRYPTIONKEY=. Must never change; a copy
   #                    lives in Bitwarden.
-  # navidrome-api.env  ND_USER= / ND_PASSWORD= for an admin account. Used by
-  #                    music-ingest to trigger a library scan over the Subsonic
-  #                    API. Must be an admin: startScan is admin-only.
+  # navidrome-api.env  ND_USER= / ND_PASSWORD= for an admin account, used by
+  #                    the nightly similar-songs check.
   # audiomuse.env      POSTGRES_PASSWORD= for AudioMuse's own database,
   #                    AUDIOMUSE_USER= / AUDIOMUSE_PASSWORD= for its web login,
   #                    API_TOKEN= for the Navidrome plugin and the nightly
@@ -88,8 +87,8 @@ in
 
 
   # This box is infrastructure, not backup: it holds music, podcasts and
-  # audiobooks (spoken.nix), and video (jellyfin.nix), all of which also live
-  # in Filen. Group-writable
+  # audiobooks (spoken.nix), and video (jellyfin.nix). The originals of what
+  # you add are in Filen, uploaded from the laptop. Group-writable
   # so Audiobookshelf, in the navidrome group, can save podcast episodes and
   # uploads. seal is here because the Storage Box is reached across the
   # public internet on 445, and vers=3.1.1 alone signs the session without
