@@ -10,6 +10,9 @@ neither depends on the other server, fox-red:
   traffic through: one out through Mullvad, one out from the server's own
   address.
 
+It also runs a small private Syncthing relay, the one way fox-grey (a
+Windows PC off NetBird, used for Minecraft) reaches fox-red.
+
 New York, because the phone's carrier appears to run its network on AWS and
 hand traffic to the internet around Ashburn, Virginia. That's a best guess
 from latency and traceroutes, not something the carrier publishes. If it's
@@ -23,9 +26,10 @@ phone's latency, wherever the phone is.
 | Gatus | foxgreen.emberfox.net | NetBird |
 | Exit node through Mullvad | NetBird peer `fox-green-mullvad` | NetBird |
 | Exit node from the server's own IP | NetBird peer `fox-green-direct` | NetBird |
+| Syncthing relay (private, token-only) | fox-green:22067 | anywhere |
 | SSH | fox-green | anywhere, keys only |
 
-The firewall opens TCP 22, and UDP 51820 and 51821 for the two NetBird
+The firewall opens TCP 22 and 22067, and UDP 51820 and 51821 for the two NetBird
 peers. On the NetBird interface only, it also opens TCP 443 for the
 dashboard.
 
@@ -135,6 +139,7 @@ the blackhole is missing, or if the direct exit's namespace has no way out.
 | `hosts/fox-green/secrets/`, `.sops.yaml` | Its encrypted secrets, and who can decrypt them |
 | `modules/server/services/exit-nodes.nix` | Both exit nodes, the server rotation, and their health checks |
 | `modules/server/services/gatus.nix`, `modules/server/watch.nix` | Gatus, shared with fox-red, and who watches whom |
+| `modules/server/services/syncthing-relay.nix` | The private Syncthing relay for fox-grey |
 
 Everything else comes from the shared server modules
 ([`modules/server/README.md`](../../modules/server/README.md)).
@@ -152,6 +157,7 @@ read the other's secrets.
 | `netbird-setup-key`, `netbird-direct-setup-key` | One-time NetBird setup keys, one per peer; unused after enrolment |
 | `ntfy-alert.env` | `NTFY_URL` (the ntfy.sh topic) and an empty `NTFY_TOKEN` |
 | `gatus.env` | `GATUS_NTFY_URL`, `GATUS_NTFY_TOPIC`, `GATUS_NTFY_TOKEN`, and `HEARTBEAT_TOKEN`, which fox-red sends with its heartbeats |
+| `syncthing-relay-token` | The token a device needs to register with the relay (only fox-grey has it) |
 | `heartbeat.env` | `HEARTBEAT_URL` (fox-red's Gatus, `https://foxred.emberfox.net`) and `HEARTBEAT_TOKEN` (the one fox-red's Gatus expects) |
 
 ## Deploying and updates

@@ -19,14 +19,16 @@ its own README in its host folder. This page is the map.
 ```
   fox-amber   laptop  ──┐                 ┌──  fox-red     the services
                         ├──  NetBird  ────┤
-  ferret-amber  phone ──┘                 └──  fox-green   watchdog, phone exit nodes
+  ferret-amber  phone ──┘                 └──  fox-green   watchdog, phone exit nodes, relay
+                                                   │
+  fox-grey    Windows PC, Minecraft only  ── relay ┘   (not on NetBird; pairs with fox-red)
 ```
 
 | | |
 | --- | --- |
 | **Reaching the internet** | laptop → Mullvad · phone → fox-green → Mullvad |
-| **Public** | only fox-red's blog, Git and ntfy; everything else answers NetBird only |
-| **Synced** | `~/sync` between laptop, phone and fox-red (fox-red only ever holds it encrypted) · `~/drop` from the laptop to fox-red |
+| **Public** | only fox-red's blog, Git and ntfy, and fox-green's token-only Syncthing relay; everything else answers NetBird only |
+| **Synced** | `~/sync` between laptop, phone and fox-red (fox-red only ever holds it encrypted) · `~/drop` from the laptop to fox-red · Minecraft instances between laptop, fox-red and fox-grey |
 | **Watched** | fox-red and fox-green each watch the other and alert for it |
 | **Backed up** | laptop and fox-red, nightly, encrypted, to Scaleway S3 |
 
@@ -39,6 +41,7 @@ has the detail.
 | --- | --- | --- |
 | The laptop: disk, impermanence, desktop, sandboxes, backups, Secure Boot | `hosts/fox-amber/`, `modules/`, `home/` | [fox-amber](hosts/fox-amber/README.md) |
 | The phone: GrapheneOS, network, carrier, backups (set by hand, not built here) | `hosts/ferret-amber/` | [ferret-amber](hosts/ferret-amber/README.md) |
+| The Windows PC for Minecraft (set by hand, not built here) | `hosts/fox-grey/` | [fox-grey](hosts/fox-grey/README.md) |
 | The main server and its services | `hosts/fox-red/`, `modules/server/services/` | [fox-red](hosts/fox-red/README.md) |
 | The watchdog and the phone's exit nodes | `hosts/fox-green/`, `services/exit-nodes.nix` | [fox-green](hosts/fox-green/README.md) |
 | How every server is built; adding a server or a service | `modules/server/` | [server modules](modules/server/README.md) |

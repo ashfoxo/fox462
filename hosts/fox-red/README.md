@@ -26,7 +26,7 @@ services other devices have to reach from anywhere are public.
 | ytdl-sub (YouTube channels as shows) | — (outbound only) | — | NixOS module |
 | Gatus | foxred.emberfox.net | NetBird | NixOS module |
 | Notesnook sync server | notes.emberfox.net (+ auth., events., files. under notes.) | NetBird | Podman (MongoDB, Silo, three apps) |
-| Syncthing (Minecraft instances, `~/sync`) | port 22000 | NetBird | NixOS module |
+| Syncthing (Minecraft instances, `~/sync`) | port 22000; dials fox-grey through fox-green's relay | NetBird | NixOS module |
 | SSH | fox-red | anywhere, keys only | — |
 
 The firewall opens TCP 22, 80 and 443, and UDP 51820 for NetBird. On the

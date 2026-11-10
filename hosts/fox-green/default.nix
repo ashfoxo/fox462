@@ -4,9 +4,11 @@
 #   - watch fox-red (Gatus, alerting through ntfy.sh, since fox-red's own
 #     ntfy goes down with it), and be watched by it;
 #   - serve the phone's two exit nodes (services/exit-nodes.nix).
+# Plus a small private Syncthing relay for fox-grey (services/syncthing-relay.nix).
 #
 # Keep it that way: nothing here should need fox-red to work, and nothing on
-# fox-red should need this. Its one site, the Gatus dashboard at
+# fox-red should need this, except fox-grey's sync, which goes through the
+# relay. Its one site, the Gatus dashboard at
 # foxgreen.emberfox.net, is NetBird-only, with its own certificate and its
 # own DNS record, so it stays up when fox-red is down. No backup: all of it
 # is in this repo, so a rebuild from scratch is the restore.
@@ -21,6 +23,7 @@
 
     ../../modules/server/services/gatus.nix
     ../../modules/server/services/exit-nodes.nix
+    ../../modules/server/services/syncthing-relay.nix
   ];
 
   nixpkgs.hostPlatform = "x86_64-linux";

@@ -34,7 +34,8 @@ in
   #
   # fox-red only accepts: the laptop and desktop dial its NetBird address,
   # and it dials nobody (every peer is "dynamic" here, whatever address
-  # lib/syncthing.nix gives it). Two machines dialling each other at once
+  # lib/syncthing.nix gives it). The one exception is fox-grey, off NetBird,
+  # which it dials through fox-green's relay. Two machines dialling each other at once
   # breaks the connection, see the note at the top of lib/syncthing.nix.
   #
   # The same goes for ~/sync, which the phone has too: the phone syncs with
@@ -62,9 +63,11 @@ in
       overrideFolders = true;
 
       settings = {
+        # Wait for every peer to dial in, except one on the relay (fox-grey),
+        # which this server dials (lib/syncthing.nix).
         devices = lib.mapAttrs (_: d: {
           id = d.id;
-          addresses = [ "dynamic" ];
+          addresses = if d ? relay then [ d.relay ] else [ "dynamic" ];
         }) peers;
 
         folders.minecraft-instances = {
@@ -108,7 +111,10 @@ in
         options = {
           localAnnounceEnabled = false;
           globalAnnounceEnabled = false;
-          relaysEnabled = false;
+          # On only to dial relay:// peers (fox-grey). Listening is TCP only,
+          # so the server never joins a public relay pool.
+          relaysEnabled = lib.any (d: d ? relay) (lib.attrValues peers);
+          listenAddresses = [ "tcp://:22000" ];
           natEnabled = false;
           urAccepted = -1;
         };

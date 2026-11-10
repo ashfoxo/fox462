@@ -18,6 +18,10 @@
 #            folder's share on the phone.
 #   plain    optional, with untrusted: folders that device gets unencrypted
 #            anyway (fox-red's drop folder, which it has to read).
+#   relay    optional: a device that isn't on NetBird. It waits on fox-green's
+#            private relay, and fox-red dials it there at this relay:// URI
+#            (modules/server/services/syncthing-relay.nix). Use with
+#            onlyWith = [ "fox-red" ].
 #
 # Folders:
 #   minecraft-instances  Prism Launcher's instances (home/desktop/syncthing.nix)
@@ -38,6 +42,10 @@
 # Syncthing-Fork, which has no Nix config) and they only accept. It syncs
 # with the laptop directly when it's on, and with fox-red always.
 #
+# fox-grey is the exception to "fox-red dials nobody": it can't be reached
+# directly, so fox-red dials it through the relay and fox-grey only accepts.
+# Still one dialer per pair.
+#
 # Only NetBird is used: no LAN discovery, no global discovery, no relays.
 {
   fox-amber = {
@@ -57,5 +65,15 @@
     id = "FAJFOET-4GCQBRZ-A3YYZ4P-HRMOEFN-LDSL3CL-BDRVOAE-4BULMV6-WTNPTAT";
     address = "";
     folders = [ "sync" ];
+  };
+  # Minecraft on a Windows PC (hosts/fox-grey/README.md), set up by hand.
+  # Not on NetBird, so only fox-red pairs with it, through the relay. It
+  # encrypts toward fox-red with the minecraft-instances password.
+  fox-grey = {
+    id = "";   # fill in once Syncthing is installed there
+    address = "";
+    relay = "relay://198.44.125.25:22067/?id=";   # fox-green's relay ID after ?id=
+    folders = [ "minecraft-instances" ];
+    onlyWith = [ "fox-red" ];
   };
 }
