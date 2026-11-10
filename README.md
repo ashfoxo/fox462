@@ -1,268 +1,164 @@
 # fox-den
 
-A single [Nix flake](https://nixos.wiki/wiki/Flakes) that builds three NixOS
-machines: a laptop and two small cloud servers. Everything about
-them is in this repo: disk layout, desktop, apps, VPN, backups, and
-encrypted secrets. Rebuild from a fresh install and you get the same machine
-back.
+One [Nix flake](https://nixos.wiki/wiki/Flakes) that builds all of one
+person's NixOS machines: a laptop and the servers it talks to. Disk layout,
+desktop, apps, VPN, backups and encrypted secrets are all here, so a fresh
+install rebuilds the same machine.
 
-It's one person's setup, published so you can read it, borrow from it, or
-use it as a starting point. It is not a ready-to-run distro. See
-[Using this as a reference](#using-this-as-a-reference).
+It's published to read and borrow from, not to run as-is. Each machine has
+its own README in its host folder. This page is the map.
 
-## The machines
+> **This is my threat model, not a template.** Every choice here trades something away: convenience, recoverability, what's exposed and to whom. The trades fit my life, accounts and risks.
+>
+> A threat model only works when you can explain why you made each trade-off. Copy a piece without the reasoning and you take on the costs without the protection. That's true of any threat model, not just this one.
+>
+> Read why each piece is here ([Security decisions](#security-decisions)), check whether that reason applies to you, and keep what you understand.
 
-| Host | What it is | Config |
+## Map
+
+```
+  fox-amber   laptop  ──┐                 ┌──  fox-red     the services
+                        ├──  NetBird  ────┤
+  ferret-amber  phone ──┘                 └──  fox-green   watchdog, phone exit nodes
+```
+
+| | |
+| --- | --- |
+| **Reaching the internet** | laptop → Mullvad · phone → fox-green → Mullvad |
+| **Public** | only fox-red's blog, Git and ntfy; everything else answers NetBird only |
+| **Synced** | `~/sync` between laptop, phone and fox-red (fox-red only ever holds it encrypted) · `~/drop` from the laptop to fox-red |
+| **Watched** | fox-red and fox-green each watch the other and alert for it |
+| **Backed up** | laptop and fox-red, nightly, encrypted, to Scaleway S3 |
+
+NetBird is the private network between the devices. Each machine's README
+has the detail.
+
+## Where things are
+
+| Looking for | Where | Read |
 | --- | --- | --- |
-| `fox-amber` | Laptop (Intel); on the network it goes by `workstation` | `hosts/fox-amber/` |
-| `fox-red` | Hetzner VPS running a blog, Git forge, RSS reader, music server and more | `hosts/fox-red/` |
-| `fox-green` | RackNerd VPS in New York: watches fox-red (and is watched by it), and runs two NetBird exit nodes for the phone, one through Mullvad | `hosts/fox-green/` |
-
-A personal machine gets everything through `modules/personal.nix`, so a
-future desktop only says what's different: its hardware, monitors, backup bucket.
-The servers are separate and each has its own README
-([fox-red](hosts/fox-red/README.md), [fox-green](hosts/fox-green/README.md)).
-
-## What the personal machines get
-
-**A wiped-every-boot root.** The disk is LUKS-encrypted btrfs with four
-subvolumes (`@root`, `@home`, `@nix`, `@persist`). At each boot `@root` is
-moved aside and replaced with an empty one, and only what's listed in
-`modules/impermanence.nix` survives. Old roots are kept for a day in case
-you forgot to persist something. Unlocking the disk works with a FIDO2 key
-(YubiKey) or a passphrase.
-
-**A keyboard-driven desktop.** [Hyprland](https://hypr.land) (configured in
-Lua) with a Quickshell bar and notifications, fuzzel, hyprlock and
-hypridle, all coloured from one palette in `lib/palette.nix`, which also
-colours Qt apps (through qt6ct) and the PDF viewer. greetd logs straight
-into Hyprland at boot and Hyprland locks itself, so the lock screen is the
-login. Default apps are keyboard-driven too: yazi for files (a scratchpad
-on `Super + E`), zathura, imv and mpv. Press `Super + /` for a cheat sheet
-that reads the keybinds straight from the running compositor, so it can't
-go out of date.
-
-**A home that forgets.** `/home/arlo` is a tmpfs and is empty at every boot.
-Only the folders listed in `modules/ephemeral-home.nix` survive (they live in
-`/persist/home/arlo`). Pull the YubiKey and the screen locks after a second; if it isn't
-back in 10 seconds the machine powers off. `Super + Ctrl + Shift + Esc`
-powers off at once, key or no key.
-
-**Sandboxed apps.** Browsers, chat apps, a torrent client and a Minecraft launcher run
-inside [nixpak](https://github.com/nixpak/nixpak) (bubblewrap) sandboxes.
-Each app gets its own fake home and a single shared folder. Most homes live
-in RAM (`/run/sandbox-ram`, up to a quarter of memory) and are gone at
-power-off; Signal's stays on disk and LibreWolf keeps only its logins there
-(`state` in `home/desktop/sandboxes.nix`). Web apps like
-mail and a music player each get their own sandboxed Chromium window and
-profile (`home/desktop/webapps.nix`: add one line to the list and you get a
-command, a launcher entry and a workspace rule).
-
-**Network privacy.** Mullvad VPN for everything, with a couple of
-deliberate exceptions (Zoom and a plain Firefox use `mullvad-exclude`).
-[NetBird](https://netbird.io) connects the machines to each other and to the
-servers, with inbound connections blocked (except Syncthing's port). Wi-Fi MAC addresses are randomised
-per network.
-
-**Hardening.** `sudo` wants the YubiKey PIN and a touch, or the password, every
-time, with no cached session. No SSH server, and no text logins on the other
-consoles. The GPG key behind `pass` opens with a YubiKey touch at login. Kernel pointer and `dmesg` leaks are closed
-and core dumps are off. User accounts are immutable, and their password
-hashes come from encrypted secrets.
-
-**Backups.** Nightly [restic](https://restic.net) to an S3-compatible bucket
-(Scaleway), encrypted client-side, with 7 daily, 4 weekly, 6 monthly and 1
-yearly snapshots kept. The bar shows when the last one succeeded.
-
-**Update check (laptop).** Every 6 hours, as the user and never as root, it
-checks whether the flake's inputs have moved and sends a notification if they
-have. It builds nothing and leaves the repo alone; you update when it suits
-you. It skips metered networks. The bar shows the state
-(`modules/services/auto-update.nix`).
-
-**Small tools.**
-- `Super + Shift + R` records a voice note and transcribes it offline with
-  whisper.cpp. `transcribe FILE` does the same for existing audio.
-- `~/sync` is the same on every device, the phone included, kept in step by
-  Syncthing over NetBird: directly between whichever are on, with fox-red
-  keeping an always-on copy.
-- A C toolchain with clangd, sanitizers and friends (`home/desktop/dev.nix`).
-
-## The servers
-
-Both are built from the shared server modules in `modules/server/` plus their
-own secrets and the services they import. One deploy script covers both.
-Public services are behind Caddy with automatic HTTPS; private ones answer
-only to the NetBird network.
-
-- **fox-red** runs the services: blog, Git, RSS, music, notes sync and more.
-  Its services, nightly schedule, backups and lessons learned are in
-  [`hosts/fox-red/README.md`](hosts/fox-red/README.md).
-- **fox-green** keeps watch on fox-red, and fox-red on it, so either one
-  going down gets noticed (Gatus, with dashboards at `foxred.` and
-  `foxgreen.emberfox.net`). It also gives the phone two exit nodes, one
-  through Mullvad. See [`hosts/fox-green/README.md`](hosts/fox-green/README.md).
-
-## How it's organised
+| The laptop: disk, impermanence, desktop, sandboxes, backups, Secure Boot | `hosts/fox-amber/`, `modules/`, `home/` | [fox-amber](hosts/fox-amber/README.md) |
+| The phone: GrapheneOS, network, carrier, backups (set by hand, not built here) | `hosts/ferret-amber/` | [ferret-amber](hosts/ferret-amber/README.md) |
+| The main server and its services | `hosts/fox-red/`, `modules/server/services/` | [fox-red](hosts/fox-red/README.md) |
+| The watchdog and the phone's exit nodes | `hosts/fox-green/`, `services/exit-nodes.nix` | [fox-green](hosts/fox-green/README.md) |
+| How every server is built; adding a server or a service | `modules/server/` | [server modules](modules/server/README.md) |
+| Who monitors whom | `modules/server/watch.nix` | [fox-green § Monitoring](hosts/fox-green/README.md#monitoring) |
+| Shared values: colour palette, displays, Syncthing devices | `lib/` | |
+| Secrets (encrypted) | `secrets/` (personal), `hosts/<server>/secrets/` | [Secrets](#secrets) |
+| Standalone scripts, checked by `nix flake check` | `scripts/`, `*.sh` | |
 
 ```
-flake.nix              Inputs and the list of machines
-hosts/<name>/          One folder per machine: hardware + what's unique to it
-modules/               System-level NixOS modules
-  personal.nix           The bundle every laptop/desktop imports
-  options.nix            The few knobs that differ per machine (fox.*)
-  core/                  Nix settings, users, hardening, USB allowlist, time zone
-  desktop/               Login (greetd) and Hyprland session, audio, fonts, system apps
-  hardware/              laptop.nix (power, thermals), nvidia.nix
-  network/               Mullvad + NetBird
-  services/              restic.nix (backups), auto-update.nix (update check, laptop)
-  boot.nix, impermanence.nix, ephemeral-home.nix
-  server/                The shared server modules (its own README)
-home/                  Home Manager config for the user
-  desktop/               Hyprland (hypr/*.lua), Quickshell bar, apps, sandboxes, lock screen, theme
-lib/                   Shared values: colour palette, displays, session variables,
-                       Syncthing devices and folders
-secrets/               sops-encrypted secrets for the laptop and desktop
-deploy.sh, secret.sh   Deploy a server; add one of its secrets
-sops.sh                Wrapper for editing those secrets
+flake.nix          inputs, and one line per machine
+hosts/<name>/      one folder per machine: hardware, what's unique to it, its README
+modules/           NixOS modules
+  personal.nix       the bundle every laptop/desktop imports
+  common/            what personal machines and servers share (sysctls, Nix, NetBird)
+  core/ desktop/ hardware/ network/ services/   the personal machines' pieces
+  server/            the servers' pieces (own README)
+home/              Home Manager: the desktop and its apps
+lib/               shared values
 ```
 
-### Per-machine options
+## Security decisions
 
-`modules/options.nix` defines a small `fox.*` interface, so a host can say
-what's different without touching shared files:
+These are the owner's decisions and reasons, not recommendations. Your
+threat model may call for less, more, or something different.
 
-```nix
-fox.backup.repository = "s3:https://s3.fr-par.scw.cloud/my-bucket/my-host";
-fox.desktop.monitors = [
-  { output = "DP-2"; mode = "3440x1440@59.97"; position = "0x0"; scale = 1; }
-  { output = "DP-1"; disabled = true; }
-];
-fox.desktop.lockAfter = 600;   # seconds idle before the screen locks
-```
+The model: a laptop that's lost, stolen or seized; someone with physical
+access to it while it's running or switched off; and attackers on the
+internet going after the servers. No single failure should hand over
+everything, and convenience counts. The aim is to make attacks expensive,
+not to make daily use painful.
 
-Other options cover extra Hyprland environment variables, which screen the
-bar goes on and the host name in its prompt, and extra GPU device nodes for
-the sandboxes.
+**Personal machines**
 
-## Everyday use
+| Decision | Why | Where |
+| --- | --- | --- |
+| Full-disk encryption, unlocked with a YubiKey or a passphrase | A switched-off laptop holds nothing readable | `modules/boot.nix` |
+| Secure Boot with the owner's own keys, firmware password set | A tampered kernel or initrd on `/boot` won't boot | `modules/boot.nix` |
+| Root and home wiped at every boot; only listed paths persist | Malware, leftovers and stray files don't survive a reboot | `modules/root-wipe.nix`, `impermanence.nix`, `ephemeral-home.nix` |
+| Pulling the YubiKey locks, then powers off | Walking away (or being made to) leaves the disk encrypted | `modules/core/yubikey-removal.nix` |
+| New USB devices blocked until approved | Stops fake keyboards and similar attacks on a running machine | `modules/core/usbguard.nix` |
+| `sudo` asks every time; no SSH server; kernel modules locked after boot | Local root needs the owner each time, and nothing listens | `modules/core/` |
+| Browsers and chat apps sandboxed, mostly with homes in RAM | A compromised app sees one folder, and forgets at power-off | `home/desktop/sandboxes.nix` |
+| Mullvad for all traffic, MAC address randomised per network | The local network and the sites visited learn little | `modules/network/vpn.nix` |
+| Updates are announced, never applied automatically | Nothing builds as root behind the owner's back | `modules/services/auto-update.nix` |
 
-Rebuild the machine you're sitting at. A plain `--flake .` picks the output
-named after the hostname, when the two match:
+**Servers**
+
+| Decision | Why | Where |
+| --- | --- | --- |
+| Most services answer only over NetBird; Caddy also checks the source address | Less exposed to the internet | `modules/server/caddy.nix` |
+| One wildcard certificate for the private names | Their names stay out of public certificate logs | `modules/server/caddy.nix` |
+| SSH by key only, fail2ban, kernel hardening | The usual baseline | `modules/server/base.nix` |
+| Each server has its own secrets key | One compromised server can't read the others' secrets | `hosts/<server>/.sops.yaml` |
+| Backups encrypted client-side; the backup key can't delete old versions | A stolen key can't read or destroy the backups | `modules/server/backup.nix`, `scripts/check-backup-key.sh` |
+| The config is built on the server, not pushed in | The laptop's user never gets Nix's root-equivalent trust | `deploy.sh` |
+| Two servers watch each other | A server that dies outright still gets noticed | `modules/server/watch.nix` |
+
+**Accepted trade-offs.** Some conveniences are kept on purpose: a few
+unlocks need only a touch of the key rather than a PIN, one password
+manager is the root of recovery, and some apps (a video-call client, one
+plain browser) bypass the VPN. Each was weighed and judged worth it for
+daily use.
+
+## Everyday commands
 
 ```bash
-sudo nixos-rebuild switch --flake .
+sudo nixos-rebuild switch --flake .#fox-amber   # rebuild the laptop
+./deploy.sh <server> test                       # try a server change (a reboot undoes it)
+./deploy.sh <server> switch                     # make it stick (needs a clean commit)
+./secret.sh <server> <name>                     # add a server secret
+./sops.sh secrets/secrets.yaml                  # edit the personal machines' secrets
+nix flake update                                # then rebuild / deploy
+nix flake check                                 # shellcheck the scripts, run their tests
 ```
-
-fox-amber is a mobile machine, so on the network it deliberately goes by a
-generic name (`workstation`) to blend in. Its hostname doesn't match its
-flake output, so name it: `sudo nixos-rebuild switch --flake .#fox-amber`.
-
-Use `boot` instead of `switch` to apply at next boot.
-
-Deploy a server (fox-red or fox-green), from a clean git checkout:
-
-```bash
-./deploy.sh fox-red test     # activate now; a reboot undoes it
-./deploy.sh fox-red switch   # activate and make it the default
-```
-
-Add a machine: create `hosts/<name>/default.nix` (set
-`networking.hostName` to the same name, import `modules/personal.nix` and a
-generated `hardware-configuration.nix`), then add one line to
-`nixosConfigurations` in `flake.nix`.
-
-Add a server: create `hosts/<name>/default.nix` that imports
-`modules/server` and the services it should run from
-`modules/server/services/`, and sets its `fox.server.*` values (its backup
-bucket, domains). Add its age key to `hosts/<name>/.sops.yaml`, then one line
-to `flake.nix`. [`modules/server/README.md`](modules/server/README.md) walks
-through it, and through writing a new service.
-
-Update everything: `nix flake update`, then rebuild.
-
-## Secure Boot
-
-The laptop boots with Secure Boot on, using its own keys instead of
-Microsoft's ([lanzaboote](https://github.com/nix-community/lanzaboote),
-`modules/boot.nix`). Every boot entry is signed on each rebuild, so a kernel
-or initrd swapped on `/boot` won't boot. Kernel modules can't load once boot
-is done (`modules/core/hardening.nix`).
-
-One-time setup on a new machine (the menu names are a Dell Latitude's):
-
-1. Rebuild. This creates the keys in `/var/lib/sbctl` and signs the boot
-   files. `sudo sbctl verify` should list the `.efi` files under
-   `/boot/EFI/Linux` and `/boot/EFI/BOOT` as signed.
-2. Reboot once with Secure Boot still off, to check it boots.
-3. In the firmware (F2 at the logo): set an **Admin Password** (Security),
-   then under Secure Boot → Expert Key Management turn on **Custom Mode** and
-   **Delete All Keys**. That puts the firmware in Setup Mode.
-4. Boot NixOS and run `sudo sbctl enroll-keys --tpm-eventlog`. This enrolls
-   only your keys, plus the checksums of the option ROMs this machine
-   actually loads. If sbctl refuses because of option ROMs, use
-   `--microsoft` instead.
-5. Back in the firmware, turn **Secure Boot Enable** on. After booting,
-   `bootctl status` shows `Secure Boot: enabled (user)`.
-
-Keep the Admin Password somewhere safe: without it, Secure Boot can't be
-turned off or re-keyed, and Dell can't reset it on most models.
-
-If it won't boot after an update, pick an older generation in the boot menu
-(they're all signed). If nothing boots, enter the firmware with the Admin
-Password and turn Secure Boot off.
 
 ## Secrets
 
-Secrets are encrypted with [sops](https://github.com/getsops/sops) and
-decrypted at boot by [sops-nix](https://github.com/Mic92/sops-nix). The
-encrypted files are safe to keep in git; the private keys are not in this
-repo.
+Encrypted with [sops](https://github.com/getsops/sops), decrypted at boot by
+[sops-nix](https://github.com/Mic92/sops-nix). The encrypted files are safe
+in a public repo; the private keys are not in it.
 
-- **Laptop and desktop:** `secrets/`, encrypted to one shared age key
-  (listed in `.sops.yaml`). Edit with `./sops.sh secrets/secrets.yaml`.
-- **Servers:** `hosts/<server>/secrets/`, one file per secret, with that
-  server's own `.sops.yaml`. Add one with `./secret.sh <host> <name>`. Typed
-  at its prompt, a value is stored with a newline at the end, which is fine
-  for `.env` files but not for a raw token a program reads straight from the
-  file: pipe those in exactly, `printf '%s' "$TOKEN" | ./secret.sh <host> <name>`.
+- **Personal machines:** `secrets/secrets.yaml`, encrypted to one shared key
+  (`.sops.yaml`). Edit with `./sops.sh secrets/secrets.yaml`.
+- **Servers:** `hosts/<server>/secrets/`, one file per secret, each server
+  with its own `.sops.yaml`. Add one with `./secret.sh <host> <name>`. A value
+  typed at its prompt gets a trailing newline; pipe raw tokens in exactly:
+  `printf '%s' "$TOKEN" | ./secret.sh <host> <name>`.
 
-If you can't decrypt, the system will still build, but activation will fail
-and login passwords won't be set. Check that decryption works before you
-reboot into a new config.
+Without the key the system still builds, but activation fails and login
+passwords aren't set, so check decryption before rebooting into a new config.
 
 ## Using this as a reference
 
-You can't build this as-is, since it's tied to one person's accounts and
-hardware. Most of it is meant to be lifted in pieces. The impermanence
-setup, the nixpak sandbox helper, the Hyprland Lua config, the restic
-module and the server's service definitions are all fairly self-contained.
+You can't build it as-is: it's tied to one person's accounts and hardware.
+Pieces that lift out cleanly: the impermanence setup, the nixpak sandbox
+helper, the Hyprland Lua config, the restic module, the server modules and
+their services, and the exit nodes.
 
-If you want to adapt the whole thing, change these first:
+To adapt the whole thing, change these first:
 
-- The username `arlo` appears throughout, and the lock screen has a name in
-  `home/desktop/lockscreen.nix`.
-- `.sops.yaml` and each `hosts/<server>/.sops.yaml` hold the owner's public
-  age keys. Put in yours and replace the encrypted files with your own.
-- Backup buckets, domain names, NetBird addresses (`lib/syncthing.nix`,
+- The username `arlo` throughout, and the name on the lock screen
+  (`home/desktop/lockscreen.nix`).
+- The public age keys in `.sops.yaml` and each `hosts/<server>/.sops.yaml`;
+  then replace the encrypted files with your own.
+- Backup buckets, domains, NetBird addresses (`lib/syncthing.nix`,
   `modules/server/watch.nix`), the Mullvad addresses in
-  `hosts/fox-green/default.nix`, and the time zone (`modules/core/default.nix`)
-  are the owner's.
-- `hardware-configuration.nix` in each host folder is generated for that
-  specific machine. Regenerate yours with `nixos-generate-config`.
-- Disk layout assumptions: a LUKS device named `cryptroot` containing btrfs
-  subvolumes `@root`, `@home`, `@nix` and `@persist`.
-- The wallpaper (`home/desktop/wallpapers/`) is just an image; swap it.
+  `hosts/fox-green/default.nix`, and the time zone (`modules/core/default.nix`).
+- Each `hardware-configuration.nix`: regenerate with `nixos-generate-config`.
+- The disk layout: a LUKS device `cryptroot` holding btrfs subvolumes `@root`,
+  `@home`, `@nix` and `@persist`.
 
-Built against NixOS 26.05 and Home Manager `release-26.05`. The desktop
-config uses Hyprland's Lua configuration, so it needs a Hyprland version that
-supports it.
+Built against NixOS 26.05 and Home Manager `release-26.05`. The desktop needs
+a Hyprland with Lua configuration.
 
 ## Credits
 
 Built on [NixOS](https://nixos.org), [Home Manager](https://github.com/nix-community/home-manager),
 [impermanence](https://github.com/nix-community/impermanence),
-[sops-nix](https://github.com/Mic92/sops-nix), [nixpak](https://github.com/nixpak/nixpak)
+[sops-nix](https://github.com/Mic92/sops-nix), [nixpak](https://github.com/nixpak/nixpak),
+[lanzaboote](https://github.com/nix-community/lanzaboote)
 and [Hyprland](https://hypr.land).
 
 ## License

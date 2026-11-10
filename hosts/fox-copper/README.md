@@ -6,6 +6,34 @@ bed for disaster recovery. Its one job is DVDs: insert one and it rips to
 H.265 nightly (`modules/server/services/dvd-rip.nix`). It has no Filen login:
 `copper pull` on the laptop brings finished rips over (`home/desktop/copper.nix`).
 
+## Ripping a disc
+
+Insert it. MakeMKV rips it losslessly, `scripts/dvd-classify.sh` sorts it
+by its title lengths, and the drive ejects when it's done:
+
+| The disc looks like | It goes to |
+| --- | --- |
+| a movie | `Movies/Originals/<Title (Year)>/`, the main feature only |
+| a TV season | `Unsorted/TV/<label>-<date>/`, episodes only |
+| anything else | `Unsorted/<label>-<date>/`, every title of 10+ minutes |
+
+Movies are named from the disc label and TMDB ("INTERSTELLAR" becomes
+"Interstellar (2014)"), or the label alone if TMDB has no exact match. If
+Jellyfin matches one wrong, fix it with Identify in Jellyfin; don't rename.
+
+`Unsorted` is yours to name and move into `{Movies,TV}/Originals`, since a
+disc can't say which season or episode it is: `ssh fox-copper`, then `mv`
+in `/var/lib/media` (group `users`, no sudo needed).
+
+Each night at 02:00, `media-encode` encodes what's in `Originals` to H.265
+in `Converted`. On the laptop, `copper pull` fetches finished rips and
+`copper done` clears them once they're safe in Filen
+(`home/desktop/copper.nix`).
+
+**When MakeMKV stops working** with "This application version is too old":
+its betas expire about 60 days after release. It comes from nixos-unstable,
+which updates it soonest, so `nix flake update` and deploy.
+
 ## Encoding a big backlog on a rented server
 
 The laptop encodes a DVD in well under its running time, but 1080p takes it
@@ -39,9 +67,12 @@ What's different from the VPSes:
 
 - **It runs from the Fox USB drive** (a 1 TB SanDisk Extreme). The internal
   disk keeps its Windows install, untouched. The firmware boots USB first.
-- **Its network is a phone's USB tether.** NetBird is the only way in, so
+- **Its network is the home Wi-Fi, or a phone's USB tether.** When both are
+  up, the tether wins (lower route metric). NetBird is the only way in, so
   deploy and SSH as usual (`fox-copper` in `~/.ssh/config` is its NetBird
-  address). If the phone stops tethering, it's offline and fox-red alerts.
+  address). If it drops off both, fox-red alerts. Njalla is refused over
+  IPv6, so certificate renewals always leave through fox-green-direct's
+  IPv4, the only address the Njalla token accepts.
 - **The disk is declared**, in `disko.nix`: a 1 GB ESP, the rest LUKS
   (`cryptcopper`) holding btrfs `@root`, `@nix` and `@persist`.
 - **The disk is encrypted**, unlocked at the laptop with a YubiKey after

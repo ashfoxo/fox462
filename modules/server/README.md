@@ -43,20 +43,42 @@ Values that differ per host (`fox.server.domain`, `.privateDomain`,
 (which also closes 80 and 443); one whose sites are all NetBird-only sets
 `fox.server.caddy.public = false` (443 on the NetBird interface only); and
 one with nothing worth backing up sets `fox.server.backup.enable = false`.
-fox-green does the last two. A service can be imported by any number of
+fox-green and fox-copper do the last two. A service can be imported by any number of
 hosts; each host gets its own secrets (`hosts/<host>/secrets/`) and its own
 backup bucket.
 
 `*.emberfox.net` points at fox-red, so a NetBird-only site on any other server
 needs an A record of its own pointing at that server's NetBird address, and
-that server needs its own Njalla token for the certificate. Every server has
-one such site: its Gatus dashboard, named after it without the dash
-(`foxgreen.emberfox.net`).
+that server needs its own Njalla token for the certificate. A server that
+runs Gatus has one such site: its dashboard, named after it without the
+dash (`foxgreen.emberfox.net`). A server without Gatus (fox-copper) is still
+watched: it sends heartbeats and is listed in `watch.nix`, it just has no
+dashboard of its own.
+
+## A server with a wiped root
+
+Servers keep their root by default. One can opt into the same wipe-every-boot
+root as the laptop (fox-copper does) by importing `modules/root-wipe.nix`
+and listing what survives under `environment.persistence."/persist"`. Then:
+
+- Its disk needs LUKS with btrfs `@root` and `@persist` (a `disko.nix` in the
+  host folder declares it), `boot.initrd.systemd.enable`, and
+  `fox.rootWipe.luksName`.
+- The SSH host key must be read from `/persist/etc/ssh` directly
+  (`services.openssh.hostKeys`): sops-nix decrypts with it before
+  impermanence's bind mounts exist.
+- arlo's password can't live in `/etc/shadow`, which is wiped. Set
+  `users.mutableUsers = false` and give it a hashed password from a sops
+  secret (`hashedPasswordFile`, with `neededForUsers`).
+
+[fox-copper's README](../../hosts/fox-copper/README.md) shows the whole
+install.
 
 ## Adding a server
 
 1. `hosts/<name>/default.nix`: import `../../modules/server`, the services it
-   should run (including `services/gatus.nix`), and its
+   should run (usually including `services/gatus.nix`, so it shows a
+   dashboard and can watch another server), and its
    `hardware-configuration.nix`; set `networking.hostName`,
    `system.stateVersion`, its user, and `fox.server.*`. Add it to `watch.nix`
    with the server that watches it.
@@ -67,7 +89,8 @@ one such site: its Gatus dashboard, named after it without the dash
    trailing newline.
 4. One line in `flake.nix`.
 5. `./deploy.sh <name> test`, then `switch`. The very first deploy runs as
-   root, before its user exists (see fox-green's README).
+   root, before its user exists (see fox-green's README). A server with a
+   declared disk is installed instead (see fox-copper's README).
 
 ## Adding a service
 

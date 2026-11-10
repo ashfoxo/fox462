@@ -1,7 +1,8 @@
 # fox-red
 
 The NixOS configuration for **fox-red**, a Hetzner VPS (4 vCPU, 8 GB RAM,
-40 GB disk, plus a 1 TB Storage Box for music, podcasts and audiobooks).
+40 GB disk, plus a 1 TB Storage Box for music, podcasts, audiobooks and
+video).
 The whole server is built from this repo: one flake, shared server modules,
 encrypted secrets, and a deploy script. fox-red was rebuilt in place in
 autumn 2026.
@@ -21,6 +22,8 @@ services other devices have to reach from anywhere are public.
 | Navidrome | music.emberfox.net | NetBird | Podman |
 | AudioMuse-AI | muse.emberfox.net | NetBird | Podman (web, worker, Postgres) |
 | Audiobookshelf (podcasts, audiobooks) | spoken.emberfox.net | NetBird | NixOS module |
+| Jellyfin (movies, TV, YouTube) | jellyfin.emberfox.net | NetBird | NixOS module |
+| ytdl-sub (YouTube channels as shows) | — (outbound only) | — | NixOS module |
 | Gatus | foxred.emberfox.net | NetBird | NixOS module |
 | Notesnook sync server | notes.emberfox.net (+ auth., events., files. under notes.) | NetBird | Podman (MongoDB, Silo, three apps) |
 | Syncthing (Minecraft instances, `~/sync`) | port 22000 | NetBird | NixOS module |
@@ -39,10 +42,13 @@ NetBird interface only, it also opens TCP 22000 for Syncthing.
                     └──────────────► Caddy ◄─────────────────┘
                                        │   private names only answer
                                        │   100.64.0.0/10 and localhost
-          ┌────────────┬───────────────┼──────────────┬──────────────┐
-   /var/lib/blog   Forgejo + runner   ntfy      Miniflux, Gatus  Navidrome ↔ AudioMuse
-     /current         (blog builds)                              (Podman "music" network)
+          ┌────────────┬───────────────┼──────────────┬──────────────┬──────────────┐
+   /var/lib/blog   Forgejo + runner   ntfy      Miniflux, Gatus  Navidrome ↔ AudioMuse  Jellyfin,
+     /current         (blog builds)                              (Podman "music" net)   Audiobookshelf
 ```
+
+The music, audiobooks and video all live on the Storage Box, mounted at
+`/mnt/music` over encrypted SMB; only the apps' own state is on the VPS.
 
 - **Private names.** DNS for `*.emberfox.net` points at fox-red's NetBird
   address. Caddy also checks the source address, so a request to a private
@@ -56,8 +62,18 @@ NetBird interface only, it also opens TCP 22000 for Syncthing.
   alert. Old Ghost links (`/rss/`, `/content/images/…`) redirect.
 - **Drop folder.** New media goes into `~/drop/{Music,Audiobooks,Movies,TV}`
   on the laptop. Syncthing brings it to the Storage Box, and `drop-sort`
-  (02:00) files it once it has fully arrived (`services/syncthing.nix`). The
-  laptop empties its copy after 3 days; its Filen app backs `~/drop` up.
+  (02:00) files it once it has fully arrived (`services/syncthing.nix`):
+  music into the library, audiobooks into `spoken`, video into
+  `/mnt/music/video`. The drop folder itself sits on the Storage Box, so a
+  big movie can't fill the VPS disk. The laptop empties its copy after 3
+  days; its Filen app backs `~/drop` up.
+- **Video.** Jellyfin serves `/mnt/music/video/{Movies,TV,YouTube}` without
+  transcoding: everything is H.265, which the phone and laptop play
+  directly, and transcoding would swamp the CPU. Movies and TV arrive
+  through the drop folder, DVD rips included (`copper pull` on the laptop
+  puts fox-copper's encodes there). ytdl-sub downloads the last year of a
+  few YouTube channels into `YouTube`, one show per channel
+  (`services/youtube.nix`; a new channel is one line).
 - **Music.** Tagged and named in MusicBrainz Picard on the laptop, then
   dropped: drop-sort puts it straight into the library and Navidrome finds it
   within the hour (its own scan). AudioMuse analyses the
@@ -93,8 +109,9 @@ git commit -am "…"
 ./deploy.sh fox-red switch    # activate and make it the boot default
 ```
 
-`deploy.sh` refuses to run with uncommitted changes, so whatever is on the
-server is always a commit. It copies the repo to `/home/arlo/fox-red` and
+`switch` and `boot` refuse to run with uncommitted changes, so whatever the
+server boots into is always a commit; `test` and `dry-build` may try
+uncommitted work, since a reboot undoes `test`. It copies the repo to `/home/arlo/fox-red` and
 builds there, so the workstation needs no special Nix trust. Run it in a real
 terminal (not piped), since it asks for the sudo password.
 
@@ -107,9 +124,10 @@ generation from the boot menu.
 nix flake update && git commit -qam "flake update" && ./deploy.sh fox-red switch
 ```
 
-Run weekly until automatic upgrades are back on. Those are the next step:
-fox-red will upgrade itself nightly from this repo, with an ntfy alert if a
-run fails.
+There are no automatic upgrades: a server only changes when `deploy.sh`
+runs, so nothing lands that wasn't committed and tried first. To keep
+security fixes from being forgotten, the health check alerts once the
+deployed nixpkgs is more than 21 days old (`modules/server/monitoring.nix`).
 
 Two things update on their own schedule:
 
@@ -150,11 +168,19 @@ restic, nightly at 01:30 UTC, to the versioned Scaleway bucket
 `bagger-red`, keeping 7 daily, 4 weekly and 6 monthly snapshots. Databases are
 dumped first rather than copied live: Miniflux's Postgres, AudioMuse's
 Postgres, Notesnook's MongoDB, and the SQLite files of Navidrome,
-ntfy, Forgejo and MollySocket. Also backed up: Forgejo's whole state directory (repos,
-`app.ini`), Notesnook's attachments, the deployed copy of this repo, and the two
+ntfy, Forgejo, MollySocket and Jellyfin. Also backed up: Forgejo's whole state directory (repos,
+`app.ini`), Notesnook's attachments, Jellyfin's users, watch history and
+settings, the deployed copy of this repo, and the two
 Syncthing folders, the Minecraft instances and `~/sync` (without Syncthing's `.stversions`).
 
-Not backed up: `/var/lib/blog` (rebuilt from git) and the Podman images.
+Not backed up: `/var/lib/blog` (rebuilt from git), the Podman images,
+Jellyfin's artwork and metadata (a library scan fetches them again), and the
+media on the Storage Box. The box is storage, not backup: the originals of
+what's added are in Filen, uploaded from the laptop.
+
+The bucket key can't delete old versions, so a stolen key can't destroy the
+backups. Check with `sudo bash check-backup-key.sh /run/secrets/restic-s3-env bagger-red`
+(the script is `scripts/check-backup-key.sh`).
 
 On the 1st of each month, `restic-check-offsite` downloads 5% of the
 repository and verifies it. The pre-rebuild history is in the old
@@ -168,7 +194,9 @@ Everything alerts through ntfy:
   units, services stuck restarting. Each run also sends a `health` heartbeat
   to fox-green's Gatus, and each successful backup a `backup` heartbeat.
 - **Failures** of the backup, the monthly repository check, the blog build,
-  the music stack update and the similar-songs check.
+  the drop sort, the YouTube download, the music stack update and the
+  similar-songs check.
+- **A stale deploy:** nixpkgs more than 21 days old (see Updates).
 - **Gatus on fox-green** watches the sites from outside and alerts when one
   fails, or when a heartbeat says something is wrong or stops arriving (15
   minutes for health, 26 hours for the backup). That's how fox-red being
@@ -190,6 +218,7 @@ only for fox-green, in return. Who checks what is in
 | 05:30 | Similar-songs check |
 | Sun 06:00 | Navidrome + AudioMuse update |
 | Sun 06:30 | Notesnook image update |
+| 07:30 | YouTube channels downloaded |
 | 1st, 07:00 | Backup repository check |
 
 ## Lessons worth keeping

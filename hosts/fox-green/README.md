@@ -10,9 +10,11 @@ neither depends on the other server, fox-red:
   traffic through: one out through Mullvad, one out from the server's own
   address.
 
-New York, because the phone's carrier runs its network on AWS and hands
-traffic to the internet in Ashburn, Virginia. A server a few milliseconds
-from there adds almost nothing to the phone's latency, wherever the phone is.
+New York, because the phone's carrier appears to run its network on AWS and
+hand traffic to the internet around Ashburn, Virginia. That's a best guess
+from latency and traceroutes, not something the carrier publishes. If it's
+right, a server a few milliseconds from there adds almost nothing to the
+phone's latency, wherever the phone is.
 
 ## What runs here
 
@@ -92,9 +94,9 @@ NetBird then pairs every exit node's `0.0.0.0/0` with a `::/0`. The direct exit
 has no IPv6 to offer, so it refuses IPv6 at once and the phone falls back to
 IPv4 straight away.
 
-**DNS.** Not from these servers: the phone uses Mullvad's ad-blocking DNS
-(`adblock.dns.mullvad.net`) as its private DNS, which works through either
-exit.
+**DNS.** Not from these servers: the phone uses Quad9 (`dns.quad9.net`) as
+its private DNS, which works through either exit
+([ferret-amber](../ferret-amber/README.md)).
 
 All in `modules/server/services/exit-nodes.nix`.
 
