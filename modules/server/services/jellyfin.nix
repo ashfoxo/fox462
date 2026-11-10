@@ -6,19 +6,11 @@
 # Everything is H.265 and the phone and laptop play it directly, so nothing
 # here transcodes. Keep it that way: transcoding would swamp fox-red's CPU.
 #
-# Until fox-copper is retired, its rips are still pulled from Filen nightly
-# (media-sync; phase B deletes it). New video comes in through the drop
-# folder (~/drop/{Movies,TV}, server/services/syncthing.nix). The
-# Converted folders are filled by fox-copper (dvd-rip.nix):
-#
-#   Filen:/Media/{TV,Movies}/Converted  --- copy down, nightly --->  /mnt/music/video/{TV,Movies}
-#
-# copy, never sync: nothing is deleted on either side, and nothing goes up.
-# To remove something for good, delete it in Filen AND here, or it comes back.
+# New video comes in through the drop folder (~/drop/{Movies,TV},
+# server/services/syncthing.nix), including fox-copper's encodes (`copper
+# pull` on the laptop puts them there). This server holds no Filen login.
 { config, lib, pkgs, ... }:
 let
-  videoDir = "/mnt/music/video";
-
   # Web UI colours from lib/palette.nix, laid over Jellyfin's built-in Dark
   # theme (the default; other themes only partly pick this up). Same rules
   # as the desktop: forest/teal/rust are fills behind fg text, *_text and
@@ -206,65 +198,4 @@ in
 
   # Reached only through Caddy; 8096 stays closed in the firewall.
   fox.server.privateSites.jellyfin.upstream = "127.0.0.1:8096";
-
-  fox.server.filenUnits = [ "media-sync" ];
-
-  systemd.services.media-sync = {
-    description = "Copy converted movies and TV down from Filen";
-    after = [ "network-online.target" "remote-fs.target" ];
-    wants = [ "network-online.target" ];
-    # Without the mount, rclone would fill fox-red's own disk.
-    unitConfig = {
-      AssertPathIsMountPoint = "/mnt/music";
-      RequiresMountsFor = "/mnt/music";
-    };
-    serviceConfig = {
-      Type = "oneshot";
-      TimeoutStartSec = "12h";   # the first run pulls the whole library
-      ProtectSystem = "strict";
-      ReadWritePaths = [ "/mnt/music" ];
-      ProtectHome = true;
-      PrivateTmp = true;
-      NoNewPrivileges = true;
-      Nice = 10;
-      IOSchedulingClass = "idle";
-    };
-    path = [ pkgs.findutils ];
-    # --size-only, as spoken.nix:
-    # Filen and CIFS share no hash, and comparing mod times risks re-sending
-    # everything. The empty-file check catches what a broken copy leaves
-    # behind (it happened once, by hand: names copied, contents not).
-    script = ''
-      set -euo pipefail
-      for kind in TV Movies; do
-        # Jellyfin's libraries point here, so they exist even before Filen
-        # has anything to fill them. A Filen folder not made yet (nothing
-        # encoded) is skipped, not a failure.
-        mkdir -p "${videoDir}/$kind"
-        rclone lsjson --stat "filen:/Media/$kind/Converted" >/dev/null 2>&1 \
-          || { echo "no Media/$kind/Converted in Filen yet, skipping"; continue; }
-        rclone copy "filen:/Media/$kind/Converted" "${videoDir}/$kind" \
-          --size-only --transfers 4 --checkers 8 --retries 3 \
-          --stats 5m --stats-log-level NOTICE
-      done
-      empty=$(find "${videoDir}" -type f -size 0 -iname '*.mkv')
-      if [ -n "$empty" ]; then
-        echo "empty video files:"; echo "$empty"
-        exit 1
-      fi
-    '';
-  };
-
-  # 06:30 UTC: after fox-copper's 02:00 encode has had a few hours, and clear
-  # of the 03:00-05:00 upgrade window and the music jobs.
-  systemd.timers.media-sync = {
-    wantedBy = [ "timers.target" ];
-    timerConfig = {
-      OnCalendar = "*-*-* 06:30:00";
-      RandomizedDelaySec = "10m";
-      Persistent = true;
-    };
-  };
-
-  fox.server.monitoring.alertOnFailure.media-sync.title = "media sync FAILED";
 }

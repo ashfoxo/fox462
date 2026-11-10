@@ -12,7 +12,6 @@
     ./desktop
     ./network/vpn.nix
     ./services/restic.nix
-    ./travel.nix
 
     inputs.sops-nix.nixosModules.sops
     inputs.home-manager.nixosModules.home-manager

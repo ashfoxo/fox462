@@ -15,7 +15,6 @@
     ./podman.nix
     ./caddy.nix
     ./backup.nix
-    ./filen.nix
     ./monitoring.nix
     ./alerts.nix
     ./packages.nix

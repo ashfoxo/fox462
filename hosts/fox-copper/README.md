@@ -2,8 +2,9 @@
 
 A spare laptop at home: the first bare-metal server, and the test
 bed for disaster recovery. Its one job is DVDs: insert one and it rips to
-Filen `Media/Unsorted`, then encodes whatever is in `Media/{TV,Movies}/Originals`
-to H.265 nightly (`modules/server/services/dvd-rip.nix`).
+`/var/lib/media`, then encodes whatever is in `{TV,Movies}/Originals` there to
+H.265 nightly (`modules/server/services/dvd-rip.nix`). It has no Filen login:
+`copper pull` on the laptop brings finished rips over (`home/desktop/copper.nix`).
 
 ## Encoding a big backlog on a rented server
 
@@ -13,20 +14,26 @@ vCPUs (CCX line, Ubuntu), run the same script there, and delete the server
 after. Stop the laptop's nightly run meanwhile, or both encode the same files:
 `sudo systemctl stop media-encode.timer` (start it again after).
 
+The rented server can't reach fox-copper (NetBird only), so the files go
+through the laptop as a stream, without landing on its disk. From the laptop:
+
 ```bash
 scp scripts/media-encode.sh root@<ip>:
+ssh fox-copper 'tar -C /var/lib/media -c Movies/Originals TV/Originals' \
+  | ssh root@<ip> 'mkdir -p media && tar -C media -x'
 ssh root@<ip>
-apt-get update && apt-get install -y ffmpeg tmux
-curl https://rclone.org/install.sh | bash      # Ubuntu's rclone lacks the filen backend
-# paste filen-rclone.env into /root/filen.env (on fox-copper:
-# sudo cat /run/secrets/filen-rclone.env), then:
+apt-get update && apt-get install -y ffmpeg tmux rclone
 export TERM=xterm-256color   # if your terminal is one the server doesn't know (Ghostty)
-# JOBS: files at once. Filen gives each transfer a slice of the bandwidth,
-# so 8 keeps a 16-vCPU server busy.
-tmux new -s encode 'set -a; . /root/filen.env; set +a; RCLONE_CONFIG=/dev/null JOBS=8 bash media-encode.sh 2>&1 | tee -a encode.log'
+tmux new -s encode 'MEDIA=/root/media RCLONE_CONFIG=/dev/null JOBS=2 bash media-encode.sh 2>&1 | tee -a encode.log'
 ```
 
-It resumes where it stopped if interrupted, so just run it again.
+It resumes where it stopped if interrupted, so just run it again. When it's
+done, from the laptop, send the encodes back and delete the server:
+
+```bash
+ssh root@<ip> 'tar -C media -c Movies/Converted TV/Converted' \
+  | ssh fox-copper 'tar -C /var/lib/media -x'
+```
 
 What's different from the VPSes:
 

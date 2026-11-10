@@ -8,7 +8,8 @@
 #
 # shortcut: YouTube often blocks data-center IPs ("confirm you're not a
 # bot"). If ytdl-sub starts failing with that, run it from fox-copper's home
-# IP and upload to Filen instead (media-sync would then need a YouTube folder).
+# IP instead, and bring it over with `copper pull` (which would then need a
+# YouTube folder).
 { pkgs, ... }:
 let
   dir = "/mnt/music/video/YouTube";

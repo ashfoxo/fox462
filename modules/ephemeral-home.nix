@@ -7,10 +7,12 @@ let
   # Folders that survive. Anything not listed is gone at power-off.
   directories = [
     # --- Your files ---
-    "Documents" "Downloads" "Pictures" "Videos" "Music" "media" "working"
+    "Documents" "Downloads" "Pictures" "Videos" "media" "working"
+    # Not Music: the library is on fox-red (Navidrome); ~/Music is RAM-only scratch.
     "fox-den"           # this repo's checkout
     "sync"              # synced to every device by Syncthing (home/desktop/syncthing.nix)
     "drop"              # new media for fox-red; empties itself (home/desktop/syncthing.nix)
+    "copper"            # fox-copper's rips on their way to Filen (home/desktop/copper.nix)
     "torrents"          # qBittorrent downloads
     "sandbox_folders"   # the shared folder of each sandboxed app
     ".password-store"   # pass
@@ -45,6 +47,7 @@ let
     ".local/share/kdenlive"
     ".config/feishin"
     ".config/MusicBrainz"                    # Picard's settings (naming script, move-to folder)
+    ".local/share/health"                    # the map of your activity area (health-map)
     ".config/fluent-reader"
     ".config/@filen" ".filen-cli"            # Filen login and CLI login
     ".config/Electron"                       # Filen's IndexedDB (and any Electron app with the default name)

@@ -14,5 +14,7 @@
     ./gpg-unlock.nix # one YubiKey touch at login unlocks pass
     ./syncthing.nix  # Minecraft instances, synced over NetBird
     ./displays.nix   # Super + Shift + P: pick the main display
+    ./health         # `health`: Gadgetbridge data as charts, no server
+    ./copper.nix     # `copper pull` / `copper done`: fox-copper's DVD rips into Filen
   ];
 }

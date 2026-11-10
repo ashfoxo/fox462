@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Encode Filen:/Media/{TV,Movies}/Originals into .../Converted as H.265.
+# Encode $MEDIA/{TV,Movies}/Originals into .../Converted as H.265. MEDIA is
+# any rclone path: /var/lib/media on fox-copper, filen:/Media by default.
 #
 # Runs nightly on fox-copper (modules/server/services/dvd-rip.nix), and by
 # hand on a rented box for a big backlog (hosts/fox-copper/README.md). Needs
-# bash, rclone (1.70+, for the filen backend), ffmpeg and ffprobe, and the
+# bash, rclone, ffmpeg and ffprobe. For filen:, rclone 1.70+ and the
 # RCLONE_CONFIG_FILEN_* variables from filen-rclone.env in the environment.
 #
 # Originals is never modified, except that empty folders are removed. A
@@ -20,6 +21,7 @@
 set -euo pipefail
 
 work=${WORK:-/var/tmp/media-encode}
+media=${MEDIA:-filen:/Media}
 crf=${CRF:-22}
 preset=${PRESET:-medium}
 jobs=${JOBS:-1}
@@ -69,8 +71,8 @@ one() {
 }
 
 for kind in TV Movies; do
-  src="filen:/Media/$kind/Originals"
-  dst="filen:/Media/$kind/Converted"
+  src="$media/$kind/Originals"
+  dst="$media/$kind/Converted"
   rclone mkdir "$src"
   rclone mkdir "$dst"
   rclone lsf -R --files-only "$dst" | sort > "$work/done.list"

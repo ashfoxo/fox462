@@ -1,0 +1,1011 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Health</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #@bg@; --surf: #@surf@; --line: #@line@;
+    --fg: #@fg@; --dim: #@dim@; --faint: #@faint@;
+    --accent: #@accent@;
+    --deep: #3987e5; --rem: #d95926; --light: #199e70; --awake: #c98500;
+  }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 system-ui, sans-serif; }
+  main { max-width: 1180px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0; }
+  .sub { color: var(--dim); margin: 2px 0 18px; }
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 18px; }
+  .filters button {
+    background: transparent; color: var(--dim); border: 1px solid var(--line);
+    border-radius: 6px; padding: 5px 12px; font: inherit; cursor: pointer;
+  }
+  .filters button[aria-pressed="true"] { color: var(--fg); border-color: var(--accent); }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .tile, .card { background: var(--surf); border-radius: 10px; padding: 14px 16px; }
+  .tile .label { color: var(--dim); }
+  .tile .value { font-size: 30px; font-weight: 600; margin: 2px 0; }
+  .tile .value small { font-size: 14px; font-weight: 400; color: var(--dim); margin-left: 4px; }
+  .tile .note { color: var(--faint); font-size: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 12px; }
+  .card h2 { font-size: 15px; font-weight: 600; margin: 0; }
+  .card .unit { color: var(--dim); font-size: 12px; margin-bottom: 6px; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; color: var(--dim); font-size: 12px; margin-bottom: 4px; }
+  .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px;
+    background: var(--c); margin-right: 6px; vertical-align: -1px; }
+  .plot { position: relative; height: 200px; }
+  svg { display: block; width: 100%; height: 100%; overflow: visible; }
+  svg text { fill: var(--dim); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .hit { fill: transparent; cursor: default; outline: none; }
+  .hit:hover + .mark, .hit:focus + .mark { filter: brightness(1.25); }
+  details { margin-top: 8px; color: var(--dim); font-size: 12px; }
+  details summary { cursor: pointer; }
+  .table-wrap { overflow-x: auto; max-height: 260px; }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 3px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--dim); font-weight: 500; }
+  td { color: var(--fg); }
+  #tip {
+    position: fixed; pointer-events: none; background: var(--bg); border: 1px solid var(--line);
+    border-radius: 6px; padding: 6px 10px; font-size: 12px; display: none; z-index: 10;
+  }
+  #tip .d { color: var(--dim); }
+  #tip .row { display: flex; align-items: center; gap: 6px; }
+  #tip .row b { color: var(--fg); font-weight: 600; }
+  #tip .row i { display: inline-block; width: 12px; height: 2px; background: var(--c); }
+  #tip .row span { color: var(--dim); }
+  .empty { color: var(--faint); padding: 70px 0; text-align: center; }
+
+  /* Workouts. Heart-rate zones: one blue, dark (warm-up) to light (maximum). */
+  :root { --z1: #1c5cab; --z2: #2a78d6; --z3: #5598e7; --z4: #86b6ef; --z5: #b7d3f6; }
+  #workouts button {
+    background: none; border: 0; color: var(--fg); font: inherit; cursor: pointer; padding: 0; text-align: left;
+  }
+  #workouts tr.sel td { background: var(--bg); }
+  #workouts tr.sel button { color: var(--accent); }
+  #detail { margin-top: 14px; }
+  #detail h3 { font-size: 17px; font-weight: 600; margin: 0; }
+  #detail .when { color: var(--dim); margin-bottom: 12px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin-bottom: 16px; }
+  .stat { background: var(--bg); border-radius: 8px; padding: 8px 10px; }
+  .stat .k { color: var(--dim); font-size: 12px; }
+  .stat .v { font-size: 18px; font-weight: 600; }
+  .stat .v small { font-size: 12px; font-weight: 400; color: var(--dim); margin-left: 3px; }
+  .section { margin: 16px 0 6px; font-weight: 600; }
+  .zones { display: flex; gap: 2px; height: 28px; }
+  .zones div { border-radius: 4px; font-size: 12px; line-height: 28px; padding-left: 6px; overflow: visible; white-space: nowrap; min-width: 0; }
+  .zone-legend { display: flex; gap: 14px; flex-wrap: wrap; color: var(--dim); font-size: 12px; margin-top: 6px; }
+  .zone-legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px;
+    background: var(--c); margin-right: 6px; vertical-align: -1px; }
+  .detail-plot { position: relative; height: 180px; }
+
+  /* Activity view: map and numbers on top, stacked charts below */
+  .act-top { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 12px; align-items: start; }
+  @media (max-width: 860px) { .act-top { grid-template-columns: 1fr; } }
+  .act-top .stats { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); margin: 0; }
+  .map { height: 380px; border-radius: 8px; overflow: hidden; background: var(--bg); position: relative; }
+  .map .note { position: absolute; left: 10px; bottom: 8px; color: var(--dim); font-size: 12px; z-index: 2; }
+  .map-key { display: flex; gap: 14px; color: var(--dim); font-size: 12px; margin-top: 6px; }
+  .map-key span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+    background: var(--c); margin-right: 6px; vertical-align: -1px; box-shadow: 0 0 0 2px var(--surf); }
+  .xmode { display: flex; gap: 6px; margin: 18px 0 4px; align-items: center; color: var(--dim); font-size: 12px; }
+  .xmode button { background: transparent; color: var(--dim); border: 1px solid var(--line); border-radius: 6px;
+    padding: 3px 10px; font: inherit; cursor: pointer; }
+  .xmode button[aria-pressed="true"] { color: var(--fg); border-color: var(--accent); }
+  .tchart { margin-top: 10px; }
+  .tchart .head { display: flex; justify-content: space-between; align-items: baseline; }
+  .tchart .head b { font-weight: 600; }
+  .tchart .head span { color: var(--dim); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .tchart .plot { height: 130px; }
+  .maplibregl-ctrl-attrib { background: rgba(0, 0, 0, 0.4) !important; }
+  .maplibregl-ctrl-attrib a { color: var(--dim) !important; }
+  .maplibregl-ctrl-group { background: var(--surf) !important; }
+  .maplibregl-ctrl-group button + button { border-top-color: var(--line) !important; }
+  .maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: invert(1); opacity: 0.8; }
+</style>
+
+<main>
+  <h1>Health</h1>
+  <p class="sub" id="sub"></p>
+  <div class="filters" role="group" aria-label="Date range">
+    <button data-days="7">7 days</button>
+    <button data-days="30">30 days</button>
+    <button data-days="90">90 days</button>
+    <button data-days="0">All</button>
+  </div>
+  <div class="tiles" id="tiles"></div>
+  <div class="grid" id="charts"></div>
+  <div class="card" style="margin-top:12px">
+    <h2>Workouts</h2>
+    <div class="unit">Pick one for the details</div>
+    <div class="table-wrap"><table id="workouts"></table></div>
+    <div id="detail"></div>
+  </div>
+</main>
+<div id="tip"></div>
+
+<!--LIBS-->
+<!--DATA-->
+
+<script>
+const D = JSON.parse(document.getElementById("data").textContent);
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const NS = "http://www.w3.org/2000/svg";
+const el = (tag, attrs = {}, parent) => {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (parent) parent.appendChild(e);
+  return e;
+};
+const h = (tag, attrs = {}, text) => {
+  const e = document.createElement(tag);
+  Object.assign(e, attrs);
+  if (text !== undefined) e.textContent = text;
+  return e;
+};
+const fmt = (n, dp = 0) => n == null ? "–" : Number(n).toLocaleString(undefined, { maximumFractionDigits: dp, minimumFractionDigits: dp });
+const dayLabel = (d) => new Date(d + "T12:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+const longDay = (d) => new Date(d + "T12:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+const localDay = (ms) => { const t = new Date(ms); return new Date(t - t.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
+
+// ---- Data shaping -------------------------------------------------------
+// Sleep stages: each sample marks a stage start; it lasts until the next one
+// in the same session (a gap over 3 h starts a new night). Codes: 1 awake,
+// 2 light, 3 deep, 4 REM. The night is filed under the day you woke up.
+const STAGES = [["deep", 3, "Deep"], ["rem", 4, "REM"], ["light", 2, "Light"], ["awake", 1, "Awake"]];
+const nights = {};
+{
+  const s = D.stages;
+  let mins = null;
+  for (let i = 0; i < s.length; i++) {
+    const next = s[i + 1];
+    if (next && next.t - s[i].t <= 3 * 3600e3) {
+      (mins ||= { 1: 0, 2: 0, 3: 0, 4: 0 })[s[i].s] += (next.t - s[i].t) / 60000;
+    } else if (mins) {
+      nights[localDay(s[i].t)] = mins;
+      mins = null;
+    }
+  }
+}
+const sleepRows = Object.entries(nights).map(([d, m]) => ({
+  d, parts: STAGES.map(([, code]) => m[code] / 60),
+})).sort((a, b) => a.d.localeCompare(b.d));
+
+const CHARTS = [
+  { id: "steps", title: "Steps", unit: "steps per day", type: "bar", rows: D.steps, dp: 0 },
+  { id: "sleep", title: "Sleep stages", unit: "hours per night", type: "stack", rows: sleepRows, dp: 1,
+    series: STAGES.map(([k, , name]) => ({ name, color: css("--" + k) })) },
+  { id: "sleepScore", title: "Sleep score", unit: "0–100, per night", type: "bar", rows: D.sleepScore, dp: 0, max: 100 },
+  { id: "rhr", title: "Resting heart rate", unit: "bpm", type: "line", rows: D.rhr, dp: 0 },
+  { id: "hrv", title: "HRV, overnight average", unit: "ms; shaded: your balanced range", type: "line", rows: D.hrv, dp: 0, band: true },
+  { id: "energy", title: "Body Battery", unit: "lowest to highest each day, 0–100", type: "range", rows: D.energy, dp: 0, max: 100 },
+  { id: "stress", title: "Stress", unit: "daily average, 0–100", type: "line", rows: D.stress, dp: 0 },
+  { id: "resp", title: "Respiration", unit: "breaths per minute, daily average", type: "line", rows: D.resp, dp: 1 },
+  { id: "intensity", title: "Intensity minutes", unit: "per day (vigorous counts double)", type: "bar", rows: D.intensity, dp: 0 },
+];
+
+// ---- Range filter -------------------------------------------------------
+const allDays = CHARTS.flatMap((c) => c.rows.map((r) => r.d)).sort();
+const lastDay = allDays[allDays.length - 1];
+let days = 90;
+const inRange = (rows) => {
+  if (!days) return rows;
+  const cut = new Date(lastDay + "T12:00");
+  cut.setDate(cut.getDate() - days + 1);
+  const c = cut.toISOString().slice(0, 10);
+  return rows.filter((r) => r.d >= c);
+};
+
+// ---- Tooltip ------------------------------------------------------------
+const tip = document.getElementById("tip");
+function showTip(evt, day, items, heading) {
+  tip.replaceChildren(h("div", { className: "d" }, heading ?? longDay(day)));
+  for (const it of items) {
+    const row = h("div", { className: "row" });
+    const key = h("i"); key.style.setProperty("--c", it.color);
+    row.append(key, h("b", {}, it.value), h("span", {}, it.name));
+    tip.appendChild(row);
+  }
+  tip.style.display = "block";
+  const r = evt.target.getBoundingClientRect ? evt.target.getBoundingClientRect() : null;
+  const x = evt.clientX ?? (r.left + r.width / 2), y = evt.clientY ?? r.top;
+  const w = tip.offsetWidth;
+  tip.style.left = Math.min(x + 14, innerWidth - w - 8) + "px";
+  tip.style.top = (y + 14) + "px";
+}
+const hideTip = () => { tip.style.display = "none"; };
+
+// ---- Drawing ------------------------------------------------------------
+// A round tick step (1, 2 or 5 × a power of ten) giving about four intervals.
+function niceStep(span) {
+  const raw = (span > 0 ? span : 1) / 4;
+  const p = Math.pow(10, Math.floor(Math.log10(raw)));
+  for (const m of [1, 2, 5, 10]) if (m * p >= raw) return m * p;
+}
+// A column with a rounded data end and a square baseline.
+function colPath(x, y0, y1, w, r) {
+  const top = Math.min(y0, y1), bot = Math.max(y0, y1);
+  r = Math.min(r, w / 2, bot - top);
+  return `M${x},${bot}V${top + r}Q${x},${top} ${x + r},${top}H${x + w - r}Q${x + w},${top} ${x + w},${top + r}V${bot}Z`;
+}
+function pillPath(x, y0, y1, w, r) {
+  const top = Math.min(y0, y1), bot = Math.max(y0, y1);
+  r = Math.min(r, w / 2, (bot - top) / 2);
+  return `M${x},${top + r}Q${x},${top} ${x + r},${top}H${x + w - r}Q${x + w},${top} ${x + w},${top + r}V${bot - r}Q${x + w},${bot} ${x + w - r},${bot}H${x + r}Q${x},${bot} ${x},${bot - r}Z`;
+}
+
+function draw(card, c) {
+  const plot = card.querySelector(".plot");
+  plot.replaceChildren();
+  const rows = inRange(c.rows);
+  if (!rows.length) { plot.appendChild(h("div", { className: "empty" }, "No data in this range")); return rows; }
+  const W = plot.clientWidth, H = plot.clientHeight;
+  const m = { l: 40, r: c.type === "stack" ? 52 : (c.type === "line" ? 36 : 8), t: 10, b: 22 };
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": c.title }, plot);
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+
+  const vals = rows.flatMap((r) =>
+    c.type === "stack" ? [r.parts.reduce((a, b) => a + b, 0)] :
+    c.type === "range" ? [r.lo, r.hi] :
+    c.band ? [r.v, r.lo, r.hi] : [r.v]).filter((v) => v != null);
+  const mn = Math.min(...vals), mx = Math.max(...vals);
+  let lo, hi, step;
+  if (c.type === "line") {
+    // Lines zoom to their data, with half a step of air above and below.
+    step = niceStep(mx - mn);
+    lo = Math.max(0, Math.floor((mn - step / 2) / step) * step);
+    hi = Math.ceil((mx + step / 2) / step) * step;
+  } else if (c.max) {
+    lo = 0; hi = c.max; step = c.max / 4;
+  } else {
+    lo = 0; step = niceStep(mx); hi = Math.max(step, Math.ceil(mx / step) * step);
+  }
+  const y = (v) => m.t + ih - ((v - lo) / (hi - lo)) * ih;
+  // Real time on x: one slot per calendar day, so days without data show as gaps.
+  const dayNum = (d) => Math.round(new Date(d + "T12:00") / 864e5);
+  const n0 = dayNum(rows[0].d), nDays = dayNum(rows[rows.length - 1].d) - n0 + 1;
+  const band = iw / nDays;
+  const pos = rows.map((r) => m.l + band * (dayNum(r.d) - n0 + 0.5));
+  const xc = (i) => pos[i];
+  // Consecutive runs of rows with a value, for lines and bands.
+  const runs = (key) => {
+    const out = []; let cur = [];
+    rows.forEach((r, i) => {
+      if (r[key] == null) { if (cur.length) out.push(cur); cur = []; return; }
+      if (cur.length && dayNum(r.d) - dayNum(rows[cur[cur.length - 1]].d) > 1) { out.push(cur); cur = []; }
+      cur.push(i);
+    });
+    if (cur.length) out.push(cur);
+    return out;
+  };
+
+  // Gridlines and y ticks
+  const grid = el("g", {}, svg);
+  const tickDp = step < 1 ? 1 : 0;
+  for (let v = lo; v <= hi + step / 1e6; v += step) {
+    const yy = y(v);
+    el("line", { x1: m.l, x2: m.l + iw, y1: yy, y2: yy, stroke: css("--line"), "stroke-width": 1 }, grid);
+    el("text", { x: m.l - 6, y: yy + 4, "text-anchor": "end" }, grid).textContent =
+      v >= 10000 ? fmt(v / 1000, 0) + "K" : fmt(v, tickDp);
+  }
+  // X labels: first day, the middle of the span, last day
+  const addDays = (d, k) => { const t = new Date(d + "T12:00"); t.setDate(t.getDate() + k);
+    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`; };
+  for (const k of [...new Set([0, Math.floor((nDays - 1) / 2), nDays - 1])]) {
+    const anchor = nDays === 1 ? "middle" : k === 0 ? "start" : k === nDays - 1 ? "end" : "middle";
+    el("text", { x: m.l + band * (k + 0.5), y: H - 4, "text-anchor": anchor }, svg).textContent = dayLabel(addDays(rows[0].d, k));
+  }
+
+  const accent = css("--accent"), surf = css("--surf");
+  const bw = Math.min(24, Math.max(2, band - 2));
+
+  if (c.type === "bar" || c.type === "range" || c.type === "stack") {
+    rows.forEach((r, i) => {
+      const x = xc(i) - bw / 2;
+      const hit = el("rect", { x: xc(i) - Math.max(band, 12) / 2, y: m.t, width: Math.max(band, 12), height: ih, class: "hit", tabindex: 0 }, svg);
+      const g = el("g", { class: "mark" }, svg);
+      let items;
+      if (c.type === "bar") {
+        el("path", { d: colPath(x, y(0), y(r.v), bw, 4), fill: accent }, g);
+        items = [{ name: c.unit, value: fmt(r.v, c.dp), color: accent }];
+      } else if (c.type === "range") {
+        el("path", { d: pillPath(x, y(r.lo), y(r.hi), bw, 4), fill: accent }, g);
+        items = [{ name: "highest", value: fmt(r.hi), color: accent }, { name: "lowest", value: fmt(r.lo), color: accent }];
+      } else {
+        let acc = 0;
+        const total = r.parts.reduce((a, b) => a + b, 0);
+        const visible = r.parts.map((p, k) => p > 0 ? k : -1).filter((k) => k >= 0);
+        r.parts.forEach((p, k) => {
+          if (p <= 0) return;
+          const y0 = y(acc), y1 = y(acc + p);
+          acc += p;
+          const isTop = k === visible[visible.length - 1];
+          // 2px surface gap between stacked segments
+          const gapTop = isTop ? y1 : y1 + 2;
+          if (y0 - gapTop <= 0) return;
+          el("path", { d: isTop ? colPath(x, y0, gapTop, bw, 4) : `M${x},${y0}V${gapTop}H${x + bw}V${y0}Z`, fill: c.series[k].color }, g);
+          if (i === rows.length - 1 && y0 - y1 >= 12) {
+            el("text", { x: x + bw + 6, y: (y0 + y1) / 2 + 4 }, svg).textContent = c.series[k].name;
+          }
+        });
+        items = [{ name: "total", value: fmt(total, 1) + " h", color: "transparent" },
+          ...c.series.map((s, k) => ({ name: s.name, value: fmt(r.parts[k], 1) + " h", color: s.color })).reverse()];
+      }
+      const on = (e) => showTip(e, r.d, items);
+      hit.addEventListener("pointermove", on);
+      hit.addEventListener("focus", on);
+      hit.addEventListener("pointerleave", hideTip);
+      hit.addEventListener("blur", hideTip);
+      // keep the hit rect directly before its mark, for the hover lift
+      svg.insertBefore(hit, g);
+    });
+  } else {
+    if (c.band) {
+      for (const run of runs("hi")) {
+        const top = run.map((i) => `${xc(i)},${y(rows[i].hi)}`).join("L");
+        const bot = run.slice().reverse().map((i) => `${xc(i)},${y(rows[i].lo)}`).join("L");
+        el("path", { d: `M${top}L${bot}Z`, fill: accent, "fill-opacity": 0.1 }, svg);
+      }
+    }
+    // A missing day breaks the line; a lone day gets a dot so it isn't lost.
+    for (const run of runs("v")) {
+      if (run.length === 1) {
+        el("circle", { cx: xc(run[0]), cy: y(rows[run[0]].v), r: 3, fill: accent }, svg);
+        continue;
+      }
+      el("path", { d: "M" + run.map((i) => `${xc(i)},${y(rows[i].v)}`).join("L"), fill: "none", stroke: accent,
+        "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
+    }
+    const li = rows.map((r) => r.v != null).lastIndexOf(true);
+    if (li >= 0) {
+      const lx = xc(li), ly = y(rows[li].v);
+      el("circle", { cx: lx, cy: ly, r: 4, fill: accent, stroke: surf, "stroke-width": 2 }, svg);
+      el("text", { x: lx + 8, y: ly + 4 }, svg).textContent = fmt(rows[li].v, c.dp);
+    }
+
+    // Crosshair: snaps to the nearest day
+    const cross = el("line", { y1: m.t, y2: m.t + ih, stroke: css("--faint"), "stroke-width": 1, visibility: "hidden" }, svg);
+    const dot = el("circle", { r: 4, fill: accent, stroke: surf, "stroke-width": 2, visibility: "hidden" }, svg);
+    const over = el("rect", { x: m.l, y: m.t, width: iw, height: ih, class: "hit", tabindex: 0 }, svg);
+    const withV = rows.map((r, i) => r.v != null ? i : -1).filter((i) => i >= 0);
+    let focusIdx = withV.length - 1;
+    const at = (i, e) => {
+      const r = rows[i];
+      if (!r || r.v == null) return;
+      cross.setAttribute("x1", xc(i)); cross.setAttribute("x2", xc(i)); cross.setAttribute("visibility", "visible");
+      dot.setAttribute("cx", xc(i)); dot.setAttribute("cy", y(r.v)); dot.setAttribute("visibility", "visible");
+      const items = [{ name: c.unit.split(";")[0], value: fmt(r.v, c.dp), color: accent }];
+      if (c.band && r.lo != null) items.push({ name: "balanced range", value: `${fmt(r.lo)}–${fmt(r.hi)}`, color: accent });
+      showTip(e, r.d, items);
+    };
+    over.addEventListener("pointermove", (e) => {
+      const b = svg.getBoundingClientRect();
+      const px = (e.clientX - b.left) * (W / b.width);
+      // Snap to the nearest day that has a value.
+      let best = withV[0];
+      for (const i of withV) if (Math.abs(xc(i) - px) < Math.abs(xc(best) - px)) best = i;
+      at(best, e);
+    });
+    over.addEventListener("focus", (e) => at(withV[focusIdx], e));
+    over.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowLeft") focusIdx = Math.max(0, focusIdx - 1);
+      else if (e.key === "ArrowRight") focusIdx = Math.min(withV.length - 1, focusIdx + 1);
+      else return;
+      e.preventDefault(); at(withV[focusIdx], e);
+    });
+    const off = () => { hideTip(); cross.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); };
+    over.addEventListener("pointerleave", off);
+    over.addEventListener("blur", off);
+  }
+  return rows;
+}
+
+function table(card, c, rows) {
+  const t = card.querySelector("table");
+  const head = c.type === "stack" ? ["Night", ...c.series.map((s) => s.name), "Total"]
+    : c.type === "range" ? ["Day", "Lowest", "Highest"]
+    : c.band ? ["Day", c.title, "Balanced low", "Balanced high"] : ["Day", c.title];
+  const tr = h("tr"); head.forEach((x) => tr.appendChild(h("th", {}, x)));
+  t.replaceChildren(tr);
+  for (const r of rows.slice().reverse()) {
+    const cells = c.type === "stack" ? [...r.parts.map((p) => fmt(p, 1)), fmt(r.parts.reduce((a, b) => a + b, 0), 1)]
+      : c.type === "range" ? [fmt(r.lo), fmt(r.hi)]
+      : c.band ? [fmt(r.v, c.dp), fmt(r.lo), fmt(r.hi)] : [fmt(r.v, c.dp)];
+    const row = h("tr"); row.appendChild(h("td", {}, longDay(r.d)));
+    cells.forEach((x) => row.appendChild(h("td", {}, x)));
+    t.appendChild(row);
+  }
+}
+
+// ---- Page ---------------------------------------------------------------
+const charts = document.getElementById("charts");
+const cards = CHARTS.map((c) => {
+  const card = h("section", { className: "card" });
+  card.append(h("h2", {}, c.title), h("div", { className: "unit" }, c.unit));
+  if (c.series) {
+    const lg = h("div", { className: "legend" });
+    for (const s of c.series) { const sp = h("span", {}, s.name); sp.style.setProperty("--c", s.color); lg.appendChild(sp); }
+    card.appendChild(lg);
+  }
+  card.appendChild(h("div", { className: "plot" }));
+  const det = h("details"); det.append(h("summary", {}, "Table"), h("div", { className: "table-wrap" }));
+  det.lastChild.appendChild(h("table"));
+  card.appendChild(det);
+  charts.appendChild(card);
+  return [card, c];
+});
+
+const avg = (rows, key = "v") => { const v = rows.map((r) => r[key]).filter((x) => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+function tiles() {
+  const box = document.getElementById("tiles");
+  box.replaceChildren();
+  const last7 = (rows) => rows.slice(-7);
+  const T = [
+    ["Steps", D.steps, "v", "", 0],
+    ["Sleep score", D.sleepScore, "v", "", 0],
+    ["Resting heart rate", D.rhr, "v", "bpm", 0],
+    ["HRV last night", D.hrv, "v", "ms", 0],
+    ["Body Battery high", D.energy, "hi", "", 0],
+  ];
+  for (const [label, rows, key, unit, dp] of T) {
+    const last = rows[rows.length - 1];
+    const t = h("div", { className: "tile" });
+    const v = h("div", { className: "value" }, last ? fmt(last[key], dp) : "–");
+    if (unit) v.appendChild(h("small", {}, unit));
+    t.append(h("div", { className: "label" }, label), v,
+      h("div", { className: "note" }, last ? `${dayLabel(last.d)} · 7-day average ${fmt(avg(last7(rows), key), dp)}` : "no data"));
+    box.appendChild(t);
+  }
+}
+
+// ---- Workouts -----------------------------------------------------------
+// Imperial units: miles, minutes per mile, feet.
+const MI = 1609.344;
+const clock = (s) => {
+  s = Math.round(s);
+  const hh = Math.floor(s / 3600), mm = Math.floor((s % 3600) / 60), ss = s % 60;
+  return (hh ? `${hh}:${String(mm).padStart(2, "0")}` : `${mm}`) + `:${String(ss).padStart(2, "0")}`;
+};
+const summaryOf = (w) => { try { return typeof w.summary === "string" ? JSON.parse(w.summary) : (w.summary || {}); } catch { return {}; } };
+const sv = (S, k) => (S[k] && typeof S[k].value === "number" && S[k].value > 0) ? S[k].value : null;
+// One converter per unit Gadgetbridge uses, giving [value, unit].
+const conv = {
+  meters: (v) => [fmt(v / MI, 2), "mi"],
+  seconds_km: (v) => [clock(v * MI / 1000), "/mi"],
+  seconds: (v) => [clock(v), ""],
+  bpm: (v) => [fmt(v), "bpm"],
+};
+const ZONES = [["hrZoneWarmUp", "Warm-up", "--z1"], ["hrZoneEasy", "Easy", "--z2"], ["hrZoneAerobic", "Aerobic", "--z3"],
+  ["hrZoneThreshold", "Threshold", "--z4"], ["hrZoneMaximum", "Maximum", "--z5"]];
+const ZONE_INK = ["#fff", "#fff", "#fff", "#111", "#111"];   // white or near-black, by the fill's lightness
+const hrById = {};
+for (const p of D.workoutHr || []) (hrById[p.id] ||= []).push(p);
+
+let selected = null;
+function workouts() {
+  const t = document.getElementById("workouts");
+  const tr = h("tr"); ["Day", "Activity", "Duration", "Distance"].forEach((x) => tr.appendChild(h("th", {}, x)));
+  t.replaceChildren(tr);
+  for (const w of D.workouts.slice().reverse()) {
+    const S = summaryOf(w);
+    const secs = sv(S, "activeSeconds") ?? (w.end - w.start) / 1000;
+    const dist = sv(S, "distanceMeters");
+    const row = h("tr");
+    if (w === selected) row.className = "sel";
+    const b = h("button", {}, longDay(localDay(w.start)));
+    b.addEventListener("click", () => { selected = w; workouts(); detail(w); });
+    const first = h("td"); first.appendChild(b); row.appendChild(first);
+    [w.name || "Activity", clock(secs), dist ? fmt(dist / MI, 2) + " mi" : "–"].forEach((x) => row.appendChild(h("td", {}, x)));
+    t.appendChild(row);
+  }
+}
+
+function detail(w) {
+  const box = document.getElementById("detail");
+  box.replaceChildren();
+  const S = summaryOf(w);
+  const start = new Date(w.start);
+  box.append(h("h3", {}, w.name || "Activity"),
+    h("div", { className: "when" }, start.toLocaleString(undefined, { weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" })));
+
+  // Headline numbers: only the ones this activity has.
+  const stats = h("div", { className: "stats" });
+  const stat = (k, v, unit) => {
+    if (v == null) return;
+    const s = h("div", { className: "stat" });
+    const val = h("div", { className: "v" }, v);
+    if (unit) val.appendChild(h("small", {}, unit));
+    s.append(h("div", { className: "k" }, k), val);
+    stats.appendChild(s);
+  };
+  const n = (k) => sv(S, k);
+  stat("Time", clock(n("activeSeconds") ?? (w.end - w.start) / 1000));
+  if (n("distanceMeters")) stat("Distance", fmt(n("distanceMeters") / MI, 2), "mi");
+  if (n("averageKMPaceSeconds")) stat("Average pace", clock(n("averageKMPaceSeconds") * MI / 1000), "/mi");
+  if (n("maxPace")) stat("Best pace", clock(n("maxPace") * MI / 1000), "/mi");
+  stat("Average heart rate", n("averageHR") && fmt(n("averageHR")), "bpm");
+  stat("Max heart rate", n("maxHR") && fmt(n("maxHR")), "bpm");
+  stat("Calories", n("caloriesBurnt") && fmt(n("caloriesBurnt")), "kcal");
+  stat("Steps", n("steps") && fmt(n("steps")));
+  stat("Average cadence", n("averageCadence") && fmt(n("averageCadence")), "spm");
+  if (n("activityTotalAscent") || n("activityTotalDescent"))
+    stat("Climb / descent", `${fmt((n("activityTotalAscent") || 0) * 3.28084)} / ${fmt((n("activityTotalDescent") || 0) * 3.28084)}`, "ft");
+  // Training effect is 0.0–5.0, and 0.0 is a real answer, so read it raw.
+  const te = (k) => typeof S[k]?.value === "number" ? fmt(S[k].value, 1) : null;
+  stat("Aerobic effect", te("aerobicTrainingEffect"), "of 5");
+  stat("Anaerobic effect", te("anaerobicTrainingEffect"), "of 5");
+  stat("Training load", n("training_load") && fmt(n("training_load")));
+  stat("VO₂ max", n("maximumOxygenUptake") && fmt(n("maximumOxygenUptake"), 1), "ml/kg/min");
+  if (n("recoveryTime")) stat("Recovery", fmt(n("recoveryTime") / 3600), "h");
+  if (n("body_energy_at_start") != null || n("body_energy_at_end") != null)
+    stat("Body Battery", `${fmt(S.body_energy_at_start?.value)} → ${fmt(S.body_energy_at_end?.value)}`);
+  stat("Sweat loss", n("estimatedSweatLoss") && fmt(n("estimatedSweatLoss")), "ml");
+  // The watch's own recording (FIT, or GPX), if the phone exported one.
+  const tr = trackOf(w);
+  const hasGps = tr && tr.lat.some((v) => v != null);
+  if (hasGps) {
+    const top = h("div", { className: "act-top" });
+    const left = h("div");
+    top.append(left, stats);
+    box.appendChild(top);
+    tr.map = mapPanel(left, tr);
+  } else {
+    box.appendChild(stats);
+  }
+
+  // Time in heart-rate zones: one whole split into parts (tall segmented bar).
+  const zt = ZONES.map(([k]) => S[k]?.value || 0);
+  const ztotal = zt.reduce((a, b) => a + b, 0);
+  if (ztotal > 0) {
+    box.appendChild(h("div", { className: "section" }, "Time in heart-rate zones"));
+    const bar = h("div", { className: "zones", role: "img" });
+    bar.setAttribute("aria-label", ZONES.map(([, name], i) => `${name} ${clock(zt[i])}`).join(", "));
+    ZONES.forEach(([, name, c], i) => {
+      if (!zt[i]) return;
+      const seg = h("div", { tabIndex: 0 });
+      seg.style.flex = `${zt[i]} 0 0`;
+      seg.style.background = `var(${c})`;
+      seg.style.color = ZONE_INK[i];
+      const share = Math.round((zt[i] / ztotal) * 100) + "%";
+      seg.textContent = share;
+      // A block too narrow for its label prints none (it's in the legend and tooltip).
+      requestAnimationFrame(() => { if (seg.scrollWidth > seg.clientWidth) seg.textContent = ""; });
+      const items = [{ name, value: `${clock(zt[i])} · ${share}`, color: getComputedStyle(document.documentElement).getPropertyValue(c) }];
+      const on = (e) => showTip(e, null, items, "Heart-rate zone");
+      seg.addEventListener("pointermove", on); seg.addEventListener("focus", on);
+      seg.addEventListener("pointerleave", hideTip); seg.addEventListener("blur", hideTip);
+      bar.appendChild(seg);
+    });
+    box.appendChild(bar);
+    const lg = h("div", { className: "zone-legend" });
+    ZONES.forEach(([, name, c], i) => {
+      const sp = h("span", {}, `${name} ${clock(zt[i])}`);
+      sp.style.setProperty("--c", `var(${c})`);
+      lg.appendChild(sp);
+    });
+    box.appendChild(lg);
+  }
+
+  if (tr && tr.t.length > 20) {
+    // Second-by-second charts, one shared crosshair, synced with the map.
+    trackCharts(box, tr);
+    splitsTable(box, tr);
+  } else {
+    // Heart rate through the activity (the watch's per-minute samples).
+    const pts = (hrById[w.id] || []).map((p) => ({ x: (p.t * 1000 - w.start) / 60000, y: p.hr }));
+    if (pts.length > 1) {
+      box.appendChild(h("div", { className: "section" }, "Heart rate"));
+      const plot = h("div", { className: "detail-plot" });
+      box.appendChild(plot);
+      minuteLine(plot, pts, "bpm");
+    }
+  }
+
+  // Laps: the watch's own laps if it recorded more than one, else
+  // Gadgetbridge's interval table.
+  const laps = Object.keys(S).filter((k) => /^interval_\d+$/.test(k)).sort((a, b) => +a.split("_")[1] - +b.split("_")[1]);
+  if (tr && tr.laps.length > 1) {
+    lapsTable(box, tr);
+  } else if (laps.length && S.intervals_header) {
+    box.appendChild(h("div", { className: "section" }, "Laps"));
+    const names = { "#": "Lap", Distance: "Distance", Pace: "Pace", heart_rate: "Heart rate", pref_header_time: "Time" };
+    const t = h("table");
+    const tr = h("tr");
+    S.intervals_header.columns.forEach((c) => tr.appendChild(h("th", {}, names[c.value] ?? String(c.value))));
+    t.appendChild(tr);
+    for (const k of laps) {
+      const row = h("tr");
+      for (const c of S[k].columns) {
+        const f = conv[c.unit];
+        const [v, u] = f && typeof c.value === "number" ? f(c.value) : [fmt(c.value), ""];
+        row.appendChild(h("td", {}, u ? `${v} ${u}` : v));
+      }
+      t.appendChild(row);
+    }
+    const wrap = h("div", { className: "table-wrap" }); wrap.appendChild(t);
+    box.appendChild(wrap);
+  }
+
+  // Running form, when the watch recorded it.
+  const form = [
+    ["Stride length", n("stepLengthAvg") && fmt(n("stepLengthAvg") / 25.4, 1), "in"],
+    ["Vertical oscillation", n("vertical_oscillation") && fmt(n("vertical_oscillation") / 25.4, 1), "in"],
+    ["Ground contact", n("ground_contact_time") && fmt(n("ground_contact_time")), "ms"],
+    ["Vertical ratio", n("vertical_ratio") && fmt(n("vertical_ratio"), 1), "%"],
+    ["Average power", n("average_power") && fmt(n("average_power")), "W"],
+    ["Normalized power", n("normalized_power") && fmt(n("normalized_power")), "W"],
+  ].filter((x) => x[1]);
+  if (form.length) {
+    box.appendChild(h("div", { className: "section" }, "Running form"));
+    const fs = h("div", { className: "stats" });
+    for (const [k, v, u] of form) {
+      const s = h("div", { className: "stat" });
+      const val = h("div", { className: "v" }, v); val.appendChild(h("small", {}, u));
+      s.append(h("div", { className: "k" }, k), val);
+      fs.appendChild(s);
+    }
+    box.appendChild(fs);
+  }
+}
+
+// ---- Recorded tracks (FIT / GPX) ------------------------------------------
+// A recording belongs to the workout whose time span contains its start: the
+// watch's start and Gadgetbridge's can differ (a paused or resumed recording).
+function trackOf(w) {
+  const key = Object.keys(D.tracks || {}).find((k) => +k >= w.start - 120000 && +k <= w.end);
+  if (!key) return null;
+  const raw = D.tracks[key];
+  const col = (name) => { const i = raw.cols.indexOf(name); return raw.rows.map((r) => r[i] ?? null); };
+  const tr = { src: raw.src, sport: raw.sport, laps: raw.laps || [] };
+  for (const c of raw.cols) tr[c] = col(c);
+  return tr;
+}
+// Centered moving average that skips gaps.
+function smooth(a, win) {
+  return a.map((v, i) => {
+    if (v == null) return null;
+    let s = 0, n = 0;
+    for (let j = Math.max(0, i - win); j <= Math.min(a.length - 1, i + win); j++) if (a[j] != null) { s += a[j]; n++; }
+    return n ? s / n : null;
+  });
+}
+const pct = (a, p) => { const v = a.filter((x) => x != null).sort((x, y) => x - y); return v.length ? v[Math.min(v.length - 1, Math.floor(p * v.length))] : null; };
+
+// The map: your route over the offline OpenStreetMap area (health-map), or
+// over plain background if there is none yet. Returns { mark(i) }.
+let pmtilesReady = null;
+function mapPanel(container, tr) {
+  const box = h("div", { className: "map" });
+  container.appendChild(box);
+  const key = h("div", { className: "map-key" });
+  const st = h("span", {}, "Start"), fi = h("span", {}, "Finish");
+  st.style.setProperty("--c", css("--accent")); fi.style.setProperty("--c", css("--fg"));
+  key.append(st, fi);
+  container.appendChild(key);
+  const api = { mark() {}, onHover: null };
+  if (!window.maplibregl) { box.appendChild(h("div", { className: "note" }, "Map library failed to load")); return api; }
+
+  const tilesB64 = (document.getElementById("maptiles")?.textContent || "").trim();
+  if (tilesB64 && !pmtilesReady) {
+    const bytes = Uint8Array.from(atob(tilesB64), (ch) => ch.charCodeAt(0));
+    const protocol = new pmtiles.Protocol();
+    maplibregl.addProtocol("pmtiles", protocol.tile);
+    protocol.add(new pmtiles.PMTiles(new pmtiles.FileSource(new File([bytes], "area.pmtiles"))));
+    pmtilesReady = true;
+  }
+  const style = { version: 8, sources: {}, layers: [{ id: "bg", type: "background", paint: { "background-color": css("--bg") } }] };
+  if (pmtilesReady) {
+    style.sources.protomaps = { type: "vector", url: "pmtiles://area.pmtiles",
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' };
+    // No labels: they need font files from the network.
+    style.layers = basemaps.layers("protomaps", basemaps.namedFlavor("dark"), { lang: "en" }).filter((l) => l.type !== "symbol");
+  } else {
+    box.appendChild(h("div", { className: "note" }, "No map yet: run health-map once"));
+  }
+
+  const idx = tr.lat.map((v, i) => v != null ? i : -1).filter((i) => i >= 0);
+  const coords = idx.map((i) => [tr.lon[i], tr.lat[i]]);
+  const lons = coords.map((c) => c[0]), lats = coords.map((c) => c[1]);
+  let map;
+  try {
+    map = new maplibregl.Map({
+      container: box, style, attributionControl: { compact: true }, dragRotate: false, pitchWithRotate: false,
+      bounds: [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
+      fitBoundsOptions: { padding: 36 },
+    });
+  } catch (e) {
+    box.appendChild(h("div", { className: "note" }, "This browser can't draw the map (WebGL is off)"));
+    return api;
+  }
+  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+  const pt = (c) => ({ type: "Feature", geometry: { type: "Point", coordinates: c } });
+  let loaded = false;
+  map.on("load", () => {
+    map.addSource("route", { type: "geojson", data: { type: "Feature", geometry: { type: "LineString", coordinates: coords } } });
+    map.addLayer({ id: "route-casing", type: "line", source: "route", layout: { "line-join": "round", "line-cap": "round" },
+      paint: { "line-color": css("--bg"), "line-width": 7 } });
+    map.addLayer({ id: "route", type: "line", source: "route", layout: { "line-join": "round", "line-cap": "round" },
+      paint: { "line-color": css("--accent"), "line-width": 3.5 } });
+    map.addSource("ends", { type: "geojson", data: { type: "FeatureCollection", features: [
+      { ...pt(coords[0]), properties: { c: css("--accent") } }, { ...pt(coords[coords.length - 1]), properties: { c: css("--fg") } }] } });
+    map.addLayer({ id: "ends", type: "circle", source: "ends",
+      paint: { "circle-radius": 6, "circle-color": ["get", "c"], "circle-stroke-color": css("--surf"), "circle-stroke-width": 2 } });
+    map.addSource("cursor", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+    map.addLayer({ id: "cursor", type: "circle", source: "cursor",
+      paint: { "circle-radius": 7, "circle-color": css("--fg"), "circle-stroke-color": css("--accent"), "circle-stroke-width": 3 } });
+    loaded = true;
+  });
+  api.mark = (i) => {
+    if (!loaded) return;
+    const ok = i != null && tr.lat[i] != null;
+    map.getSource("cursor").setData({ type: "FeatureCollection", features: ok ? [pt([tr.lon[i], tr.lat[i]])] : [] });
+  };
+  // Hovering the route moves the charts' crosshair too.
+  map.on("mousemove", (e) => {
+    if (!api.onHover) return;
+    let best = -1, bd = 25 * 25;
+    for (const i of idx) {
+      const p = map.project([tr.lon[i], tr.lat[i]]);
+      const d = (p.x - e.point.x) ** 2 + (p.y - e.point.y) ** 2;
+      if (d < bd) { bd = d; best = i; }
+    }
+    api.onHover(best >= 0 ? best : null);
+  });
+  map.on("mouseout", () => api.onHover && api.onHover(null));
+  return api;
+}
+
+// Stacked charts over distance or time, one crosshair for all of them.
+function trackCharts(box, tr) {
+  const walkRun = /running|walking|hiking/.test(tr.sport);
+  const speed = smooth(tr.spd, 7);
+  const defs = [
+    { title: "Heart rate", unit: "bpm", v: tr.hr, f: (x) => fmt(x) },
+    { title: "Pace", unit: "/mi", v: speed.map((s) => s != null && s > 0.4 ? MI / s : null), f: clock, invert: true, clip: true, time: true },
+    { title: "Elevation", unit: "ft", v: tr.alt.map((a) => a == null ? null : a * 3.28084), f: (x) => fmt(x), area: true },
+    { title: "Cadence", unit: "spm", v: smooth(tr.cad, 4), f: (x) => fmt(x), clip: true },
+    { title: "Power", unit: "W", v: smooth(tr.pwr, 4), f: (x) => fmt(x), clip: true },
+    { title: "Stride length", unit: "in", v: smooth(tr.sl, 4).map((x) => x == null ? null : x / 25.4), f: (x) => fmt(x, 1), clip: true },
+    { title: "Vertical oscillation", unit: "in", v: smooth(tr.vo, 4).map((x) => x == null ? null : x / 25.4), f: (x) => fmt(x, 1), clip: true },
+    { title: "Ground contact time", unit: "ms", v: smooth(tr.gct, 4), f: (x) => fmt(x), clip: true },
+  ].filter((d) => d.v.filter((x) => x != null).length >= 20 && (walkRun || !/Stride|Vertical|Ground/.test(d.title)));
+
+  const hasDist = tr.dist.filter((x) => x != null).length > tr.t.length / 2;
+  let mode = hasDist ? "dist" : "time";
+  const xsOf = () => mode === "dist" ? tr.dist.map((d) => d == null ? null : d / MI) : tr.t.map((s) => s / 60);
+
+  const bar = h("div", { className: "xmode" }, "Show over");
+  const bD = h("button", {}, "Distance"), bT = h("button", {}, "Time");
+  if (hasDist) bar.appendChild(bD);
+  bar.appendChild(bT);
+  box.appendChild(bar);
+
+  const charts = defs.map((d) => {
+    const wrap = h("div", { className: "tchart" });
+    const head = h("div", { className: "head" });
+    const avg = d.v.filter((x) => x != null);
+    d.avgText = `average ${d.f(avg.reduce((a, b) => a + b, 0) / avg.length)} ${d.unit}`;
+    d.readout = h("span", {}, d.avgText);
+    head.append(h("b", {}, d.title), d.readout);
+    d.plot = h("div", { className: "plot" });
+    wrap.append(head, d.plot);
+    box.appendChild(wrap);
+    return d;
+  });
+
+  let cursor = null;
+  const sync = (i) => {
+    cursor = i;
+    for (const d of charts) {
+      d.mark?.(i);
+      d.readout.textContent = i == null || d.v[i] == null ? d.avgText : `${d.f(d.v[i])} ${d.unit}`;
+    }
+    tr.map?.mark(i);
+  };
+  if (tr.map) tr.map.onHover = sync;
+
+  const drawAll = () => {
+    bD.setAttribute("aria-pressed", String(mode === "dist")); bT.setAttribute("aria-pressed", String(mode === "time"));
+    const xs = xsOf();
+    for (const d of charts) d.mark = drawTrack(d, xs, sync, mode);
+    sync(cursor);
+  };
+  bD.addEventListener("click", () => { mode = "dist"; drawAll(); });
+  bT.addEventListener("click", () => { mode = "time"; drawAll(); });
+  requestAnimationFrame(drawAll);
+}
+
+function drawTrack(d, xs, sync, mode) {
+  const plot = d.plot;
+  plot.replaceChildren();
+  const W = plot.clientWidth, H = plot.clientHeight;
+  const m = { l: 48, r: 10, t: 8, b: 20 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": d.title }, plot);
+  const vals = d.v.filter((v) => v != null);
+  // Spiky series (pace, cadence...) scale to the 2nd-98th percentile, so a
+  // GPS glitch can't flatten the rest; the line is clipped at the edges.
+  let mn = d.clip ? pct(d.v, 0.02) : Math.min(...vals), mx = d.clip ? pct(d.v, 0.98) : Math.max(...vals);
+  // Times (pace) tick on clock-friendly steps: 15 s, 30 s, 1, 2 or 5 min.
+  const step = d.time ? ([15, 30, 60, 120, 300].find((s) => s >= (mx - mn) / 4) ?? 600) : niceStep(mx - mn);
+  const lo = Math.floor(mn / step) * step, hi = Math.max(lo + step, Math.ceil(mx / step) * step);
+  const y = d.invert ? (v) => m.t + ((v - lo) / (hi - lo)) * ih : (v) => m.t + ih - ((v - lo) / (hi - lo)) * ih;
+  const xmax = Math.max(...xs.filter((x) => x != null)) || 1;
+  const x = (v) => m.l + (v / xmax) * iw;
+  const clipId = "c" + Math.random().toString(36).slice(2);
+  el("rect", { x: m.l, y: m.t, width: iw, height: ih }, el("clipPath", { id: clipId }, el("defs", {}, svg)));
+
+  for (let v = lo; v <= hi + step / 1e6; v += step) {
+    el("line", { x1: m.l, x2: m.l + iw, y1: y(v), y2: y(v), stroke: css("--line"), "stroke-width": 1 }, svg);
+    el("text", { x: m.l - 6, y: y(v) + 4, "text-anchor": "end" }, svg).textContent = d.f(v);
+  }
+  const xl = (v) => mode === "dist" ? `${fmt(v, 1)} mi` : clock(v * 60);
+  [[0, "start"], [xmax / 2, "middle"], [xmax, "end"]].forEach(([v, a]) =>
+    el("text", { x: x(v), y: H - 4, "text-anchor": a }, svg).textContent = xl(v));
+
+  // Line with gaps where there's no value; elevation also gets a light wash.
+  const accent = css("--accent"), surf = css("--surf");
+  const segs = [];
+  let seg = null;
+  d.v.forEach((v, i) => {
+    if (v == null || xs[i] == null) { seg = null; return; }
+    if (!seg) segs.push(seg = []);
+    seg.push([x(xs[i]), y(v)]);
+  });
+  const g = el("g", { "clip-path": `url(#${clipId})` }, svg);
+  const base = m.t + ih;
+  for (const sg of segs) {
+    const line = sg.map(([px, py]) => `${px},${py}`).join("L");
+    if (d.area) el("path", { d: `M${sg[0][0]},${base}L${line}L${sg[sg.length - 1][0]},${base}Z`, fill: accent, "fill-opacity": 0.1 }, g);
+    el("path", { d: "M" + line, fill: "none", stroke: accent, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, g);
+  }
+
+  const cross = el("line", { y1: m.t, y2: m.t + ih, stroke: css("--faint"), "stroke-width": 1, visibility: "hidden" }, svg);
+  const dot = el("circle", { r: 4, fill: accent, stroke: surf, "stroke-width": 2, visibility: "hidden" }, svg);
+  const over = el("rect", { x: m.l, y: m.t, width: iw, height: ih, class: "hit", tabindex: 0 }, svg);
+  const nearest = (px) => {
+    // xs rises along the activity, so a binary search finds the closest point.
+    const target = ((px - m.l) / iw) * xmax;
+    let a = 0, b = xs.length - 1;
+    while (a < b) { const c = (a + b) >> 1; if ((xs[c] ?? -1) < target) a = c + 1; else b = c; }
+    return a;
+  };
+  over.addEventListener("pointermove", (e) => {
+    const r = svg.getBoundingClientRect();
+    sync(nearest((e.clientX - r.left) * (W / r.width)));
+  });
+  over.addEventListener("pointerleave", () => sync(null));
+  let kb = 0;
+  over.addEventListener("keydown", (e) => {
+    const stepI = Math.max(1, Math.round(xs.length / 100));
+    if (e.key === "ArrowLeft") kb = Math.max(0, kb - stepI); else if (e.key === "ArrowRight") kb = Math.min(xs.length - 1, kb + stepI); else return;
+    e.preventDefault(); sync(kb);
+  });
+  over.addEventListener("blur", () => sync(null));
+
+  return (i) => {
+    const ok = i != null && xs[i] != null;
+    cross.setAttribute("visibility", ok ? "visible" : "hidden");
+    dot.setAttribute("visibility", ok && d.v[i] != null ? "visible" : "hidden");
+    if (!ok) return;
+    cross.setAttribute("x1", x(xs[i])); cross.setAttribute("x2", x(xs[i]));
+    if (d.v[i] != null) { dot.setAttribute("cx", x(xs[i])); dot.setAttribute("cy", Math.max(m.t, Math.min(m.t + ih, y(d.v[i])))); }
+  };
+}
+
+// Mile splits, computed from the recording.
+function splitsTable(box, tr) {
+  if (tr.dist.filter((x) => x != null).length < tr.t.length / 2) return;
+  const rows = [];
+  let s = 0, mile = 1;
+  const close = (e) => {
+    const miles = ((tr.dist[e] ?? 0) - (tr.dist[s] ?? 0)) / MI;
+    if (miles < 0.05) return;
+    const secs = tr.t[e] - tr.t[s];
+    const hr = tr.hr.slice(s, e + 1).filter((v) => v != null);
+    const cad = tr.cad.slice(s, e + 1).filter((v) => v != null);
+    let up = 0, down = 0;
+    for (let i = s + 1; i <= e; i++) if (tr.alt[i] != null && tr.alt[i - 1] != null) {
+      const dh = tr.alt[i] - tr.alt[i - 1]; if (dh > 0) up += dh; else down -= dh;
+    }
+    rows.push([miles >= 0.995 ? String(rows.length + 1) : `${rows.length + 1} (${fmt(miles, 2)} mi)`,
+      clock(secs), clock(secs / miles) + " /mi",
+      hr.length ? fmt(hr.reduce((a, b) => a + b, 0) / hr.length) + " bpm" : "–",
+      `+${fmt(up * 3.28084)} / −${fmt(down * 3.28084)} ft`,
+      cad.length ? fmt(cad.reduce((a, b) => a + b, 0) / cad.length) + " spm" : "–"]);
+    s = e;
+  };
+  tr.dist.forEach((d, i) => { if (d != null && d >= mile * MI) { close(i); mile++; } });
+  close(tr.dist.length - 1);
+  if (!rows.length) return;
+  box.appendChild(h("div", { className: "section" }, "Splits"));
+  const t = h("table"), head = h("tr");
+  ["Mile", "Time", "Pace", "Avg heart rate", "Climb / descent", "Cadence"].forEach((x) => head.appendChild(h("th", {}, x)));
+  t.appendChild(head);
+  for (const r of rows) { const row = h("tr"); r.forEach((x) => row.appendChild(h("td", {}, x))); t.appendChild(row); }
+  const wrap = h("div", { className: "table-wrap" }); wrap.appendChild(t);
+  box.appendChild(wrap);
+}
+
+// The watch's own laps (lap button or auto-lap).
+function lapsTable(box, tr) {
+  const walkRun = /running|walking|hiking/.test(tr.sport);
+  box.appendChild(h("div", { className: "section" }, "Laps"));
+  const t = h("table"), head = h("tr");
+  ["Lap", "Distance", "Time", "Pace", "Avg heart rate", "Max heart rate", "Climb", "Cadence"].forEach((x) => head.appendChild(h("th", {}, x)));
+  t.appendChild(head);
+  tr.laps.forEach((l, i) => {
+    const row = h("tr");
+    [String(i + 1), l.dist ? fmt(l.dist / MI, 2) + " mi" : "–", l.time ? clock(l.time) : "–",
+      l.spd ? clock(MI / l.spd) + " /mi" : "–", l.hr ? fmt(l.hr) + " bpm" : "–", l.maxhr ? fmt(l.maxhr) + " bpm" : "–",
+      l.up != null ? fmt(l.up * 3.28084) + " ft" : "–",
+      // FIT counts one foot; Garmin shows steps per minute for walking and running.
+      l.cad ? fmt(walkRun ? l.cad * 2 : l.cad) + (walkRun ? " spm" : " rpm") : "–",
+    ].forEach((x) => row.appendChild(h("td", {}, x)));
+    t.appendChild(row);
+  });
+  const wrap = h("div", { className: "table-wrap" }); wrap.appendChild(t);
+  box.appendChild(wrap);
+}
+
+// A single-series line over minutes since the start, with a crosshair.
+function minuteLine(plot, pts, unit) {
+  const W = plot.clientWidth, H = plot.clientHeight;
+  const m = { l: 40, r: 36, t: 10, b: 22 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Heart rate during the activity" }, plot);
+  const ys = pts.map((p) => p.y), mn = Math.min(...ys), mx = Math.max(...ys);
+  const step = niceStep(mx - mn);
+  const lo = Math.max(0, Math.floor((mn - step / 2) / step) * step), hi = Math.ceil((mx + step / 2) / step) * step;
+  const xmax = Math.max(1, pts[pts.length - 1].x);
+  const x = (v) => m.l + (v / xmax) * iw, y = (v) => m.t + ih - ((v - lo) / (hi - lo)) * ih;
+  for (let v = lo; v <= hi + step / 1e6; v += step) {
+    el("line", { x1: m.l, x2: m.l + iw, y1: y(v), y2: y(v), stroke: css("--line"), "stroke-width": 1 }, svg);
+    el("text", { x: m.l - 6, y: y(v) + 4, "text-anchor": "end" }, svg).textContent = fmt(v);
+  }
+  [[0, "start"], [xmax / 2, "middle"], [xmax, "end"]].forEach(([v, a]) =>
+    el("text", { x: x(v), y: H - 4, "text-anchor": a }, svg).textContent = `${fmt(v)} min`);
+  const accent = css("--accent"), surf = css("--surf");
+  el("path", { d: "M" + pts.map((p) => `${x(p.x)},${y(p.y)}`).join("L"), fill: "none", stroke: accent,
+    "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
+  const cross = el("line", { y1: m.t, y2: m.t + ih, stroke: css("--faint"), "stroke-width": 1, visibility: "hidden" }, svg);
+  const dot = el("circle", { r: 4, fill: accent, stroke: surf, "stroke-width": 2, visibility: "hidden" }, svg);
+  const over = el("rect", { x: m.l, y: m.t, width: iw, height: ih, class: "hit", tabindex: 0 }, svg);
+  let fi = pts.length - 1;
+  const at = (i, e) => {
+    const p = pts[i];
+    cross.setAttribute("x1", x(p.x)); cross.setAttribute("x2", x(p.x)); cross.setAttribute("visibility", "visible");
+    dot.setAttribute("cx", x(p.x)); dot.setAttribute("cy", y(p.y)); dot.setAttribute("visibility", "visible");
+    showTip(e, null, [{ name: unit, value: fmt(p.y), color: accent }], `${fmt(p.x)} min in`);
+  };
+  over.addEventListener("pointermove", (e) => {
+    const b = svg.getBoundingClientRect(), px = (e.clientX - b.left) * (W / b.width);
+    let best = 0; pts.forEach((p, i) => { if (Math.abs(x(p.x) - px) < Math.abs(x(pts[best].x) - px)) best = i; });
+    at(best, e);
+  });
+  over.addEventListener("focus", (e) => at(fi, e));
+  over.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowLeft") fi = Math.max(0, fi - 1); else if (e.key === "ArrowRight") fi = Math.min(pts.length - 1, fi + 1); else return;
+    e.preventDefault(); at(fi, e);
+  });
+  const off = () => { hideTip(); cross.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); };
+  over.addEventListener("pointerleave", off); over.addEventListener("blur", off);
+}
+
+function render() {
+  for (const b of document.querySelectorAll(".filters button")) b.setAttribute("aria-pressed", String(Number(b.dataset.days) === days));
+  for (const [card, c] of cards) table(card, c, draw(card, c));
+}
+document.querySelector(".filters").addEventListener("click", (e) => {
+  if (e.target.dataset.days === undefined) return;
+  days = Number(e.target.dataset.days);
+  render();
+});
+let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(render, 100); });
+
+document.getElementById("sub").textContent = `${D.device} · exported ${D.exported} · newest data ${longDay(lastDay)}`;
+tiles();
+selected = D.workouts[D.workouts.length - 1] || null;
+workouts();
+if (selected) detail(selected);
+render();
+</script>

@@ -2,15 +2,18 @@
 #
 #   insert a DVD
 #     |  dvd-rip: MakeMKV, lossless. scripts/dvd-classify.sh sorts the disc
-#     |  by its title lengths, and it ejects as soon as the rip is done, so
-#     |  the next disc can go in while dvd-upload@<rip> sends this one:
-#     |    movie  -> Media/Movies/Originals/<Title (Year)>/<Title (Year)>.mkv  (feature only)
-#     |    tv     -> Media/Unsorted/TV/<label>-<date>/  (episodes only)
-#     |    other  -> Media/Unsorted/<label>-<date>/  (every title of 10+ min)
-#     |  Unsorted is yours to name and move into {Movies,TV}/Originals.
-#   Filen:/Media/{Movies,TV}/Originals
+#     |  by its title lengths, and ejects when done. Into /var/lib/media on
+#     |  this machine; it holds no Filen login:
+#     |    movie  -> Movies/Originals/<Title (Year)>/<Title (Year)>.mkv  (feature only)
+#     |    tv     -> Unsorted/TV/<label>-<date>/  (episodes only)
+#     |    other  -> Unsorted/<label>-<date>/  (every title of 10+ min)
+#     |  Unsorted is yours to name and move into {Movies,TV}/Originals:
+#     |  ssh fox-copper and mv in /var/lib/media (group users, no sudo).
+#   /var/lib/media/{Movies,TV}/Originals
 #     |  media-encode, nightly (scripts/media-encode.sh)
-#   Filen:/Media/{Movies,TV}/Converted      -> fox-red's Jellyfin (jellyfin.nix)
+#   /var/lib/media/{Movies,TV}/Converted
+#     |  `copper pull` on the laptop (home/desktop/copper.nix): to ~/copper
+#     |  for you to put in Filen, and to ~/drop for fox-red's Jellyfin.
 #
 # TV stays by hand because a disc can't say which season or episode it is.
 # A movie is named from the disc label and TMDB ("INTERSTELLAR" ->
@@ -25,6 +28,7 @@
 let
   inherit (srv) notify;
   host = config.networking.hostName;
+  media = "/var/lib/media";
   # Unfree, so no binary cache: it compiles on fox-copper at deploy.
   makemkv = (import inputs.nixpkgs-unstable {
     inherit (pkgs.stdenv.hostPlatform) system;
@@ -44,7 +48,59 @@ in
   # tmdb.env: the API Read Access Token, from themoviedb.org > Settings > API
   # (free), for movie years. The bare token or TMDB_TOKEN=<token>; both work.
   fox.server.secretNames = [ "tmdb.env" ];
-  fox.server.filenUnits = [ "dvd-rip" "dvd-upload@" "media-encode" ];
+
+  # Group users (arlo) can read, rename and delete; setgid so what's made
+  # inside gets the group too.
+  systemd.tmpfiles.rules = map (d: "d ${media}${d} 2775 root users -")
+    [ "" "/Movies" "/Movies/Originals" "/Movies/Converted" "/TV" "/TV/Originals" "/TV/Converted" "/Unsorted" ];
+
+  # For `copper pull` / `copper done` on the laptop (home/desktop/copper.nix),
+  # run over SSH as arlo.
+  environment.systemPackages = [
+    # Each encoded rip with its original, one per line:
+    # <bytes of both>\t<Converted path>\t<Originals path>...
+    (pkgs.writeShellApplication {
+      name = "media-ready";
+      runtimeInputs = [ pkgs.coreutils pkgs.findutils ];
+      text = ''
+        cd ${media}
+        { find Movies/Converted TV/Converted -type f -not -name '*.partial' 2>/dev/null || true; } | sort |
+        while IFS= read -r c; do
+          o=''${c/\/Converted\//\/Originals\/}
+          line=$c
+          size=$(stat -c %s "$c")
+          for f in "''${o%.*}".*; do
+            [ -f "$f" ] || continue
+            line+=$'\t'$f
+            size=$((size + $(stat -c %s "$f")))
+          done
+          printf '%s\t%s\n' "$size" "$line"
+        done
+      '';
+    })
+    # Deletes the <bytes>\t<path> lines on stdin, each only if its size
+    # still matches, then the folders left empty. Unsorted is never touched.
+    (pkgs.writeShellApplication {
+      name = "media-forget";
+      runtimeInputs = [ pkgs.coreutils pkgs.findutils ];
+      text = ''
+        cd ${media}
+        while IFS=$'\t' read -r size path; do
+          case $path in
+            *..*) echo "skipped: $path" >&2; continue ;;
+            Movies/Originals/*|Movies/Converted/*|TV/Originals/*|TV/Converted/*) ;;
+            *) echo "skipped: $path" >&2; continue ;;
+          esac
+          if [ -f "$path" ] && [ "$(stat -c %s "$path")" = "$size" ]; then
+            rm -f -- "$path"
+          else
+            echo "kept on ${host} (missing or a different size): $path" >&2
+          fi
+        done
+        find Movies TV -mindepth 2 -type d -empty -delete 2>/dev/null || true
+      '';
+    })
+  ];
 
   # MakeMKV talks to the drive through the SCSI generic device.
   boot.kernelModules = [ "sg" ];
@@ -55,12 +111,13 @@ in
   '';
 
   systemd.services.dvd-rip = {
-    description = "Rip the DVD in /dev/sr0 to Filen";
+    description = "Rip the DVD in /dev/sr0 to ${media}";
     restartIfChanged = false;   # a deploy must never kill a rip in progress
     serviceConfig = {
       Type = "oneshot";
       StateDirectory = "dvd-rip";   # MakeMKV's settings and the rip itself
       TimeoutStartSec = "4h";
+      UMask = "0002";   # folders it makes stay group-writable (Unsorted is yours to move)
     };
     environment.HOME = "/var/lib/dvd-rip";
     path = with pkgs; [ makemkv util-linux eject coreutils gawk gnused gnugrep bash curl jq systemd ];
@@ -100,9 +157,7 @@ in
         [ -n "$hit" ] && name=$(printf '%s' "$hit" | sed 's/: / - /g; s#[/\\:*?"<>|]##g')
 
         case "$label" in DVD|DVD_VIDEO|DVDVOLUME|DVD_ROM) kind=other ;; esac
-        rclone lsf "filen:/Media/Movies/Originals/$name" >/dev/null 2>&1 && kind=other
-        # ...or one ripped here and still waiting to upload.
-        cat /var/lib/dvd-rip/rips/*/upload 2>/dev/null | grep -qxF "Movies/Originals/$name" && kind=other
+        [ -e "${media}/Movies/Originals/$name" ] && kind=other
       fi
       [ "$kind" = other ] && titles=all
 
@@ -116,55 +171,26 @@ in
         *)     dest="Unsorted/$label-$stamp" ;;
       esac
 
-      # Hand the rip to its own upload job and free the drive. From here the
-      # folder is the upload's, so it isn't removed on exit.
-      printf '%s\n%s\n' "$dest" "$label" > "$out/upload"
-      trap - EXIT
-      systemctl --no-block start "dvd-upload@$stamp.service"
+      # Same filesystem, so a rename: the encode never sees half a rip.
+      mkdir -p "$(dirname "${media}/$dest")"
+      mv "$out/rip" "${media}/$dest"
+      chgrp -R users "${media}/$dest"
+      chmod -R g+rwX,o-w "${media}/$dest"   # MakeMKV writes 666
       eject "$dev" || true
-      ${notify} "${host}: DVD ripped ($kind)" "$label is uploading to Filen Media/$dest. Next disc!" default
+      ${notify} "${host}: DVD ripped ($kind)" "$label is in ${media}/$dest. Next disc!" default
     '';
   };
   fox.server.monitoring.alertOnFailure.dvd-rip.title = "DVD rip FAILED";
 
-  # One per rip, several at once if discs go in faster than uploads finish.
-  # A failed upload keeps its folder; retry with
-  #   sudo systemctl start dvd-upload@<rip>   (the folder name in /var/lib/dvd-rip/rips)
-  # shortcut: an upload cut off by a reboot isn't resumed on its own; start
-  # it again the same way.
-  systemd.services."dvd-upload@" = {
-    description = "Upload DVD rip %i to Filen";
-    restartIfChanged = false;
-    serviceConfig = {
-      Type = "oneshot";
-      TimeoutStartSec = "6h";
-    };
-    path = [ pkgs.coreutils pkgs.gnused ];
-    scriptArgs = "%i";
-    # The template can't use alertOnFailure (its notify unit would be a
-    # template too), so it alerts itself.
-    script = ''
-      set -uo pipefail
-      d=/var/lib/dvd-rip/rips/$1
-      dest=$(sed -n 1p "$d/upload"); label=$(sed -n 2p "$d/upload")
-      if rclone copy "$d/rip" "filen:/Media/$dest" --retries 3; then
-        rm -rf "$d"
-        ${notify} "${host}: DVD uploaded" "$label is in Filen Media/$dest." min
-      else
-        ${notify} "${host}: DVD upload FAILED" \
-          "$label is still on ${host}. Retry: sudo systemctl start dvd-upload@$1" high
-        exit 1
-      fi
-    '';
-  };
-
   systemd.services.media-encode = {
-    description = "Encode Filen media Originals to H.265";
+    description = "Encode ${media} Originals to H.265";
     after = [ "network-online.target" ];
     wants = [ "network-online.target" ];
     serviceConfig = {
       Type = "oneshot";
       CacheDirectory = "media-encode";   # one original and its encode at a time
+      ReadWritePaths = [ media ];
+      UMask = "0002";   # group-writable, so `copper done` (as arlo) can delete
       Nice = 15;
       IOSchedulingClass = "idle";
       ProtectSystem = "strict";
@@ -172,8 +198,12 @@ in
       PrivateTmp = true;
       NoNewPrivileges = true;
     };
-    environment.WORK = "/var/cache/media-encode";
-    path = [ pkgs.bash pkgs.ffmpeg-headless pkgs.coreutils pkgs.gnugrep ];
+    environment = {
+      WORK = "/var/cache/media-encode";
+      MEDIA = media;
+      RCLONE_CONFIG = "/dev/null";   # local folders only, no remote to configure
+    };
+    path = [ pkgs.bash pkgs.ffmpeg-headless pkgs.coreutils pkgs.gnugrep pkgs.rclone ];
     script = "exec bash ${../../../scripts/media-encode.sh}";
   };
 
