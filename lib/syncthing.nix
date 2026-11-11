@@ -70,9 +70,10 @@
   # Not on NetBird, so only fox-red pairs with it, through the relay. It
   # encrypts toward fox-red with the minecraft-instances password.
   fox-grey = {
-    id = "";   # fill in once Syncthing is installed there
+    id = "7SSQZ6U-RET6MPM-WT2GUF6-SLYELNZ-YGDTCIO-NJOCFTU-F2R4HVE-APRENAW";
     address = "";
-    relay = "relay://198.44.125.25:22067/?id=";   # fox-green's relay ID after ?id=
+    # fox-green's relay; the id is its certificate (changes if fox-green is rebuilt).
+    relay = "relay://198.44.125.25:22067/?id=B4EVN6V-WCRMK2M-6BEMSFX-TJIAGEB-U2X3ZFZ-ULDLR4J-JM2X3NR-33Q5AQQ";
     folders = [ "minecraft-instances" ];
     onlyWith = [ "fox-red" ];
   };
