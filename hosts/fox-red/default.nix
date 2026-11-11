@@ -22,6 +22,7 @@
     ../../modules/server/services/ntfy.nix
     ../../modules/server/services/spoken.nix
     ../../modules/server/services/syncthing.nix
+    ../../modules/server/services/torrent.nix
   ];
 
   nixpkgs.hostPlatform = "x86_64-linux";
@@ -32,6 +33,13 @@
     domain = "arlofox.net";               # blog, Git
     privateDomain = "emberfox.net";       # NetBird-only sites
     backup.repository = "s3:https://s3.fr-par.scw.cloud/bagger-red";
+    # The Address line of the Mullvad config for mullvad-torrent-key (its own
+    # Mullvad device). The server is picked among Germany's and changes every
+    # 6 hours on the hour, or when it stops answering.
+    torrent.mullvad = {
+      addresses = [ "10.71.222.141/32" "fc00:bbbb:bbbb:bb01::8:de8c/128" ];
+      rotateEveryHours = 6;
+    };
   };
 
   boot.loader.grub = {

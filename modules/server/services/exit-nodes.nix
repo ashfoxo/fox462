@@ -49,7 +49,6 @@ let
   hostEnd = "10.200.0.1";
   nsEnd = "10.200.0.2";
   directPort = 51821;   # direct client's WireGuard port, forwarded into the namespace
-  state = "/var/lib/mullvad-rotate";
 
   # Used only if Mullvad's server list can't be fetched and no copy of it has
   # been saved yet (hostname, public key, address).
@@ -59,74 +58,7 @@ let
     "us-nyc-wg-003 hC+xgvC/KTutW4crmQx+XEyT5ihy9EIjt7dON4eK0XY= 23.162.8.3"
   ];
 
-  # Point wg-mullvad at a random Mullvad server in the chosen city, other
-  # than the current one. One key works on every Mullvad server, so only the
-  # peer changes. Usage: mullvad-rotate [reason]; "unreachable" also alerts.
-  rotate = pkgs.writeShellScript "mullvad-rotate" ''
-    set -u
-    PATH=${lib.makeBinPath (with pkgs; [ coreutils gnugrep jq curl util-linux iproute2 wireguard-tools ])}
-    reason=''${1:-scheduled}
-    mkdir -p ${state}
-    exec 9>${state}/lock
-    flock -w 60 9 || exit 0
-    ip link show wg-mullvad >/dev/null 2>&1 || { echo "wg-mullvad is not up" >&2; exit 1; }
-
-    # Mullvad's server list, refreshed every time. If it can't be fetched,
-    # the last good copy; if there's none, the few built in above.
-    if curl -fsS -m 20 https://api.mullvad.net/www/relays/wireguard/ -o ${state}/relays.new \
-       && jq -e 'type == "array" and length > 0' ${state}/relays.new >/dev/null 2>&1; then
-      mv ${state}/relays.new ${state}/relays.json
-    fi
-    servers=""
-    [ -s ${state}/relays.json ] && servers=$(jq -r \
-      '.[] | select(.active and .country_code == "${m.country}" and .city_code == "${m.city}")
-           | "\(.hostname) \(.pubkey) \(.ipv4_addr_in)"' ${state}/relays.json)
-    [ -n "$servers" ] || servers=$(printf '%b' "${fallbackRelays}")
-
-    current=$(wg show wg-mullvad peers)
-    pick=""
-    [ -n "$current" ] && pick=$(printf '%s\n' "$servers" | grep -v -F "$current" | shuf -n 1)
-    [ -n "$pick" ] || pick=$(printf '%s\n' "$servers" | shuf -n 1)
-    read -r host key addr <<<"$pick"
-
-    # Add the new server before removing the old one, so the tunnel is never
-    # without a peer. The routes are dev routes, so they don't change.
-    wg set wg-mullvad peer "$key" endpoint "$addr:51820" \
-      allowed-ips 0.0.0.0/0,::/0 persistent-keepalive 25
-    for p in $current; do
-      [ "$p" = "$key" ] || wg set wg-mullvad peer "$p" remove
-    done
-    ip route replace default dev wg-mullvad table ${table}
-    ip -6 route replace default dev wg-mullvad table ${table}
-    echo 0 > ${state}/fails
-
-    old=$(cat ${state}/current 2>/dev/null || echo none)
-    echo "$host" > ${state}/current
-    echo "Mullvad server: $old -> $host ($reason)"
-    if [ "$reason" = unreachable ]; then
-      ${srv.notify} "${config.networking.hostName}: Mullvad server switched" \
-        "$old stopped answering; now on $host." low
-    fi
-  '';
-
-  # Every minute: can anything be reached through the tunnel? Mullvad's own
-  # resolver (10.64.0.1) answers ping on every server; 1.1.1.1 is the second
-  # opinion. Two failed minutes in a row and the server is replaced.
-  watch = pkgs.writeShellScript "mullvad-watch" ''
-    set -u
-    PATH=${lib.makeBinPath (with pkgs; [ coreutils iproute2 iputils ])}
-    ip link show wg-mullvad >/dev/null 2>&1 || exit 0
-    if ping -I wg-mullvad -c 1 -W 3 10.64.0.1 >/dev/null 2>&1 \
-       || ping -I wg-mullvad -c 1 -W 3 1.1.1.1 >/dev/null 2>&1; then
-      echo 0 > ${state}/fails
-      exit 0
-    fi
-    n=$(( $(cat ${state}/fails 2>/dev/null || echo 0) + 1 ))
-    echo "$n" > ${state}/fails
-    echo "nothing answered through wg-mullvad ($n in a row)"
-    [ "$n" -ge 2 ] && exec ${rotate} unreachable
-    exit 0
-  '';
+  mullvadRotate = import ../mullvad-rotate.nix { inherit config lib pkgs srv; };
 in
 {
   options.fox.server.exitNodes.mullvad = {
@@ -149,14 +81,14 @@ in
       default = "nyc";
       description = "City code of the Mullvad servers to pick from (nyc, dal, chi, ...).";
     };
-    rotateEvery = lib.mkOption {
-      type = lib.types.str;
-      default = "4h";
-      description = "How often to move to another Mullvad server even when the current one works.";
+    rotateEveryHours = lib.mkOption {
+      type = lib.types.int;
+      default = 4;
+      description = "Move to another Mullvad server every this many hours, on the hour, even when the current one works. Must divide 24.";
     };
   };
 
-  config = {
+  config = lib.mkMerge [ {
     assertions = [{
       assertion = lib.any (a: builtins.match "[0-9.]+/32" a != null) m.addresses
         && lib.any (a: builtins.match "[0-9a-f:]+/128" a != null) m.addresses;
@@ -221,43 +153,9 @@ in
       '';
     };
 
-    # Pick a server whenever the tunnel comes up, then every rotateEvery.
-    systemd.services.mullvad-rotate = {
-      description = "Move the Mullvad exit to a random ${m.city} server";
-      wantedBy = [ "wireguard-wg-mullvad.service" ];
-      after = [ "wireguard-wg-mullvad.service" "mullvad-exit-routing.service" "network-online.target" ];
-      wants = [ "network-online.target" ];
-      serviceConfig = {
-        Type = "oneshot";
-        ExecStart = "${rotate} scheduled";
-        StateDirectory = "mullvad-rotate";
-      };
-    };
-    systemd.timers.mullvad-rotate = {
-      wantedBy = [ "timers.target" ];
-      timerConfig = {
-        OnBootSec = m.rotateEvery;
-        OnUnitActiveSec = m.rotateEvery;
-        RandomizedDelaySec = "10m";
-      };
-    };
+    # Pick a server whenever the tunnel comes up, every rotateEveryHours on
+    # the hour, and when it stops answering (mullvad-rotate.nix, merged below).
 
-    systemd.services.mullvad-watch = {
-      description = "Replace the Mullvad server when nothing answers through it";
-      after = [ "mullvad-rotate.service" ];
-      serviceConfig = {
-        Type = "oneshot";
-        ExecStart = "${watch}";
-        StateDirectory = "mullvad-rotate";
-      };
-    };
-    systemd.timers.mullvad-watch = {
-      wantedBy = [ "timers.target" ];
-      timerConfig = {
-        OnBootSec = "3m";
-        OnUnitActiveSec = "1m";
-      };
-    };
 
     ##########################################################################
     # Direct exit (peer "fox-green-direct", a second NetBird client in a netns)
@@ -394,5 +292,14 @@ in
       ${ip} -n ${ns} route show default 2>/dev/null | ${grep} -q . \
         || problems+=("direct exit: namespace has no way out")
     '';
-  };
+  }
+  (mullvadRotate {
+    iface = "wg-mullvad";
+    inherit (m) country city;
+    inherit table;
+    everyHours = m.rotateEveryHours;
+    inherit fallbackRelays;
+    after = [ "mullvad-exit-routing.service" ];
+  })
+  ];
 }
