@@ -10,6 +10,7 @@ let
     "Documents" "Downloads" "Pictures" "Videos" "media" "working"
     # Not Music: the library is on fox-red (Navidrome); ~/Music is RAM-only scratch.
     "fox-den"           # this repo's checkout
+    "fox-selfcare"
     "sync"              # synced to every device by Syncthing (home/desktop/syncthing.nix)
     "drop"              # new media for fox-red; empties itself (home/desktop/syncthing.nix)
     "copper"            # fox-copper's rips on their way to Filen (home/desktop/copper.nix)
@@ -93,6 +94,11 @@ in
     "d /persist/home/arlo/drop/Audiobooks 0755 arlo users -"
     "d /persist/home/arlo/drop/Movies 0755 arlo users -"
     "d /persist/home/arlo/drop/TV 0755 arlo users -"
+    # Files deleted inside a persisted folder go to that folder's own
+    # .Trash-1000 on disk, not to ~/.local/share/Trash (RAM). Empty anything
+    # trashed more than 7 days ago; systemd-tmpfiles-clean runs this daily
+    # and shortly after boot.
+    "e /persist/home/arlo/*/.Trash-1000 - - - 7d"
   ];
 
   environment.persistence."/persist".users.arlo = { inherit directories files; };
