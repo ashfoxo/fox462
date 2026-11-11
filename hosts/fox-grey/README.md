@@ -25,6 +25,17 @@ fox-grey ──internet──► fox-green relay ◄──── fox-red ◄─�
   fox-grey encrypts toward it with the `minecraft-instances` folder password.
 - **Only Minecraft.** `~/sync` and everything else stay off this PC.
 
+## Setup script
+
+With Syncthing installed and running, paste into PowerShell (no admin):
+
+```powershell
+cd $env:TEMP; Invoke-WebRequest https://git.arlofox.net/arlo/fox-den/raw/branch/main/hosts/fox-grey/setup.ps1 -UseBasicParsing -OutFile setup.ps1; powershell -ExecutionPolicy Bypass -File .\setup.ps1
+```
+
+It does the rest ([`setup.ps1`](setup.ps1)), asking for the relay token
+and the `minecraft-instances` folder password.
+
 ## Why only Minecraft
 
 Others have admin rights on this PC and its disk isn't encrypted, so anyone
