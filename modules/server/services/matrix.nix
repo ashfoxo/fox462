@@ -1,7 +1,7 @@
-# Matrix as one inbox: continuwuity (homeserver) plus Telegram, Discord (DMs)
-# and Instagram bridges. Private (matrix.<privateDomain>), one user, no
-# federation. Setup steps are in hosts/fox-red/README.md, "Matrix".
-{ config, pkgs, srv, ... }:
+# Matrix as one inbox: continuwuity (homeserver) plus Telegram, Discord (DMs),
+# Instagram and Google Messages bridges. Private (matrix.<privateDomain>), one
+# user, no federation. Overview: hosts/fox-red/README.md, "Matrix".
+{ config, pkgs, srv, inputs, ... }:
 let
   inherit (srv) notify;
   priv = config.fox.server.privateDomain;
@@ -147,6 +147,86 @@ in
   };
   systemd.services.mautrix-meta-instagram.serviceConfig.MemoryMax = "512M";
 
+  # Google Messages (SMS/RCS), paired with the phone like Messages for Web; the
+  # phone relays everything. No NixOS module exists, so this follows what the
+  # mautrix-meta one does: config from Nix, registration generated once, its
+  # tokens copied back into the config on every start.
+  systemd.services.mautrix-gmessages =
+    let
+      # shortcut: from unstable for v0.2608's send-ID fix (stable's 26.05 sends
+      # IDs the phone drops: doubled texts, "failed to deliver"); back to
+      # pkgs.mautrix-gmessages once stable has 26.08 or newer.
+      pkg = (import inputs.nixpkgs-unstable { inherit (pkgs.stdenv.hostPlatform) system; })
+        .mautrix-gmessages.override { withGoolm = true; };   # no libolm
+      settings = (pkgs.formats.yaml { }).generate "mautrix-gmessages.yaml" {
+        homeserver = { address = hs; domain = priv; };
+        appservice = {
+          address = "http://127.0.0.1:29336";
+          hostname = "127.0.0.1";
+          port = 29336;
+          id = "gmessages";
+          bot.username = "gmessagesbot";
+        };
+        database = {
+          type = "sqlite3-fk-wal";
+          uri = "file:/var/lib/mautrix-gmessages/mautrix-gmessages.db?_txlock=immediate";
+        };
+        bridge.permissions = { ${me} = "admin"; };
+        double_puppet.secrets = doublePuppet;
+        backfill.enabled = true;     # bring in recent history, not only new texts
+      };
+    in
+    {
+      description = "mautrix-gmessages, a Matrix-Google Messages bridge";
+      wantedBy = [ "multi-user.target" ];
+      wants = [ "network-online.target" "continuwuity.service" ];
+      after = [ "network-online.target" "continuwuity.service" ];
+      path = [ pkg pkgs.envsubst pkgs.yq pkgs.ffmpeg-headless ];
+      restartTriggers = [ settings ];
+      preStart = ''
+        umask 077
+        envsubst -i ${settings} -o config.yaml
+        [ -f registration.yaml ] || mautrix-gmessages -c config.yaml -g -r registration.yaml
+        yq -sY '.[0].appservice.as_token = .[1].as_token | .[0].appservice.hs_token = .[1].hs_token | .[0]' \
+          config.yaml registration.yaml > config.yaml.tmp
+        mv config.yaml.tmp config.yaml
+      '';
+      serviceConfig = {
+        User = "mautrix-gmessages";
+        Group = "mautrix-gmessages";
+        StateDirectory = "mautrix-gmessages";
+        StateDirectoryMode = "0700";
+        WorkingDirectory = "/var/lib/mautrix-gmessages";
+        EnvironmentFile = env;
+        ExecStart = "${pkg}/bin/mautrix-gmessages -c config.yaml";
+        Restart = "on-failure";
+        RestartSec = 30;
+        MemoryMax = "512M";
+        # The same sandbox the mautrix-meta module uses.
+        LockPersonality = true;
+        MemoryDenyWriteExecute = true;
+        NoNewPrivileges = true;
+        PrivateDevices = true;
+        PrivateTmp = true;
+        PrivateUsers = true;
+        ProtectClock = true;
+        ProtectControlGroups = true;
+        ProtectHome = true;
+        ProtectHostname = true;
+        ProtectKernelLogs = true;
+        ProtectKernelModules = true;
+        ProtectKernelTunables = true;
+        ProtectSystem = "strict";
+        RestrictRealtime = true;
+        RestrictSUIDSGID = true;
+        SystemCallArchitectures = "native";
+        SystemCallFilter = [ "@system-service" ];
+        UMask = "0077";
+      };
+    };
+  users.users.mautrix-gmessages = { isSystemUser = true; group = "mautrix-gmessages"; };
+  users.groups.mautrix-gmessages = { };
+
   fox.server.monitoring.watchUnits = [ "continuwuity.service" "mautrix-*.service" ];
 
   # The bridge folders hold your logged-in sessions: treat this backup like
@@ -161,12 +241,14 @@ in
       "/var/lib/mautrix-telegram"
       "/var/lib/mautrix-discord"
       "/var/lib/mautrix-meta-instagram"
+      "/var/lib/mautrix-gmessages"
     ];
     exclude = [ "/var/lib/mautrix-*/*.db" "/var/lib/mautrix-*/*.db-*" ];
     sqlite = [
       "/var/lib/mautrix-telegram/mautrix-telegram.db"
       "/var/lib/mautrix-discord/mautrix-discord.db"
       "/var/lib/mautrix-meta-instagram/mautrix-meta.db"
+      "/var/lib/mautrix-gmessages/mautrix-gmessages.db"
     ];
     prepare = ''
       if [ -d /var/lib/private/continuwuity ]; then

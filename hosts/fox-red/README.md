@@ -29,7 +29,7 @@ services other devices have to reach from anywhere are public.
 | Prowlarr (torrent trackers) | indexers.emberfox.net | NetBird | NixOS module |
 | qBittorrent | — (WebUI from fox-red only, see Requests) | — | NixOS module, in the Mullvad-only `qbt` namespace |
 | Gatus | foxred.emberfox.net | NetBird | NixOS module |
-| Matrix (continuwuity + Telegram, Discord, Instagram bridges) | matrix.emberfox.net | NetBird | NixOS modules |
+| Matrix (continuwuity + Telegram, Discord, Instagram, Google Messages bridges) | matrix.emberfox.net | NetBird | NixOS modules |
 | Notesnook sync server | notes.emberfox.net (+ auth., events., files. under notes.) | NetBird | Podman (MongoDB, Silo, three apps) |
 | Syncthing (Minecraft instances, `~/sync`) | port 22000; dials fox-grey through fox-green's relay | NetBird | NixOS module |
 | SSH | fox-red | anywhere, keys only | — |
@@ -90,13 +90,14 @@ The music, audiobooks and video all live on the Storage Box, mounted at
 
 ## Matrix
 
-One inbox for Telegram, Discord DMs and Instagram (`services/matrix.nix`).
+One inbox for Telegram, Discord DMs, Instagram and Google Messages (SMS and
+RCS, relayed by the phone) (`services/matrix.nix`).
 continuwuity is the homeserver: one user (`@arlo:emberfox.net`), no
 federation, no registration, reachable only over NetBird. Signal is
 deliberately not bridged: it stays end-to-end in Molly.
 
 The bridges decrypt everything on this box, and their folders hold live
-logins to all four accounts. Media goes to a `matrix` folder on the Storage Box
+logins to every bridged account. Media goes to a `matrix` folder on the Storage Box
 (`/mnt/matrix-media`). continuwuity won't start without that mount, so
 media never lands on the VPS disk.
 
