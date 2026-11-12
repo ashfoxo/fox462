@@ -98,8 +98,9 @@ state (`modules/services/auto-update.nix`).
 | Command | What it does | Where |
 | --- | --- | --- |
 | `Super + Shift + R` | Records a voice note and transcribes it offline with whisper.cpp; `transcribe FILE` does an existing file | `home/desktop/voicenotes.nix` |
-| `health` | Charts of Gadgetbridge data from `~/sync`, as a page in RAM with no network requests | `home/desktop/health/` |
-| `health-map` | Downloads the OpenStreetMap area around your activities for `health` (the one step that goes online, via Mullvad) | `home/desktop/health/` |
+| `health` | Your watch data (Gadgetbridge from `~/sync`, plus the Garmin backfill) as a page in RAM with no network requests | `home/desktop/health/` |
+| `health-map` | Downloads the OpenStreetMap area around your recent workouts for `health` (the one step that goes online, via Mullvad) | `home/desktop/health/` |
+| `health-backfill` | One-off copy of your Garmin Connect history via Garmin's Personal API (key in `pass` at `garmin/personal-api-key`); resumable | `home/desktop/health/` |
 | `copper pull` / `copper done` | Fetches fox-copper's DVD rips into `~/copper` (for Filen) and `~/drop` (for Jellyfin), then clears them | `home/desktop/copper.nix` |
 
 Also:

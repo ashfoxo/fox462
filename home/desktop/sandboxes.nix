@@ -15,6 +15,7 @@ let
   # rawPipeWire: the pipewire-0 socket, for apps that talk to PipeWire directly
   # (Vesktop's screen-share audio). Everything else plays and records through
   # the pulse socket, and screen sharing gets its stream from the portal.
+  # network = false: no network at all, for apps that only show local files.
   # machineId: /etc/machine-id, a permanent unique ID for this laptop. Only
   # Electron apps get it, since they complain without it.
   # state: where the app's home lives. "ram": in /run/sandbox-ram, gone at
@@ -26,7 +27,7 @@ let
   # app. Folders only, since a file can't be bound before it exists.
   # extraBindRw: a function of sloth (nixpak's path helpers) returning more
   # read-write binds, e.g. sloth: [ [ host-path sandbox-path ] ].
-  makeGuiSandbox = { package, name, state ? "ram", persist ? [ ], extraBindRw ? (_sloth: []), extraDev ? [], extraEnv ? {}, rawPipeWire ? false, machineId ? false }:
+  makeGuiSandbox = { package, name, state ? "ram", persist ? [ ], extraBindRw ? (_sloth: []), extraDev ? [], extraEnv ? {}, rawPipeWire ? false, machineId ? false, network ? true }:
     (mkNixPak {
       config = { sloth, ... }: {
         app.package = package;
@@ -48,7 +49,7 @@ let
         };
 
         bubblewrap = {
-          network = true;
+          inherit network;
 
           # New session: a sandboxed app started from a terminal can't push
           # keystrokes into that terminal (TIOCSTI) and run them outside.
@@ -240,6 +241,18 @@ in
   webapp-gmail   = makeWebApp "webapp-gmail" { keepLogin = false; };
   webapp-messages = makeWebApp "webapp-messages" { };
   webapp-spotify = makeWebApp "webapp-spotify" { drm = true; };
+
+  # The health page (home/desktop/health): app-mode Chromium with no network,
+  # seeing only the RAM folder health writes the page into. Nothing kept.
+  health-view = makeGuiSandbox {
+    package = pkgs.ungoogled-chromium;
+    name = "health-view";
+    network = false;
+    extraEnv = { NIXOS_OZONE_WL = "1"; };
+    extraBindRw = sloth: [
+      [ (sloth.mkdir (sloth.concat [ (sloth.env "XDG_RUNTIME_DIR") "/health" ])) "/health" ]
+    ];
+  };
 
   # Fluent Reader is NOT here: nixpkgs ships it as an AppImage, whose wrapper
   # starts its own bubblewrap, and bubblewrap can't nest inside nixpak.
