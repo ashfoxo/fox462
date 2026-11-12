@@ -23,6 +23,7 @@
     ../../modules/server/services/spoken.nix
     ../../modules/server/services/syncthing.nix
     ../../modules/server/services/torrent.nix
+    ../../modules/server/services/arr.nix
   ];
 
   nixpkgs.hostPlatform = "x86_64-linux";
