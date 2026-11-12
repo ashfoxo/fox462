@@ -80,7 +80,7 @@ in
       peers = [ ];
     };
     systemd.services.wireguard-wg-qbt = {
-      requires = [ "netns-qbt.service" ];
+      requires = [ "netns-qbt.service" "qbt-folders.service" ];
       after = [ "netns-qbt.service" ];
     };
 
@@ -111,6 +111,83 @@ in
         ${iptables} -X $c 2>/dev/null || true
       done
     '';
+
+    ##########################################################################
+    # qBittorrent, inside qbt
+    ##########################################################################
+
+    # Torrents live on the Storage Box next to the library, so Sonarr and
+    # Radarr hardlink into /mnt/music/video instead of copying: seeding costs
+    # no space. Same mount, so the hardlinks work (tested on the share).
+    #
+    # The WebUI answers only on qbt's end of the veth, without a login from
+    # the host (Sonarr, Radarr, your SSH tunnel), and from nowhere else:
+    #   ssh -L 8080:${nsEnd}:8080 fox-red   then   http://localhost:8080
+    #
+    # qBittorrent.conf is rewritten from serverConfig at every start, so a
+    # setting changed in the WebUI is lost on restart: change it here.
+    # Categories and torrents are kept (their own files in the profile).
+    services.qbittorrent = {
+      enable = true;
+      group = "navidrome";   # the share is navidrome-group-writable (music.nix)
+      serverConfig = {
+        LegalNotice.Accepted = true;
+        BitTorrent.Session = {
+          # Torrent traffic only on the tunnel, never on the veth.
+          Interface = "wg-qbt";
+          InterfaceName = "wg-qbt";
+          # The default (memory-mapped files) stalls and balloons on a
+          # network share.
+          DiskIOType = "Posix";
+          DefaultSavePath = "/mnt/music/torrents/complete";
+          TempPath = "/mnt/music/torrents/incomplete";
+          TempPathEnabled = true;
+        };
+        Preferences.WebUI = {
+          Address = nsEnd;
+          AuthSubnetWhitelistEnabled = true;
+          AuthSubnetWhitelist = "${hostEnd}/32";
+        };
+      };
+    };
+
+    # The torrents folder must exist before qBittorrent binds it into its
+    # sandbox, and can't be made from inside that sandbox.
+    systemd.services.qbt-folders = {
+      description = "Create qBittorrent's folder on the Storage Box";
+      unitConfig.RequiresMountsFor = "/mnt/music";
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+        ExecStart = "${pkgs.coreutils}/bin/mkdir -p /mnt/music/torrents";
+      };
+    };
+
+    systemd.services.qbittorrent = {
+      # Only the namespace is required. Without the tunnel qbt has no route
+      # out (the kill switch), so qBittorrent stalls and resumes by itself.
+      requires = [ "netns-qbt.service" "qbt-folders.service" ];
+      wants = [ "wireguard-wg-qbt.service" ];
+      after = [ "netns-qbt.service" "wireguard-wg-qbt.service" "qbt-folders.service" ];
+      # Without the share it would download into an empty mount point.
+      unitConfig = {
+        AssertPathIsMountPoint = "/mnt/music";
+        RequiresMountsFor = "/mnt/music";
+      };
+      serviceConfig = {
+        NetworkNamespacePath = "/run/netns/${ns}";
+        BindReadOnlyPaths = [ "/etc/netns/${ns}/resolv.conf:/etc/resolv.conf" ];
+        # Sees only its own folder on the share, not the library; and can
+        # write only there and to its profile.
+        ProtectSystem = lib.mkForce "strict";
+        TemporaryFileSystem = "/mnt:ro";
+        BindPaths = [ "/mnt/music/torrents" ];   # made by qbt-folders
+        ReadWritePaths = [ config.services.qbittorrent.profileDir ];
+        # No swap on fox-red: if it runs away, it restarts, not a database.
+        MemoryMax = "1G";
+        Restart = "on-failure";
+      };
+    };
   }
   (mullvadRotate {
     name = "qbt-mullvad";
