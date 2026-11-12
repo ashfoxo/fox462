@@ -49,7 +49,9 @@ in
     systemd.services.netns-qbt = {
       description = "Network namespace for qBittorrent";
       wantedBy = [ "multi-user.target" ];
-      after = [ "network.target" ];
+      # Not after network.target: wireguard-wg-qbt comes before it and after
+      # this, so that ordering is a cycle and systemd drops the tunnel at boot.
+      before = [ "network.target" ];
       serviceConfig = {
         Type = "oneshot";
         RemainAfterExit = true;
