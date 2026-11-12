@@ -37,6 +37,15 @@ in
 
   fox.server.privateSites.matrix.upstream = "127.0.0.1:6167";
 
+  # Sticker picker widget (maunium/stickerpicker): static files that I clone
+  # and fill by hand into /var/lib/stickerpicker (see the chat steps).
+  fox.server.privateSites.stickers.upstream = "127.0.0.1:8099";
+  services.caddy.virtualHosts."http://127.0.0.1:8099".extraConfig = ''
+    bind 127.0.0.1
+    root * /var/lib/stickerpicker/web
+    file_server
+  '';
+
   # Media goes in the music share's matrix/ folder, mounted a second time so
   # continuwuity owns it here. shortcut: it's also readable through /mnt/music
   # (0664, any local user); a separate sub-account would fix that.
@@ -234,7 +243,10 @@ in
   # continuwuity's RocksDB can't be copied live either, so it is stopped for
   # the few seconds the copy takes (bridges retry anything sent meanwhile).
   # Media isn't in the copy: the bind mount only exists inside the service.
-  systemd.tmpfiles.rules = [ "d /var/backup/continuwuity 0700 root root -" ];
+  systemd.tmpfiles.rules = [
+    "d /var/backup/continuwuity 0700 root root -"
+    "d /var/lib/stickerpicker 0755 root root -"
+  ];
   fox.server.backup = {
     paths = [
       "/var/backup/continuwuity"

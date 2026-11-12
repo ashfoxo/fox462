@@ -30,6 +30,7 @@ services other devices have to reach from anywhere are public.
 | qBittorrent | — (WebUI from fox-red only, see Requests) | — | NixOS module, in the Mullvad-only `qbt` namespace |
 | Gatus | foxred.emberfox.net | NetBird | NixOS module |
 | Matrix (continuwuity + Telegram, Discord, Instagram, Google Messages bridges) | matrix.emberfox.net | NetBird | NixOS modules |
+| Sticker picker for Matrix (static page) | stickers.emberfox.net | NetBird | Caddy file_server |
 | Notesnook sync server | notes.emberfox.net (+ auth., events., files. under notes.) | NetBird | Podman (MongoDB, Silo, three apps) |
 | Syncthing (Minecraft instances, `~/sync`) | port 22000; dials fox-grey through fox-green's relay | NetBird | NixOS module |
 | SSH | fox-red | anywhere, keys only | — |
