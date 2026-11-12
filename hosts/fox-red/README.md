@@ -29,6 +29,7 @@ services other devices have to reach from anywhere are public.
 | Prowlarr (torrent trackers) | indexers.emberfox.net | NetBird | NixOS module |
 | qBittorrent | — (WebUI from fox-red only, see Requests) | — | NixOS module, in the Mullvad-only `qbt` namespace |
 | Gatus | foxred.emberfox.net | NetBird | NixOS module |
+| Matrix (continuwuity + Telegram, Discord, Instagram bridges) | matrix.emberfox.net | NetBird | NixOS modules |
 | Notesnook sync server | notes.emberfox.net (+ auth., events., files. under notes.) | NetBird | Podman (MongoDB, Silo, three apps) |
 | Syncthing (Minecraft instances, `~/sync`) | port 22000; dials fox-grey through fox-green's relay | NetBird | NixOS module |
 | SSH | fox-red | anywhere, keys only | — |
@@ -86,6 +87,18 @@ The music, audiobooks and video all live on the Storage Box, mounted at
   `spoken` folder and serves audiobooks from it.
 - **No Docker.** The few containers run under Podman with fully qualified
   images, no daemon.
+
+## Matrix
+
+One inbox for Telegram, Discord DMs and Instagram (`services/matrix.nix`).
+continuwuity is the homeserver: one user (`@arlo:emberfox.net`), no
+federation, no registration, reachable only over NetBird. Signal is
+deliberately not bridged: it stays end-to-end in Molly.
+
+The bridges decrypt everything on this box, and their folders hold live
+logins to all four accounts. Media goes to a `matrix` folder on the Storage Box
+(`/mnt/matrix-media`). continuwuity won't start without that mount, so
+media never lands on the VPS disk.
 
 ## Requests
 
@@ -240,7 +253,7 @@ restic, nightly at 01:30 UTC, to the versioned Scaleway bucket
 `bagger-red`, keeping 7 daily, 4 weekly and 6 monthly snapshots. Databases are
 dumped first rather than copied live: Miniflux's Postgres, AudioMuse's
 Postgres, Notesnook's MongoDB, and the SQLite files of Navidrome,
-ntfy, Forgejo, MollySocket, Jellyfin, Sonarr, Radarr, Prowlarr and Seerr. Also backed up: Forgejo's whole state directory (repos,
+ntfy, Forgejo, MollySocket, Jellyfin, Sonarr, Radarr, Prowlarr, Seerr and the three Matrix bridges. continuwuity is stopped for the few seconds it takes to copy its database. Also backed up: Forgejo's whole state directory (repos,
 `app.ini`), Notesnook's attachments, Jellyfin's users, watch history and
 settings, the request apps' settings (so their web UI setup is never redone),
 the deployed copy of this repo, and the two
@@ -291,7 +304,7 @@ only for fox-green, in return. Who checks what is in
 | Time | Job |
 | --- | --- |
 | 01:00 | Miniflux Postgres dump |
-| 01:30–01:50 | restic backup |
+| 01:30–01:50 | restic backup (Matrix pauses for a few seconds at the start) |
 | 02:00 | Drop folder sorted into music, audiobooks and video |
 | 03:30 | Audiobookshelf Audiobooks scan (set in its web UI) |
 | 05:30 | Similar-songs check |

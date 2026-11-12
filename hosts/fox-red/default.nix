@@ -14,6 +14,7 @@
     ../../modules/server/services/forgejo.nix
     ../../modules/server/services/gatus.nix
     ../../modules/server/services/jellyfin.nix
+    ../../modules/server/services/matrix.nix
     ../../modules/server/services/youtube.nix
     ../../modules/server/services/miniflux.nix
     ../../modules/server/services/mollysocket.nix
@@ -51,6 +52,10 @@
   };
 
   networking.hostName = "fox-red";
+
+  # Compressed swap in RAM: a spike gets room to breathe instead of the
+  # kernel killing whichever service it picks. The VPS has no other swap.
+  zramSwap.enable = true;
 
   # This server's own Bitwarden key, "fox-red - main" (the rest: server/base.nix).
   users.users.arlo.openssh.authorizedKeys.keys = [
