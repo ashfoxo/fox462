@@ -24,6 +24,10 @@ services other devices have to reach from anywhere are public.
 | Audiobookshelf (podcasts, audiobooks) | spoken.emberfox.net | NetBird | NixOS module |
 | Jellyfin (movies, TV, YouTube) | jellyfin.emberfox.net | NetBird | NixOS module |
 | ytdl-sub (YouTube channels as shows) | — (outbound only) | — | NixOS module |
+| Seerr (ask for a movie or show) | request.emberfox.net | NetBird | NixOS module |
+| Sonarr (TV) / Radarr (movies) | tv.emberfox.net / movies.emberfox.net | NetBird | NixOS module |
+| Prowlarr (torrent trackers) | indexers.emberfox.net | NetBird | NixOS module |
+| qBittorrent | — (WebUI from fox-red only, see Requests) | — | NixOS module, in the Mullvad-only `qbt` namespace |
 | Gatus | foxred.emberfox.net | NetBird | NixOS module |
 | Notesnook sync server | notes.emberfox.net (+ auth., events., files. under notes.) | NetBird | Podman (MongoDB, Silo, three apps) |
 | Syncthing (Minecraft instances, `~/sync`) | port 22000; dials fox-grey through fox-green's relay | NetBird | NixOS module |
@@ -71,7 +75,7 @@ The music, audiobooks and video all live on the Storage Box, mounted at
   transcoding: everything is H.265, which the phone and laptop play
   directly, and transcoding would swamp the CPU. Movies and TV arrive
   through the drop folder, DVD rips included (`copper pull` on the laptop
-  puts fox-copper's encodes there). ytdl-sub downloads the last year of a
+  puts fox-copper's encodes there), or through a request (see Requests). ytdl-sub downloads the last year of a
   few YouTube channels into `YouTube`, one show per channel
   (`services/youtube.nix`; a new channel is one line).
 - **Music.** Tagged and named in MusicBrainz Picard on the laptop, then
@@ -82,6 +86,74 @@ The music, audiobooks and video all live on the Storage Box, mounted at
   `spoken` folder and serves audiobooks from it.
 - **No Docker.** The few containers run under Podman with fully qualified
   images, no daemon.
+
+## Requests
+
+Ask for a movie or show at request.emberfox.net. Sonarr (TV) or Radarr
+(movies) finds it through Prowlarr's trackers and has qBittorrent download
+it. When it's done they **hardlink** it into `/mnt/music/video/{TV,Movies}`
+and Jellyfin picks it up. A hardlink is the same file under a second name,
+so seeding costs no extra space.
+
+```
+request. ─► tv. / movies. ─► indexers. (tracker search, from fox-red's own IP)
+                  │
+                  └─► qBittorrent, in namespace qbt ─► wg-qbt ─► Mullvad (Germany)
+                         │
+     /mnt/music/torrents/complete ──hardlink──► /mnt/music/video/{TV,Movies}
+```
+
+- **Isolation** (`services/torrent.nix`). fox-red has no KVM, so this is
+  a network namespace, not a VM. qBittorrent's only way out is a Mullvad
+  WireGuard tunnel. If the tunnel goes down, the namespace has no route at
+  all (the kill switch). From there qBittorrent can't reach the host, the
+  LAN or NetBird. It sees only `/mnt/music/torrents`, not the library.
+- **Mullvad server.** A random German one, changed every 6 hours on the
+  hour (`fox.server.torrent.mullvad.rotateEveryHours` in `default.nix`), and
+  whenever it stops answering. It uses the shared
+  `modules/server/mullvad-rotate.nix`, like fox-green's exit node. Its key
+  is its own Mullvad device (`mullvad-torrent-key`). There's no inbound
+  port: Mullvad stopped offering port forwarding.
+- **Seeding** stops at ratio 2 or after 14 days, whichever comes first. Then
+  Sonarr or Radarr removes the torrent; the library copy stays.
+- **qBittorrent's settings are in Nix**, not its WebUI: the config is
+  rewritten at every start. To look at it, use an SSH tunnel:
+  `ssh -L 8080:10.201.0.2:8080 fox-red`, then open http://localhost:8080.
+- **Quality.** The profile is "HD - 720p/1080p" with Remux turned off, so a
+  movie is about 5–15 GB instead of 40.
+
+**Accepted risks.**
+- A namespace shares fox-red's kernel, so a qBittorrent exploit plus a
+  kernel bug would reach the host. A VM would avoid that, but fox-red can't
+  run one.
+- Tracker searches and metadata lookups leave from fox-red's own IP; only
+  the torrents themselves go through Mullvad.
+- Sonarr and Radarr can see all of `/mnt/music` except a short denylist
+  (`services/arr.nix`), because hardlinks only work within one mount.
+
+**One-time setup in the web UIs** (it all lives in their databases, which
+are backed up):
+
+1. **https://indexers.emberfox.net/**: set a Forms login. Don't choose
+   "Disabled for local addresses": through Caddy, every visitor looks
+   local. Then add public trackers that pass **Test**. Knaben, YTS and
+   LimeTorrents work. Skip anything behind Cloudflare (The Pirate Bay blocks
+   Hetzner IPs), anything needing FlareSolverr, and I2P trackers.
+2. **https://indexers.emberfox.net/settings/applications**: add Sonarr
+   (`http://127.0.0.1:8989`) and Radarr (`http://127.0.0.1:7878`), with
+   Prowlarr at `http://127.0.0.1:9696` and each app's API key (its Settings
+   → General). Then **Sync App Indexers**.
+3. **https://tv.emberfox.net/** and **https://movies.emberfox.net/**, each:
+   - a root folder (`/mnt/music/video/TV`, `/mnt/music/video/Movies`) under
+     Settings → Media Management;
+   - a download client under Settings → Download Clients: qBittorrent,
+     host `10.201.0.2`, port `8080`, no username or password;
+   - under Settings → Connect, ntfy with the `media` topic and its token.
+4. **https://request.emberfox.net/**: sign in with Jellyfin
+   (`127.0.0.1:8096`), then add Radarr and Sonarr under Settings → Services
+   as Default, with Minimum Availability set to **Released**. Do this
+   before the first request: a request made with no service set up is
+   never sent, even after one is added. Delete it and request it again.
 
 ## Repo layout
 
@@ -168,12 +240,14 @@ restic, nightly at 01:30 UTC, to the versioned Scaleway bucket
 `bagger-red`, keeping 7 daily, 4 weekly and 6 monthly snapshots. Databases are
 dumped first rather than copied live: Miniflux's Postgres, AudioMuse's
 Postgres, Notesnook's MongoDB, and the SQLite files of Navidrome,
-ntfy, Forgejo, MollySocket and Jellyfin. Also backed up: Forgejo's whole state directory (repos,
+ntfy, Forgejo, MollySocket, Jellyfin, Sonarr, Radarr, Prowlarr and Seerr. Also backed up: Forgejo's whole state directory (repos,
 `app.ini`), Notesnook's attachments, Jellyfin's users, watch history and
-settings, the deployed copy of this repo, and the two
+settings, the request apps' settings (so their web UI setup is never redone),
+the deployed copy of this repo, and the two
 Syncthing folders, the Minecraft instances and `~/sync` (without Syncthing's `.stversions`).
 
-Not backed up: `/var/lib/blog` (rebuilt from git), the Podman images,
+Not backed up: `/var/lib/blog` (rebuilt from git), qBittorrent (its
+torrents can be added again, its settings are in Nix), the Podman images,
 Jellyfin's artwork and metadata (a library scan fetches them again), and the
 media on the Storage Box. The box is storage, not backup: the originals of
 what's added are in Filen, uploaded from the laptop.
@@ -191,11 +265,16 @@ repository and verifies it. The pre-rebuild history is in the old
 Everything alerts through ntfy:
 
 - **health-check**, every 5 minutes: load, disk over 80%, low memory, failed
-  units, services stuck restarting. Each run also sends a `health` heartbeat
+  units, services stuck restarting, and the torrent tunnel: no Mullvad
+  handshake in 5 minutes, a way out of `qbt` other than Mullvad, or its
+  firewall rules missing. Each run also sends a `health` heartbeat
   to fox-green's Gatus, and each successful backup a `backup` heartbeat.
 - **Failures** of the backup, the monthly repository check, the blog build,
   the drop sort, the YouTube download, the music stack update and the
   similar-songs check.
+- **Media:** Sonarr and Radarr post to the ntfy `media` topic (grabbed,
+  imported, failed). A quiet alert means `qbt-mullvad-watch` switched to
+  another Mullvad server because the current one stopped answering.
 - **A stale deploy:** nixpkgs more than 21 days old (see Updates).
 - **Gatus on fox-green** watches the sites from outside and alerts when one
   fails, or when a heartbeat says something is wrong or stops arriving (15
@@ -232,6 +311,15 @@ only for fox-green, in return. Who checks what is in
   user's own state folder `noexec`, so builds run in `/var/lib/blog/work`; and
   its sandbox refuses to create setgid folders, so that folder has no setgid
   bit.
+- **A unit that boots into its own namespace** must not be ordered after
+  `network.target` if a WireGuard interface moved into that namespace
+  comes before it. That's a cycle, and systemd breaks it by dropping the
+  tunnel at boot (`netns-qbt`, `services/torrent.nix`).
+- **systemd's `+` prefix** doesn't skip `TemporaryFileSystem` or `BindPaths`.
+  A folder a sandboxed unit binds in has to be made by another unit first
+  (`qbt-folders`).
+- **The \*arr health page** only rechecks every 6 hours. After fixing what
+  it complains about, run **Check Health** under System → Tasks.
 - **sops:** check that `.sops.yaml` lists fox-red's key before deploying a
   new secret. Activation fails with "0 successful groups" otherwise.
 - **secret.sh adds a newline** to a value typed at its prompt. A raw token

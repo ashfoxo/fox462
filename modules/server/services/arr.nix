@@ -56,6 +56,36 @@ in
     { serviceConfig.ReadWritePaths = [ config.services.radarr.dataDir ]; }
   ];
 
+  fox.server.monitoring.watchUnits = [ "sonarr.service" "radarr.service" "prowlarr.service" "seerr.service" ];
+
+  # Nightly backup: each app's settings, API key, indexers and history, so the
+  # web UI setup never has to be redone. The live databases are dumped
+  # instead (sqlite). Left out: logs, artwork (fetched again), the apps' own
+  # weekly backup zips, and Prowlarr's indexer definitions (downloaded).
+  # Prowlarr and Seerr are DynamicUser services, so their state is under
+  # /var/lib/private.
+  fox.server.backup =
+    let
+      apps = [
+        config.services.sonarr.dataDir
+        config.services.radarr.dataDir
+        "/var/lib/private/prowlarr"
+      ];
+      seerr = "/var/lib/private/jellyseerr/config";
+    in
+    {
+      paths = apps ++ [ seerr ];
+      exclude = lib.concatMap (d: map (x: "${d}/${x}")
+        [ "*.db" "*.db-wal" "*.db-shm" "logs" "MediaCover" "Backups" "Definitions" ]) apps
+        ++ [ "${seerr}/db" "${seerr}/logs" "${seerr}/cache" ];
+      sqlite = [
+        "${config.services.sonarr.dataDir}/sonarr.db"
+        "${config.services.radarr.dataDir}/radarr.db"
+        "/var/lib/private/prowlarr/prowlarr.db"
+        "${seerr}/db/db.sqlite3"
+      ];
+    };
+
   fox.server.privateSites = {
     request.upstream = "127.0.0.1:5055";
     tv.upstream = "127.0.0.1:8989";

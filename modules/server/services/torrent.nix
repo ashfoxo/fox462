@@ -1,4 +1,4 @@
-# Torrents, isolated from the rest of the server. qBittorrent (step 2) runs in
+# Torrents, isolated from the rest of the server. qBittorrent runs in
 # the network namespace "qbt", whose only way out is a Mullvad WireGuard
 # tunnel. fox-red has no KVM, so this is a namespace, not a VM. The tunnel
 # moves to a random German Mullvad server every rotateEveryHours, on the
@@ -24,6 +24,8 @@ let
   nsEnd = "10.201.0.2";
   ip = "${pkgs.iproute2}/bin/ip";
   iptables = "${pkgs.iptables}/bin/iptables";
+  wg = "${pkgs.wireguard-tools}/bin/wg";
+  grep = "${pkgs.gnugrep}/bin/grep";
   m = config.fox.server.torrent.mullvad;
   mullvadRotate = import ../mullvad-rotate.nix { inherit config lib pkgs srv; };
 in
@@ -144,6 +146,13 @@ in
           DefaultSavePath = "/mnt/music/torrents/complete";
           TempPath = "/mnt/music/torrents/incomplete";
           TempPathEnabled = true;
+          # Seed to ratio 2 or for 14 days, whichever comes first, then stop.
+          # Sonarr and Radarr remove a stopped torrent (their library copy
+          # is a hardlink, so it stays). Upload counts against fox-red's
+          # monthly traffic.
+          GlobalMaxRatio = 2;
+          GlobalMaxSeedingMinutes = 20160;
+          ShareLimitAction = "Stop";
         };
         Preferences.WebUI = {
           Address = nsEnd;
@@ -161,7 +170,9 @@ in
       serviceConfig = {
         Type = "oneshot";
         RemainAfterExit = true;
-        ExecStart = "${pkgs.coreutils}/bin/mkdir -p /mnt/music/torrents";
+        # complete/ too: Sonarr and Radarr check for it before the first
+        # download has made it.
+        ExecStart = "${pkgs.coreutils}/bin/mkdir -p /mnt/music/torrents/complete /mnt/music/torrents/incomplete";
       };
     };
 
@@ -190,6 +201,34 @@ in
         Restart = "on-failure";
       };
     };
+
+    ##########################################################################
+    # Health
+    ##########################################################################
+
+    # A dead tunnel only stalls the downloads (the kill switch), so nothing
+    # else would notice. Not backed up: torrents can be re-added, and the
+    # settings are all above.
+    fox.server.monitoring.watchUnits = [ "qbittorrent.service" "wireguard-wg-qbt.service" "qbt-mullvad-rotate.service" ];
+    fox.server.monitoring.extraChecks = ''
+      # Keepalives every 25 s mean a handshake at least every ~2 minutes, and
+      # qbt-mullvad-watch replaces a dead server within ~2. No handshake in 5
+      # minutes, or no wg-qbt at all: switching servers isn't helping.
+      hs=$(${ip} netns exec ${ns} ${wg} show wg-qbt latest-handshakes 2>/dev/null | awk '{print $2}' | head -n 1)
+      if [ -z "$hs" ] || [ $(( $(date +%s) - hs )) -gt 300 ]; then
+        problems+=("torrents: no handshake with Mullvad in 5 min")
+      fi
+      # The kill switch: wg-qbt's routes must be qbt's only way out.
+      for v in -4 -6; do
+        if ${ip} $v -n ${ns} route show default 2>/dev/null | ${grep} -v -q 'dev wg-qbt'; then
+          problems+=("torrents: qbt has a way out besides Mullvad ($v)")
+        fi
+      done
+      # Without these, qbt could reach SSH and Caddy on the host.
+      ${iptables} -C INPUT -j fox-qbt-in 2>/dev/null \
+        && ${iptables} -C FORWARD -j fox-qbt-fwd 2>/dev/null \
+        || problems+=("torrents: qbt firewall rules missing")
+    '';
   }
   (mullvadRotate {
     name = "qbt-mullvad";

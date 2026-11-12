@@ -84,7 +84,7 @@ the blackhole are never removed, not even during a deploy.
 **Which Mullvad server.** None is fixed in the config. `mullvad-rotate`
 reads Mullvad's own server list and picks a random active one in New York
 (`exitNodes.mullvad.city`). It runs when the tunnel comes up and every 4
-hours (`rotateEvery`). Every minute, `mullvad-watch` pings through the tunnel;
+hours on the hour (`rotateEveryHours`). Every minute, `mullvad-watch` pings through the tunnel;
 after two silent minutes it switches to another server and sends a quiet
 alert. A WireGuard key works on every Mullvad server, so switching only
 changes the peer. Each switch gives the phone a new exit address, so open
@@ -137,7 +137,8 @@ the blackhole is missing, or if the direct exit's namespace has no way out.
 | `hosts/fox-green/default.nix` | This host: its name, user, Mullvad addresses, and the services it runs |
 | `hosts/fox-green/hardware-configuration.nix`, `networking.nix` | Disk, boot and network, from `nixos-generate-config` and the network RackNerd set up |
 | `hosts/fox-green/secrets/`, `.sops.yaml` | Its encrypted secrets, and who can decrypt them |
-| `modules/server/services/exit-nodes.nix` | Both exit nodes, the server rotation, and their health checks |
+| `modules/server/services/exit-nodes.nix` | Both exit nodes and their health checks |
+| `modules/server/mullvad-rotate.nix` | The Mullvad server rotation, shared with fox-red's torrent tunnel |
 | `modules/server/services/gatus.nix`, `modules/server/watch.nix` | Gatus, shared with fox-red, and who watches whom |
 | `modules/server/services/syncthing-relay.nix` | The private Syncthing relay for fox-grey |
 

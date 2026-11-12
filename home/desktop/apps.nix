@@ -61,7 +61,7 @@ in
     # --- Browsers -----------------------------------------------------------
     sandboxes.mullvad-browser
     sandboxes.librewolf
-    sandboxes.qutebrowser
+    # sandboxes.qutebrowser   # off: nixpkgs marks 3.7.0 insecure (trusts eMudhra certs); re-add once fixed
     # Clean Firefox (unsandboxed, outside Mullvad) is in modules/desktop/programs.nix.
 
     # --- Communication ------------------------------------------------------

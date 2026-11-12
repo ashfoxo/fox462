@@ -24,7 +24,7 @@
 # drops. In the namespace it has a routing table to itself.
 #
 # Which Mullvad server: a random active one in the chosen city, from
-# Mullvad's own server list. It changes every 4 hours, every time the tunnel
+# Mullvad's own server list. It changes every 4 hours on the hour, every time the tunnel
 # starts, and as soon as the current one stops answering (checked every
 # minute). Every switch moves the phone to a new exit address, so open
 # connections through the Mullvad exit drop and reconnect.

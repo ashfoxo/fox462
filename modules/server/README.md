@@ -12,6 +12,7 @@ modules/server/
   secrets.nix     fox.server.secretNames -> hosts/<host>/secrets/<name>
   base.nix        firewall, kernel hardening, Nix, SSH, fail2ban, journald
   netbird.nix  podman.nix  caddy.nix  backup.nix  monitoring.nix  alerts.nix  packages.nix
+  mullvad-rotate.nix  a tunnel on a random Mullvad server (fox-green's exit, fox-red's torrents)
   watch.nix       which server's Gatus checks and alerts for which (data, not a module)
   services/       one file per service; a host imports the ones it runs
 ```
