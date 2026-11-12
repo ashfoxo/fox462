@@ -16,5 +16,6 @@
     ./displays.nix   # Super + Shift + P: pick the main display
     ./health         # `health`: Gadgetbridge data as charts, no server
     ./copper.nix     # `copper pull` / `copper done`: fox-copper's DVD rips into Filen
+    ./push.nix       # `push`: copy ~/drop to Filen with rclone, at full speed
   ];
 }

@@ -51,6 +51,7 @@ let
     ".local/share/health"                    # the map of your activity area (health-map)
     ".config/fluent-reader"
     ".config/@filen" ".filen-cli"            # Filen login and CLI login
+    ".config/rclone"                         # the `filen` remote for `push` (home/desktop/push.nix)
     ".config/Electron"                       # Filen's IndexedDB (and any Electron app with the default name)
     ".local/share/Steam" ".steam"
     ".zoom"
