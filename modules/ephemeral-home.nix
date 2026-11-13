@@ -25,6 +25,7 @@ let
 
     # --- Sandboxed apps that keep state (sandboxes.nix: state = "disk" / "logins") ---
     ".local/share/sandboxes/signal"
+    ".local/share/sandboxes/element"
     ".local/share/sandboxes/librewolf"
     ".local/share/sandboxes/telegram" ".local/share/sandboxes/vesktop"   # their logins only; the rest is in RAM
     ".local/share/sandboxes/webapp-claude" ".local/share/sandboxes/webapp-elk"

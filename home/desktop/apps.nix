@@ -66,6 +66,7 @@ in
 
     # --- Communication ------------------------------------------------------
     sandboxes.signal-desktop
+    sandboxes.element-desktop  # Matrix (fox-red)
     sandboxes.telegram-desktop
     sandboxes.vesktop          # Discord
 

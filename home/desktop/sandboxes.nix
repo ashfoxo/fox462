@@ -27,7 +27,10 @@ let
   # app. Folders only, since a file can't be bound before it exists.
   # extraBindRw: a function of sloth (nixpak's path helpers) returning more
   # read-write binds, e.g. sloth: [ [ host-path sandbox-path ] ].
-  makeGuiSandbox = { package, name, state ? "ram", persist ? [ ], extraBindRw ? (_sloth: []), extraDev ? [], extraEnv ? {}, rawPipeWire ? false, machineId ? false, network ? true }:
+  # secrets: may talk to the host's secret service (pass-secret-service, home/default.nix),
+  # for apps that keep their database key in the keyring (Element). Note it is
+  # one shared keyring: the app can ask for any secret in it, not just its own.
+  makeGuiSandbox = { package, name, state ? "ram", persist ? [ ], extraBindRw ? (_sloth: []), extraDev ? [], extraEnv ? {}, rawPipeWire ? false, machineId ? false, network ? true, secrets ? false }:
     (mkNixPak {
       config = { sloth, ... }: {
         app.package = package;
@@ -46,7 +49,7 @@ let
         dbus.policies = {
           "org.freedesktop.portal.*" = "talk";
           "org.freedesktop.Notifications" = "talk";
-        };
+        } // lib.optionalAttrs secrets { "org.freedesktop.secrets" = "talk"; };
 
         bubblewrap = {
           inherit network;
@@ -207,6 +210,58 @@ in
     persist = [ ".local/share/TelegramDesktop/tdata" ]; };
   # Signal's login and message database are one store: it stays on disk.
   signal-desktop   = makeGuiSandbox { package = pkgs.signal-desktop;   name = "signal"; machineId = true; state = "disk"; };
+
+  # Element's login, message cache and E2EE keys are one store: it stays on disk.
+  # Its database key goes in the host keyring, so the DB is useless without it.
+  # The sandbox has no xdg-open, and Element's login (OIDC) opens the browser
+  # with it. This one asks the host's desktop portal to open the link instead,
+  # with "ask" so you pick the browser: the system default is Mullvad, which
+  # can't hand the login back to Element, so pick the clean Firefox.
+  #
+  # It waits for GPG to be unlocked (the YubiKey touch, gpg-unlock.nix) before
+  # starting. Until then the keyring can't answer, and Element takes that to
+  # mean there is no key yet: it writes a new one over the old, and the saved
+  # login is lost. Runs outside the sandbox, so it covers the login autostart
+  # and Super + C alike.
+  element-desktop = let
+    waitForGpg = pkgs.writeShellScript "wait-for-gpg" ''
+      export PATH=${lib.makeBinPath [ pkgs.gnupg pkgs.gawk pkgs.libnotify ]}
+      unlocked() {
+        # 7th field of KEYINFO is 1 when the key's passphrase is cached
+        gpg-connect-agent 'keyinfo --list' /bye | awk '$7 == "1" { f = 1 } END { exit !f }'
+      }
+      unlocked && exit 0
+      notify-send -a Element "Element is waiting" "Touch your YubiKey to unlock app logins"
+      until unlocked; do sleep 2; done
+    '';
+    sandboxed = makeGuiSandbox {
+      package = let
+        element = pkgs.element-desktop.override { commandLineArgs = "--password-store=gnome-libsecret"; };
+        xdgOpen = pkgs.writeShellScriptBin "xdg-open" ''
+          exec ${pkgs.glib.bin}/bin/gdbus call --session \
+            --dest org.freedesktop.portal.Desktop --object-path /org/freedesktop/portal/desktop \
+            --method org.freedesktop.portal.OpenURI.OpenURI "" "$1" "{'ask': <true>}" > /dev/null
+        '';
+      in pkgs.symlinkJoin {
+        name = "element-desktop-xdg-open";
+        paths = [ element ];
+        nativeBuildInputs = [ pkgs.makeWrapper ];
+        postBuild = ''
+          wrapProgram $out/bin/element-desktop --prefix PATH : ${xdgOpen}/bin
+        '';
+        meta.mainProgram = "element-desktop";
+      };
+      name = "element"; machineId = true; state = "disk"; secrets = true;
+    };
+  in pkgs.symlinkJoin {
+    name = "element-desktop-sandboxed";
+    paths = [ sandboxed ];
+    nativeBuildInputs = [ pkgs.makeWrapper ];
+    postBuild = ''
+      wrapProgram $out/bin/element-desktop --run ${waitForGpg}
+    '';
+    meta.mainProgram = "element-desktop";
+  };
 
   # --- Downloads ---
   # qBittorrent downloads into ~/torrents, the same path inside and outside
