@@ -91,11 +91,11 @@ The music, audiobooks and video all live on the Storage Box, mounted at
 
 ## Matrix
 
-One inbox for Telegram, Discord DMs, Instagram and Google Messages (SMS and
-RCS, relayed by the phone) (`services/matrix.nix`).
+One inbox for Telegram, Discord DMs, Instagram, Google Messages (SMS and
+RCS, relayed by the phone) and Signal (a linked device) (`services/matrix.nix`).
 continuwuity is the homeserver: one user (`@arlo:emberfox.net`), no
-federation, no registration, reachable only over NetBird. Signal is
-deliberately not bridged: it stays end-to-end in Molly.
+federation, no registration, reachable only over NetBird. Bridging Signal
+means its end-to-end encryption stops at this box: an accepted trade-off.
 
 The bridges decrypt everything on this box, and their folders hold live
 logins to every bridged account. Media goes to a `matrix` folder on the Storage Box

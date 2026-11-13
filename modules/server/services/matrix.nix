@@ -1,5 +1,5 @@
 # Matrix as one inbox: continuwuity (homeserver) plus Telegram, Discord (DMs),
-# Instagram and Google Messages bridges. Private (matrix.<privateDomain>), one
+# Instagram, Google Messages and Signal bridges. Private (matrix.<privateDomain>), one
 # user, no federation. Overview: hosts/fox-red/README.md, "Matrix".
 { config, pkgs, srv, inputs, ... }:
 let
@@ -156,6 +156,26 @@ in
   };
   systemd.services.mautrix-meta-instagram.serviceConfig.MemoryMax = "512M";
 
+  # Signal, linked to the phone as a secondary device (like Signal Desktop).
+  # Accepted risk: this ends Signal's end-to-end encryption at this box, and
+  # its folder holds a live linked device. Unlink it from the phone to cut it off.
+  services.mautrix-signal = {
+    enable = true;
+    package = pkgs.mautrix-signal.override { withGoolm = true; };   # no libolm
+    registerToSynapse = false;
+    environmentFile = env;
+    serviceDependencies = [ "continuwuity.service" ];
+    settings = {
+      homeserver = { address = hs; domain = priv; };
+      # The module default is [::], every interface.
+      appservice = { hostname = "127.0.0.1"; address = "http://127.0.0.1:29328"; };
+      bridge.permissions = { ${me} = "admin"; };
+      double_puppet.secrets = doublePuppet;
+      encryption = { allow = false; default = false; require = false; };   # as Instagram
+    };
+  };
+  systemd.services.mautrix-signal.serviceConfig.MemoryMax = "512M";
+
   # Google Messages (SMS/RCS), paired with the phone like Messages for Web; the
   # phone relays everything. No NixOS module exists, so this follows what the
   # mautrix-meta one does: config from Nix, registration generated once, its
@@ -254,6 +274,7 @@ in
       "/var/lib/mautrix-discord"
       "/var/lib/mautrix-meta-instagram"
       "/var/lib/mautrix-gmessages"
+      "/var/lib/mautrix-signal"
     ];
     exclude = [ "/var/lib/mautrix-*/*.db" "/var/lib/mautrix-*/*.db-*" ];
     sqlite = [
@@ -261,6 +282,7 @@ in
       "/var/lib/mautrix-discord/mautrix-discord.db"
       "/var/lib/mautrix-meta-instagram/mautrix-meta.db"
       "/var/lib/mautrix-gmessages/mautrix-gmessages.db"
+      "/var/lib/mautrix-signal/mautrix-signal.db"
     ];
     prepare = ''
       if [ -d /var/lib/private/continuwuity ]; then
