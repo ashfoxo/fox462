@@ -67,8 +67,8 @@ in
     # --- Communication ------------------------------------------------------
     sandboxes.signal-desktop
     sandboxes.element-desktop  # Matrix (fox-red)
-    sandboxes.telegram-desktop
-    sandboxes.vesktop          # Discord
+    sandboxes.telegram-desktop # calls only, RAM only
+    sandboxes.vesktop          # Discord calls only, RAM only
 
     # --- Media ---------------------------------------------------------------
     pkgs.feishin               # Navidrome music

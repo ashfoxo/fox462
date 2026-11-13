@@ -27,9 +27,7 @@ let
     ".local/share/sandboxes/signal"
     ".local/share/sandboxes/element"
     ".local/share/sandboxes/librewolf"
-    ".local/share/sandboxes/telegram" ".local/share/sandboxes/vesktop"   # their logins only; the rest is in RAM
     ".local/share/sandboxes/webapp-claude" ".local/share/sandboxes/webapp-elk"
-    ".local/share/sandboxes/webapp-messages"
     ".local/share/sandboxes/webapp-spotify"
     ".local/share/sandboxes/prismlauncher"   # Minecraft worlds, synced by syncthing.nix
     ".local/share/whisper"                   # voice note speech model (public download)

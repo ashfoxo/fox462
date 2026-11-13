@@ -76,9 +76,7 @@ local pads = require("arlo.scratchpads")
 local win = require("arlo.windows")
 
 for _, pad in ipairs(pads) do
-    if not pad.chat then
         bind(mod .. " + " .. pad.key, win.toggle_pad(pad.name), "Scratchpad: " .. pad.name)
-    end
 end
 
 -- Super + O: scratchpad <-> normal tiled window on this workspace.
@@ -86,19 +84,6 @@ bind(mod .. " + O", win.pop(), "Scratchpad: Pop out as a normal window, or back 
 -- Super + X: hide the window (the bar's "hidden" item brings it back).
 -- On a scratchpad, just hides the scratchpad.
 bind(mod .. " + X", win.hide(), "Window: Hide, bring back from the bar")
-
--- Chat apps: Super + C, then a letter (s, t, d, m). Escape, or any other
--- key, cancels.
-bind(mod .. " + C", hl.dsp.submap("chat"), "Chat: Then a letter for the app, Esc cancels")
-hl.define_submap("chat", "reset", function()
-    for _, pad in ipairs(pads) do
-        if pad.chat then
-            bind(pad.key, win.toggle_pad(pad.name), "Chat: " .. pad.name)
-        end
-    end
-    bind("Escape", hl.dsp.submap("reset"), "Chat: Cancel")
-    bind("catchall", hl.dsp.submap("reset"), "Chat: Any other key cancels")
-end)
 
 -----------------
 ---- SESSION ----

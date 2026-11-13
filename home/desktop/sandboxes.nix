@@ -204,10 +204,10 @@ in
   prismlauncher    = makeGuiSandbox { package = pkgs.prismlauncher;    name = "prismlauncher"; state = "disk"; };  # worlds; synced by syncthing.nix
 
   # --- Communication ---
-  vesktop          = makeGuiSandbox { package = pkgs.vesktop;          name = "vesktop"; rawPipeWire = true; machineId = true;
-    persist = [ ".config/vesktop/Local Storage" ".config/vesktop/Network" ".config/vesktop/IndexedDB" ".config/vesktop/settings" ]; };
-  telegram-desktop = makeGuiSandbox { package = pkgs.telegram-desktop; name = "telegram";
-    persist = [ ".local/share/TelegramDesktop/tdata" ]; };
+  # Day to day, Telegram and Discord come through the Matrix bridges. These are
+  # for calls: RAM only, so log in each boot and nothing stays on disk.
+  vesktop          = makeGuiSandbox { package = pkgs.vesktop;          name = "vesktop"; rawPipeWire = true; };
+  telegram-desktop = makeGuiSandbox { package = pkgs.telegram-desktop; name = "telegram"; };
   # Signal's login and message database are one store: it stays on disk.
   signal-desktop   = makeGuiSandbox { package = pkgs.signal-desktop;   name = "signal"; machineId = true; state = "disk"; };
 
@@ -294,7 +294,6 @@ in
   webapp-claude  = makeWebApp "webapp-claude" { };
   webapp-elk     = makeWebApp "webapp-elk" { };
   webapp-gmail   = makeWebApp "webapp-gmail" { keepLogin = false; };
-  webapp-messages = makeWebApp "webapp-messages" { };
   webapp-spotify = makeWebApp "webapp-spotify" { drm = true; };
 
   # The health page (home/desktop/health): app-mode Chromium with no network,

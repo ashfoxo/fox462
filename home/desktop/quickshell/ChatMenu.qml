@@ -1,5 +1,5 @@
 // Chat dropdown (+chat on the bar): a button per chat app with its unread
-// count (opens its scratchpad, same as Super + C and its letter), then the
+// count (opens its scratchpad, same as its Super key), then the
 // messages that came in, newest first. They stay until you press clear.
 import QtQuick
 import Quickshell

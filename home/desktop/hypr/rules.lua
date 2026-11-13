@@ -34,9 +34,8 @@ end
 -------------------------------------
 -- Opened silently into their special workspace, floating and centered,
 -- 75% of the screen unless the entry gives a size.
--- The list is scratchpads.nix (via hyprland.nix). Telegram's sandbox leaves
--- its class empty, so it also matches on title; both must match, so a
--- browser tab titled "Telegram" won't count.
+-- The list is scratchpads.nix (via hyprland.nix). An entry with a title
+-- must match both class and title.
 
 for _, s in ipairs(require("arlo.scratchpads")) do
     hl.window_rule({

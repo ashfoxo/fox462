@@ -26,7 +26,6 @@ let
     { id = "claude"; name = "Claude"; url = "https://claude.ai";        host = "claude.ai";        workspace = 3; }
     { id = "elk";    name = "Elk";    url = "https://elk.zone";         host = "elk.zone";         workspace = 5; }
     { id = "gmail";  name = "Gmail";  url = "https://mail.google.com";  host = "mail.google.com";  workspace = 5; }
-    { id = "messages"; name = "Messages"; url = "https://messages.google.com/web"; host = "messages.google.com"; }
     { id = "spotify"; name = "Spotify"; url = "https://open.spotify.com/"; host = "open.spotify.com"; workspace = 8; }
   ];
 
