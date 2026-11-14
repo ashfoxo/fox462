@@ -227,8 +227,8 @@ in
     waitForGpg = pkgs.writeShellScript "wait-for-gpg" ''
       export PATH=${lib.makeBinPath [ pkgs.gnupg pkgs.gawk pkgs.libnotify ]}
       unlocked() {
-        # 7th field of KEYINFO is 1 when the key's passphrase is cached
-        gpg-connect-agent 'keyinfo --list' /bye | awk '$7 == "1" { f = 1 } END { exit !f }'
+        # A real decrypt test: KEYINFO says "cached" even for a bad preset.
+        echo x | gpg --batch --default-recipient-self -e 2>/dev/null | gpg --batch --pinentry-mode error -d >/dev/null 2>&1
       }
       unlocked && exit 0
       notify-send -a Element "Element is waiting" "Touch your YubiKey to unlock app logins"

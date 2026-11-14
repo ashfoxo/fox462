@@ -1,6 +1,7 @@
 { pkgs, ... }:
 
-# One YubiKey touch at login unlocks GPG (pass, and the app logins
+# One YubiKey touch right after you pass the lock screen (lock-screen.nix
+# starts this service) unlocks GPG (pass, and the app logins
 # pass-secret-service serves) for the whole session. The GPG key's passphrase
 # is random and nobody types it: it's stored only in ~/.gnupg/passphrase.age,
 # encrypted to both YubiKeys (FIDO2, age-plugin-fido2-hmac) and to a recovery
@@ -15,7 +16,13 @@ let
   deps = with pkgs; [ age age-plugin-fido2-hmac gnupg gawk libnotify ];
 
   unlock = pkgs.writeShellScript "gpg-unlock" ''
+    set -e
     export PATH=${pkgs.lib.makeBinPath deps}
+    # Already unlocked (a later re-lock): no touch needed. A real decrypt test,
+    # because the agent says "cached" even when a failed touch preset an empty
+    # passphrase. (Not signing: that fails with this passphrase, cause unknown.)
+    echo x | gpg --batch --default-recipient-self -e 2>/dev/null | gpg --batch --pinentry-mode error -d >/dev/null 2>&1 && exit 0
+    gpg-connect-agent reloadagent /bye >/dev/null   # drop any bad preset
     file=$HOME/.gnupg/passphrase.age
     [ -e "$file" ] || exit 0   # not set up yet
     notify-send -a GPG "Touch your YubiKey" "Unlocks pass and app logins for this session"
@@ -43,6 +50,5 @@ in
       Restart = "on-failure";
       RestartSec = 20;
     };
-    Install.WantedBy = [ "graphical-session.target" ];
   };
 }
