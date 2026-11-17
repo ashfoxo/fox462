@@ -8,8 +8,7 @@
 -- Send each app to its workspace role. The terminal and file manager are
 -- deliberately not pinned: you want those on whatever workspace you're using.
 local workspaces = {
-    [2] = { "^librewolf$", "^Mullvad Browser$", "^fluent-reader$",
-            "^org\\.qutebrowser\\.qutebrowser$" },                          -- Web
+    [2] = { "^librewolf$", "^Mullvad Browser$", "^fluent-reader$" },     -- Web
     [3] = { "^codium$" },                                                      -- Dev
     [4] = { "^typora$", "^libreoffice-.*$" },                       -- Writing
     [5] = { "^zoom$" },                                                        -- Comms (chat apps are scratchpads)

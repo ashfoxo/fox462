@@ -182,24 +182,6 @@ in
     state = "logins";
   };
 
-  # Keyboard-driven browser. Its config (qutebrowser.py) is baked into the
-  # package with --config-py, because the sandbox can't see ~/.config.
-  qutebrowser = makeGuiSandbox {
-    package = pkgs.symlinkJoin {
-      name = "qutebrowser-configured";
-      paths = [ pkgs.qutebrowser ];
-      nativeBuildInputs = [ pkgs.makeWrapper ];
-      postBuild = ''
-        wrapProgram $out/bin/qutebrowser \
-          --add-flags "--config-py ${./qutebrowser.py}"
-      '';
-      meta.mainProgram = "qutebrowser";
-    };
-    name = "qutebrowser";
-    # Native Wayland; the sandbox has no X11.
-    extraEnv = { QT_QPA_PLATFORM = "wayland"; };
-  };
-
   # --- Gaming ---
   prismlauncher    = makeGuiSandbox { package = pkgs.prismlauncher;    name = "prismlauncher"; state = "disk"; };  # worlds; synced by syncthing.nix
 

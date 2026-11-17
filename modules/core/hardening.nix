@@ -42,6 +42,8 @@
     "page_alloc.shuffle=1"
     "vsyscall=none"
     "debugfs=off"
+    # IOMMU: devices only reach the RAM they're given, and VMs can be handed a device.
+    "intel_iommu=on"
   ];
 
   # FireWire and Thunderbolt are DMA paths into RAM and nothing here uses them
