@@ -4,6 +4,14 @@
   networking.networkmanager.enable = true;
   # Wi-Fi MAC address randomization per connection (stops physical device tracking across venues)
   networking.networkmanager.wifi.macAddress = "stable-ssid";
+  # Wired never connects by itself: Wi-Fi will live in sys-net, and a cable must
+  # not quietly put the host online. Connect on purpose: nmcli connection up wired
+  networking.networkmanager.settings.main.no-auto-default = "*";
+  networking.networkmanager.ensureProfiles.profiles.wired = {
+    connection = { id = "wired"; type = "ethernet"; autoconnect = false; };
+    ipv4.method = "auto";
+    ipv6.method = "auto";
+  };
 
   networking.firewall.enable = true;
   # wt0 is not trusted. Peers get only the ports opened per port on wt0:
