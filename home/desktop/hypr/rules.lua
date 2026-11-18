@@ -82,8 +82,14 @@ hl.window_rule({
 -- of every title, so the border colour says which VM drew the window, focused
 -- or not. Patterns must match the whole title, hence the trailing .*
 local c = require("arlo.palette")
-hl.window_rule({
-    name         = "vm-untrusted",
-    match        = { title = "^\\[untrusted\\] .*" },
-    border_color = c.rgb(c.rust_text) .. " " .. c.rgb(c.rust_text),
-})
+local vm_colours = {
+    ["untrusted"] = c.rust_text,
+    ["sys-net"]   = c.amber,
+}
+for vm, colour in pairs(vm_colours) do
+    hl.window_rule({
+        name         = "vm-" .. vm,
+        match        = { title = "^\\[" .. vm:gsub("%-", "\\-") .. "\\] .*" },
+        border_color = c.rgb(colour) .. " " .. c.rgb(colour),
+    })
+end

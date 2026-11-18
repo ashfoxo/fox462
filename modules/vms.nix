@@ -1,37 +1,60 @@
 # Qubes-style VMs with microvm.nix (https://microvm-nix.github.io/microvm.nix/).
 # Each VM is a NixOS config below. A VM sees only its own programs (built into
-# a read-only image, not the host's whole /nix/store) and has no disk of its
-# own, so everything it writes is gone when it stops: a disposable.
+# a read-only image, not the host's whole /nix/store) and keeps nothing between
+# boots unless it has a volume: a disposable.
 #
 #   sudo systemctl start microvm@untrusted    boot it (console: journalctl -fu microvm@untrusted)
 #   sudo systemctl stop microvm@untrusted     power off; everything inside is gone
 #   microvm -l                                list VMs and whether they're out of date
 #
-# Windows: an app in the VM talks Wayland to `waypipe server`, which sends it
+# Windows: an app in a VM talks Wayland to `waypipe server`, which sends it
 # over vsock (a VM-to-host channel, not a network) to the host. There,
-# waypipe-gate checks which VM is calling, and `waypipe client` puts the window
-# on Hyprland with "[untrusted] " in front of its title. hypr/rules.lua colours
-# the border by that label. The label is added on the host, so a VM can't
-# pick it.
+# waypipe-gate checks which VM is calling, and that VM's `waypipe client` puts
+# the window on Hyprland with "[<vm>] " in front of its title. hypr/rules.lua
+# colours the border by that label. The label is added on the host, so a VM
+# can't pick it.
+#
+# Launchers: vm-open starts the VM if needed and sends an app name to the VM's
+# vsock port 6000; the VM opens only names in its `apps`.
 { inputs, pkgs, lib, ... }:
 let
-  # The VM's vsock address (the host assigns it; a VM can't fake it) and the
-  # host port its windows arrive on.
-  cid = 3;
-  port = 5003;
-
-  # Apps the VM will open, by the name the host asks for.
-  apps = {
-    terminal = "${pkgs.foot}/bin/foot";
-    mullvad-browser = lib.getExe pkgs.mullvad-browser;
+  # cid: the VM's vsock address (the host assigns it; a VM can't fake it).
+  # Its windows arrive on host port 5000 + cid.
+  # apps: what the VM may open, name -> command.
+  # launchers: entries in the app launcher, "<vm>: <label>".
+  vms = {
+    untrusted = {
+      cid = 3;
+      apps = {
+        terminal = [ "${pkgs.foot}/bin/foot" ];
+        mullvad-browser = [ (lib.getExe pkgs.mullvad-browser) ];
+      };
+      launchers = [
+        { app = "terminal"; label = "Terminal"; icon = "utilities-terminal"; }
+        { app = "mullvad-browser"; label = "Mullvad Browser"; icon = "mullvad-browser"; }
+      ];
+    };
+    sys-net = {
+      cid = 4;
+      apps.wifi = [ "${pkgs.foot}/bin/foot" "${pkgs.networkmanager}/bin/nmtui" ];
+      launchers = [ { app = "wifi"; label = "Wi-Fi"; icon = "network-wireless"; } ];
+    };
   };
+  port = vm: toString (5000 + vm.cid);
 
-  # vm-open <vm> <cid> <app>: start the VM if it isn't running, then ask it
-  # for the app, retrying while it boots.
+  # The host <-> sys-net link: a point-to-point /30.
+  sysNetAddr = "10.137.0.1";
+  hostAddr = "10.137.0.2";
+  # microvm's tap-up creates the tap owned by this user; NetworkManager's
+  # profile must name the same owner to take the device over.
+  microvmUid = 988;
+
   vmOpen = pkgs.writeShellApplication {
     name = "vm-open";
     runtimeInputs = [ pkgs.socat pkgs.systemd pkgs.libnotify ];
     text = ''
+      # vm-open <vm> <cid> <app>: start the VM if it isn't running, then ask
+      # it for the app, retrying while it boots.
       vm=$1 cid=$2 app=$3
       systemctl start "microvm@$vm.service"
       for _ in $(seq 60); do
@@ -42,21 +65,64 @@ let
       exit 1
     '';
   };
-  launcher = app: label: icon: pkgs.makeDesktopItem {
-    name = "vm-untrusted-${app}";
-    desktopName = "untrusted: ${label}";
-    exec = "vm-open untrusted ${toString cid} ${app}";
-    inherit icon;
+
+  # What every VM has: its vsock address, a plain user, and the app listener.
+  guestBase = name: vm: {
+    microvm = {
+      hypervisor = "qemu";
+      vcpu = 2;
+      vsock.cid = vm.cid;
+    };
+    networking.hostName = name;
+    networking.useDHCP = false;
+
+    # Console logs straight in as root (journalctl -fu microvm@<vm> shows it).
+    services.getty.autologinUser = "root";
+
+    # Apps run as this plain user, never root. Linger gives it /run/user/1000.
+    users.users.user = { isNormalUser = true; uid = 1000; linger = true; };
+    fonts.packages = [ pkgs.dejavu_fonts ];
+
+    # Only the host can reach this port: VMs can't talk to each other over vsock.
+    systemd.sockets.app-launch = {
+      wantedBy = [ "sockets.target" ];
+      socketConfig = { ListenStream = "vsock::6000"; Accept = true; };
+    };
+    systemd.services."app-launch@".serviceConfig = {
+      User = "user";
+      StandardInput = "socket";
+      StandardOutput = "null";
+      StandardError = "journal";
+      Environment = "XDG_RUNTIME_DIR=/run/user/1000";
+      ExecStart = pkgs.writeShellScript "app-launch" ''
+        read -r -t 5 name || exit 1
+        case "$name" in
+        ${lib.concatStrings (lib.mapAttrsToList (n: cmd: "  ${n}) set -- ${lib.escapeShellArgs cmd} ;;\n") vm.apps)}
+          *) echo "refused unknown app '$name'" >&2; exit 1 ;;
+        esac
+        exec </dev/null ${pkgs.waypipe}/bin/waypipe --no-gpu --vsock -s 2:${port vm} server -- "$@"
+      '';
+    };
+
+    system.stateVersion = "26.05";
   };
 in
 {
   imports = [ inputs.microvm.nixosModules.host ];
 
-  environment.systemPackages = [
-    vmOpen
-    (launcher "terminal" "Terminal" "utilities-terminal")
-    (launcher "mullvad-browser" "Mullvad Browser" "mullvad-browser")
-  ];
+  # Kernel modules are locked after boot (core/hardening.nix), so these load
+  # now: vsock for windows, VFIO for handing the Wi-Fi card to sys-net.
+  boot.kernelModules = [ "vhost_vsock" "vfio" "vfio_pci" "vfio_iommu_type1" ];
+
+  users.users.microvm.uid = microvmUid;
+
+  environment.systemPackages = [ vmOpen ] ++ lib.concatLists (lib.mapAttrsToList (name: vm:
+    map (l: pkgs.makeDesktopItem {
+      name = "vm-${name}-${l.app}";
+      desktopName = "${name}: ${l.label}";
+      exec = "vm-open ${name} ${toString vm.cid} ${l.app}";
+      inherit (l) icon;
+    }) vm.launchers) vms);
 
   # Your user may start, stop and restart VMs without the PIN and touch, so a
   # launcher click doesn't ask. Only microvm@ units, only those three verbs.
@@ -70,84 +136,69 @@ in
     });
   '';
 
-  # Kernel modules are locked after boot (core/hardening.nix), so vsock loads now.
-  boot.kernelModules = [ "vhost_vsock" ];
-
-  # Host side of the windows, in your graphical session.
-  systemd.user.services.waypipe-untrusted = {
-    description = "Windows from the untrusted VM";
-    partOf = [ "graphical-session.target" ];
-    after = [ "graphical-session.target" ];
-    wantedBy = [ "graphical-session.target" ];
-    serviceConfig = {
-      ExecStartPre = "-${pkgs.coreutils}/bin/rm -f %t/waypipe-untrusted.sock";
-      ExecStart = "${pkgs.waypipe}/bin/waypipe --no-gpu --title-prefix '[untrusted] ' -s %t/waypipe-untrusted.sock client";
+  # Host side of the windows, per VM, in your graphical session.
+  systemd.user.services = lib.concatMapAttrs (name: vm: {
+    "waypipe-${name}" = {
+      description = "Windows from the ${name} VM";
+      partOf = [ "graphical-session.target" ];
+      after = [ "graphical-session.target" ];
+      wantedBy = [ "graphical-session.target" ];
+      serviceConfig = {
+        ExecStartPre = "-${pkgs.coreutils}/bin/rm -f %t/waypipe-${name}.sock";
+        ExecStart = "${pkgs.waypipe}/bin/waypipe --no-gpu --title-prefix '[${name}] ' -s %t/waypipe-${name}.sock client";
+      };
     };
-  };
-  systemd.user.sockets.waypipe-untrusted-gate = {
-    description = "Window connections from VMs, for the untrusted VM";
-    partOf = [ "graphical-session.target" ];
-    wantedBy = [ "graphical-session.target" ];
-    socketConfig = {
-      ListenStream = "vsock::${toString port}";
-      Accept = true;
-    };
-  };
-  systemd.user.services."waypipe-untrusted-gate@" = {
-    serviceConfig = {
-      ExecStart = "${pkgs.bash}/bin/bash ${../scripts/waypipe-gate.sh} %i ${toString cid} %t/waypipe-untrusted.sock";
+    "waypipe-${name}-gate@".serviceConfig = {
+      ExecStart = "${pkgs.bash}/bin/bash ${../scripts/waypipe-gate.sh} %i ${toString vm.cid} %t/waypipe-${name}.sock";
       StandardInput = "socket";
       StandardError = "journal";
       Environment = "PATH=${pkgs.socat}/bin";
     };
+  }) vms;
+  systemd.user.sockets = lib.concatMapAttrs (name: vm: {
+    "waypipe-${name}-gate" = {
+      description = "Window connections from VMs, for the ${name} VM";
+      partOf = [ "graphical-session.target" ];
+      wantedBy = [ "graphical-session.target" ];
+      socketConfig = { ListenStream = "vsock::${port vm}"; Accept = true; };
+    };
+  }) vms;
+
+  # The host's end of the sys-net link. microvm creates the tap when sys-net
+  # starts; NetworkManager takes it over and gives it the address.
+  # shortcut: never-default, so the host still goes out over its own Wi-Fi;
+  # stage 3a-2 makes this the default route when the card moves into sys-net.
+  networking.networkmanager.ensureProfiles.profiles.sys-net = {
+    connection = { id = "sys-net"; type = "tun"; interface-name = "vm-sysnet"; };
+    tun = { mode = 2; owner = toString microvmUid; vnet-hdr = true; multi-queue = true; };
+    ipv4 = { method = "manual"; address1 = "${hostAddr}/30"; never-default = true; };
+    ipv6.method = "disabled";
   };
 
-  # Not at boot; it runs when you start it.
-  microvm.vms.untrusted.autostart = false;
-  microvm.vms.untrusted.config = {
-    microvm = {
-      hypervisor = "qemu";
-      vcpu = 2;
-      mem = 1024; # MiB
-      vsock.cid = cid;
-    };
-
-    networking.hostName = "untrusted";
-    # No network at all yet; sys-net comes later.
-    networking.useDHCP = false;
-
-    # Console logs straight in as root: the VM is disposable and offline.
-    services.getty.autologinUser = "root";
-
-    # Apps run as this plain user, never root. Linger gives it /run/user/1000.
-    users.users.user = { isNormalUser = true; uid = 1000; linger = true; };
-    fonts.packages = [ pkgs.dejavu_fonts ];
-
-    # The host asks for an app by name on vsock port 6000 (vm-open, below).
-    # Only names in `apps` run. Only the host can reach this port: VMs can't
-    # talk to each other over vsock.
-    systemd.sockets.app-launch = {
-      wantedBy = [ "sockets.target" ];
-      socketConfig = { ListenStream = "vsock::6000"; Accept = true; };
-    };
-    systemd.services."app-launch@" = {
-      serviceConfig = {
-        User = "user";
-        StandardInput = "socket";
-        StandardOutput = "null";
-        StandardError = "journal";
-        Environment = "XDG_RUNTIME_DIR=/run/user/1000";
-        ExecStart = pkgs.writeShellScript "app-launch" ''
-          read -r -t 5 name || exit 1
-          case "$name" in
-          ${lib.concatStrings (lib.mapAttrsToList (n: bin: "  ${n}) app=${bin} ;;\n") apps)}
-            *) echo "refused unknown app '$name'" >&2; exit 1 ;;
-          esac
-          exec </dev/null ${pkgs.waypipe}/bin/waypipe --no-gpu --vsock -s 2:${toString port} server -- "$app"
-        '';
+  microvm.vms = lib.mapAttrs (name: vm: {
+    autostart = false;
+    config = guestBase name vm;
+  }) vms // {
+    sys-net = {
+      autostart = false;
+      config = {
+        imports = [ (guestBase "sys-net" vms.sys-net) ];
+        microvm = {
+          mem = 768; # MiB
+          interfaces = [ { type = "tap"; id = "vm-sysnet"; mac = "02:00:00:00:04:01"; } ];
+          # Saved Wi-Fi networks survive reboots: /var/lib/microvms/sys-net/wifi.img
+          volumes = [ { image = "wifi.img"; mountPoint = "/etc/NetworkManager/system-connections"; size = 16; } ];
+        };
+        networking.networkmanager.enable = true;
+        # nmtui runs as `user`; this group may change networks without a password.
+        users.users.user.extraGroups = [ "networkmanager" ];
+        networking.networkmanager.ensureProfiles.profiles.uplink = {
+          connection = { id = "uplink"; type = "ethernet"; };
+          ethernet.mac-address = "02:00:00:00:04:01";
+          ipv4 = { method = "manual"; address1 = "${sysNetAddr}/30"; };
+          ipv6.method = "disabled";
+        };
       };
     };
-
-    system.stateVersion = "26.05";
   };
 }

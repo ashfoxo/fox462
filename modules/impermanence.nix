@@ -11,6 +11,7 @@
   # history (upower) is left out on purpose: it records when the laptop ran.
   environment.persistence."/persist".directories = [
     "/var/lib/nixos"                   # UID/GID allocations; without it users shift
+    { directory = "/var/lib/microvms"; user = "microvm"; group = "kvm"; mode = "0775"; }  # VM volumes (sys-net's saved Wi-Fi), vms.nix
     "/var/lib/systemd/timers"
     "/var/lib/systemd/backlight"       # brightness
     "/var/lib/systemd/rfkill"          # wifi/bluetooth soft-block state
