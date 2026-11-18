@@ -7,6 +7,7 @@
     ../../modules/personal.nix
     ../../modules/hardware/laptop.nix
     ../../modules/services/auto-update.nix   # pings when flake inputs have updates
+    ../../modules/vms.nix                    # Qubes-style VMs
   ];
 
   networking.hostName = "workstation";

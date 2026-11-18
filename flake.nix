@@ -42,6 +42,12 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Qubes-style VMs on the laptop (modules/vms.nix)
+    microvm = {
+      url = "github:microvm-nix/microvm.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # Declarative partitioning: hosts/<name>/disko.nix is the disk layout,
     # and nixos-anywhere uses it to wipe, partition and install in one go.
     disko = {
@@ -80,6 +86,7 @@
             cd ${./.}
             shellcheck -S warning *.sh scripts/*.sh
             bash scripts/dvd-classify-test.sh
+            bash scripts/waypipe-gate-test.sh
             touch $out
           '';
     };

@@ -77,3 +77,13 @@ hl.window_rule({
                  fullscreen = false, pin = false },
     no_focus = true,
 })
+
+-- Windows from a VM (modules/vms.nix): the host's waypipe puts "[vm] " in front
+-- of every title, so the border colour says which VM drew the window, focused
+-- or not. Patterns must match the whole title, hence the trailing .*
+local c = require("arlo.palette")
+hl.window_rule({
+    name         = "vm-untrusted",
+    match        = { title = "^\\[untrusted\\] .*" },
+    border_color = c.rgb(c.rust_text) .. " " .. c.rgb(c.rust_text),
+})
