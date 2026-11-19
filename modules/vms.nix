@@ -16,7 +16,7 @@
 #
 # Launchers: vm-open starts the VM if needed and sends an app name to the VM's
 # vsock port 6000; the VM opens only names in its `apps`.
-{ inputs, pkgs, lib, ... }:
+{ inputs, pkgs, lib, utils, ... }:
 let
   # cid: the VM's vsock address (the host assigns it; a VM can't fake it).
   # Its windows arrive on host port 5000 + cid.
@@ -36,11 +36,33 @@ let
     };
     sys-net = {
       cid = 4;
+      pci = true; # has the Wi-Fi card, so its virtual NICs are PCI too
       apps.wifi = [ "${pkgs.foot}/bin/foot" "${pkgs.networkmanager}/bin/nmtui" ];
       launchers = [ { app = "wifi"; label = "Wi-Fi"; icon = "network-wireless"; } ];
     };
+    sys-vpn = { cid = 5; apps = { }; launchers = [ ]; };
   };
   port = vm: toString (5000 + vm.cid);
+
+  # Links between VMs. Each is a pair of Unix datagram sockets in linkDir that
+  # qemu joins directly: VM-to-VM traffic never touches the host's network
+  # stack. `a` is the end nearer the internet (<net>.1), `b` the other (<net>.2).
+  # Inside each VM the NIC is named after the link.
+  links = {
+    sysnet-vpn    = { id = "11"; a = "sys-net"; b = "sys-vpn";   net = "10.137.1"; };
+    vpn-untrusted = { id = "12"; a = "sys-vpn"; b = "untrusted"; net = "10.137.2"; };
+  };
+  linkDir = "/run/microvm-links";
+  linkMac = l: side: "02:00:00:00:${l.id}:0${if side == "a" then "1" else "2"}";
+  linkEnds = vmName: lib.concatLists (lib.mapAttrsToList (n: l:
+    lib.optional (l.a == vmName) { name = n; link = l; me = "a"; peer = "b"; }
+    ++ lib.optional (l.b == vmName) { name = n; link = l; me = "b"; peer = "a"; }) links);
+  # An end's address, e.g. linkAddr "vpn-untrusted" "a" -> "10.137.2.1".
+  linkAddr = n: side: "${links.${n}.net}.${if side == "a" then "1" else "2"}";
+
+  # sys-vpn's Mullvad device: its Address line (not secret). The private key
+  # is the sops secret mullvad-sysvpn-key.
+  sysVpnAddresses = [ "10.65.80.225/32" "fc00:bbbb:bbbb:bb01::2:50e0/128" ];
 
   # The host <-> sys-net link: a point-to-point /30.
   sysNetAddr = "10.137.0.1";
@@ -91,7 +113,16 @@ let
       hypervisor = "qemu";
       vcpu = 2;
       vsock.cid = vm.cid;
+      # One NIC per link this VM is on (see `links`).
+      qemu.extraArgs = lib.concatMap (e: [
+        "-netdev" "dgram,id=${e.name},local.type=unix,local.path=${linkDir}/${e.name}.${e.me},remote.type=unix,remote.path=${linkDir}/${e.name}.${e.peer}"
+        "-device" "${if vm.pci or false then "virtio-net-pci" else "virtio-net-device"},netdev=${e.name},mac=${linkMac e.link e.me}"
+      ]) (linkEnds name);
     };
+    systemd.network.links = lib.listToAttrs (map (e: lib.nameValuePair "20-${e.name}" {
+      matchConfig.MACAddress = linkMac e.link e.me;
+      linkConfig.Name = e.name;
+    }) (linkEnds name));
     networking.hostName = name;
     networking.useDHCP = false;
 
@@ -134,6 +165,12 @@ in
   boot.kernelModules = [ "vhost_vsock" "vfio" "vfio_pci" "vfio_iommu_type1" ];
 
   users.users.microvm.uid = microvmUid;
+
+  # The sockets of the VM-to-VM links (only qemu, running as microvm, uses them).
+  systemd.tmpfiles.rules = [ "d ${linkDir} 0750 microvm kvm -" ];
+
+  # sys-vpn's Mullvad key, handed into the VM as a systemd credential.
+  sops.secrets.mullvad-sysvpn-key.owner = "microvm";
 
   environment.systemPackages = [ vmOpen wifiToHost ] ++ lib.concatLists (lib.mapAttrsToList (name: vm:
     map (l: pkgs.makeDesktopItem {
@@ -256,7 +293,15 @@ in
           matchConfig.Driver = "iwlwifi";
           linkConfig.Name = "wifi";
         };
-        networking.nat = { enable = true; internalInterfaces = [ "uplink" ]; externalInterface = "wifi"; };
+        networking.nat = { enable = true; internalInterfaces = [ "uplink" "sysnet-vpn" ]; externalInterface = "wifi"; };
+        # Forward only out to Wi-Fi (and its replies): the host and sys-vpn
+        # can't reach each other through sys-net.
+        networking.firewall.extraCommands = ''
+          iptables -F FORWARD
+          iptables -P FORWARD DROP
+          iptables -A FORWARD -o wifi -j ACCEPT
+          iptables -A FORWARD -i wifi -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+        '';
 
         networking.networkmanager.enable = true;
         # Same as the host had: a different MAC address per network.
@@ -269,6 +314,118 @@ in
           ipv4 = { method = "manual"; address1 = "${sysNetAddr}/30"; };
           ipv6.method = "disabled";
         };
+        networking.networkmanager.ensureProfiles.profiles.sysnet-vpn = {
+          connection = { id = "sysnet-vpn"; type = "ethernet"; interface-name = "sysnet-vpn"; };
+          ipv4 = { method = "manual"; address1 = "${linkAddr "sysnet-vpn" "a"}/30"; };
+          ipv6.method = "disabled";
+        };
+      };
+    };
+
+    # sys-vpn: Mullvad for the VMs behind it, the same design as fox-red's
+    # torrent namespace (server/services/torrent.nix):
+    #
+    #   sys-net ── sysnet-vpn ──┬── main namespace: only wg-mullvad's encrypted UDP
+    #                           │   (and nothing else runs here)
+    #                           └── namespace "vpn": wg-mullvad + the links to the
+    #                               VMs behind it; wg-mullvad's routes are the
+    #                               only way out (kill switch by construction)
+    sys-vpn = {
+      autostart = true;
+      config = { config, ... }: {
+        imports = [
+          (guestBase "sys-vpn" vms.sys-vpn)
+          (import ./server/mullvad-rotate.nix {
+            inherit config lib pkgs;
+            srv.notify = "${pkgs.coreutils}/bin/echo";  # no desktop in here; it goes to the log
+          } {
+            name = "vpn-mullvad";
+            iface = "wg-mullvad";
+            country = "ca";
+            everyHours = 6;
+            # Used only until a server list has been fetched through the tunnel.
+            fallbackRelays = lib.concatStringsSep "\n" [
+              "ca-mtr-wg-001 TUCaQc26/R6AGpkDUr8A8ytUs/e5+UVlIVujbuBwlzI= 146.70.198.66"
+              "ca-tor-wg-001 HjcUGVDXWdrRkaKNpc/8494RM5eICO6DPyrhCtTv9Ws= 178.249.214.2"
+              "ca-van-wg-201 hYbb2NQKB0g2RefngdHl3bfaLImUuzeVIv2i1VCVIlQ= 104.193.135.196"
+            ];
+            serviceConfig = {
+              NetworkNamespacePath = "/run/netns/vpn";
+              BindReadOnlyPaths = [ "/etc/netns/vpn/resolv.conf:/etc/resolv.conf" ];
+            };
+          })
+        ];
+        microvm = {
+          mem = 384; # MiB
+          credentialFiles.mullvad-key = "/run/secrets/mullvad-sysvpn-key";
+        };
+
+        networking.interfaces.sysnet-vpn.ipv4.addresses = [ { address = linkAddr "sysnet-vpn" "b"; prefixLength = 30; } ];
+        networking.defaultGateway = { address = linkAddr "sysnet-vpn" "a"; interface = "sysnet-vpn"; };
+
+        # Moves the links to the VMs behind sys-vpn into "vpn" and lets them out
+        # through wg-mullvad only, masqueraded. Nothing forwards between them.
+        systemd.services.netns-vpn = let
+          downs = lib.filter (e: e.me == "a") (linkEnds "sys-vpn");
+          devUnits = map (e: "sys-subsystem-net-devices-${utils.escapeSystemdPath e.name}.device") downs;
+          ip = "${pkgs.iproute2}/bin/ip";
+          ipt = "${ip} netns exec vpn ${pkgs.iptables}/bin/iptables";
+        in {
+          wantedBy = [ "multi-user.target" ];
+          before = [ "wireguard-wg-mullvad.service" ];
+          requires = devUnits;
+          after = devUnits;
+          serviceConfig = { Type = "oneshot"; RemainAfterExit = true; };
+          script = ''
+            set -eu
+            [ -e /run/netns/vpn ] || ${ip} netns add vpn
+            ${ip} -n vpn link set lo up
+            ${ip} netns exec vpn ${pkgs.procps}/bin/sysctl -q -w net.ipv4.ip_forward=1
+          '' + lib.concatMapStrings (e: ''
+            ${ip} link show ${e.name} >/dev/null 2>&1 && ${ip} link set ${e.name} netns vpn
+            ${ip} netns exec vpn ${pkgs.procps}/bin/sysctl -q -w net.ipv6.conf.${e.name}.disable_ipv6=1
+            ${ip} -n vpn addr replace ${linkAddr e.name "a"}/30 dev ${e.name}
+            ${ip} -n vpn link set ${e.name} up
+          '') downs + ''
+            ${ipt} -t nat -F POSTROUTING
+            ${ipt} -t nat -A POSTROUTING -o wg-mullvad -j MASQUERADE
+            ${ipt} -t mangle -F FORWARD
+            ${ipt} -t mangle -A FORWARD -o wg-mullvad -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
+            ${ipt} -F FORWARD
+            ${ipt} -P FORWARD DROP
+            ${ipt} -A FORWARD -o wg-mullvad -j ACCEPT
+            ${ipt} -A FORWARD -i wg-mullvad -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+          '';
+        };
+
+        # The script-based WireGuard setup (like fox-red's): networkd's can't
+        # place the interface in another namespace.
+        networking.wireguard.useNetworkd = false;
+        networking.wireguard.interfaces.wg-mullvad = {
+          ips = sysVpnAddresses;
+          privateKeyFile = "/run/credentials/@system/mullvad-key";
+          interfaceNamespace = "vpn";
+          # No peer here: vpn-mullvad-rotate picks a Canadian server and adds
+          # the default routes inside "vpn".
+          peers = [ ];
+        };
+        systemd.services.wireguard-wg-mullvad = {
+          requires = [ "netns-vpn.service" ];
+          after = [ "netns-vpn.service" ];
+        };
+        # Mullvad's resolver, reached through the tunnel.
+        environment.etc."netns/vpn/resolv.conf".text = "nameserver 10.64.0.1\n";
+      };
+    };
+
+    untrusted = {
+      autostart = false;
+      config = {
+        imports = [ (guestBase "untrusted" vms.untrusted) ];
+        # Out through sys-vpn (Mullvad); Mullvad's resolver through the tunnel.
+        networking.interfaces.vpn-untrusted.ipv4.addresses = [ { address = linkAddr "vpn-untrusted" "b"; prefixLength = 30; } ];
+        networking.defaultGateway = { address = linkAddr "vpn-untrusted" "a"; interface = "vpn-untrusted"; };
+        networking.nameservers = [ "10.64.0.1" ];
       };
     };
   };
