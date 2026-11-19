@@ -66,6 +66,25 @@ let
     '';
   };
 
+  # The Wi-Fi card (IOMMU group 6, alone in it).
+  wifiPci = "0000:00:14.3";
+
+  # Escape hatch: sudo wifi-to-host gives the card back to the host until the
+  # next boot (sys-net starts at boot and takes it again).
+  wifiToHost = pkgs.writeShellApplication {
+    name = "wifi-to-host";
+    runtimeInputs = [ pkgs.systemd ];
+    text = ''
+      systemctl stop microvm@sys-net.service
+      d=/sys/bus/pci/devices/${wifiPci}
+      echo > "$d/driver_override"
+      if [ -e "$d/driver" ]; then echo ${wifiPci} > "$d/driver/unbind"; fi
+      echo ${wifiPci} > /sys/bus/pci/drivers_probe
+      echo "Wi-Fi is back on the host (driver: $(basename "$(readlink "$d/driver")"))."
+      echo "Pick a network with: nmtui"
+    '';
+  };
+
   # What every VM has: its vsock address, a plain user, and the app listener.
   guestBase = name: vm: {
     microvm = {
@@ -116,7 +135,7 @@ in
 
   users.users.microvm.uid = microvmUid;
 
-  environment.systemPackages = [ vmOpen ] ++ lib.concatLists (lib.mapAttrsToList (name: vm:
+  environment.systemPackages = [ vmOpen wifiToHost ] ++ lib.concatLists (lib.mapAttrsToList (name: vm:
     map (l: pkgs.makeDesktopItem {
       name = "vm-${name}-${l.app}";
       desktopName = "${name}: ${l.label}";
@@ -164,17 +183,39 @@ in
     };
   }) vms;
 
-  # The host's end of the sys-net link. microvm creates the tap when sys-net
-  # starts; NetworkManager takes it over and gives it the address.
-  # shortcut: never-default, so the host still goes out over its own Wi-Fi;
-  # stage 3a-2 makes this the default route when the card moves into sys-net.
+  # The host's end of the sys-net link, and its way to the internet: the Wi-Fi
+  # card lives in sys-net, which shares its connection (NAT). microvm creates
+  # the tap when sys-net starts; NetworkManager gives it the address.
+  # Metric 700: if the card is ever back on the host (wifi-to-host), the
+  # host's own Wi-Fi (600) wins.
   networking.networkmanager.ensureProfiles.profiles.sys-net = {
     # autoconnect off: NM would recreate the tap the moment microvm's tap-up
     # deletes it, and tap-up then fails (busy). The ExecStartPost below connects it.
     connection = { id = "sys-net"; type = "tun"; interface-name = "vm-sysnet"; autoconnect = false; };
     tun = { mode = 2; owner = toString microvmUid; vnet-hdr = true; multi-queue = true; };
-    ipv4 = { method = "manual"; address1 = "${hostAddr}/30"; never-default = true; };
+    ipv4 = {
+      method = "manual";
+      address1 = "${hostAddr}/30,${sysNetAddr}";
+      route-metric = 700;
+      # Mullvad replaces this while connected; it's for apps outside the tunnel.
+      dns = "9.9.9.9;";
+    };
     ipv6.method = "disabled";
+  };
+
+  # Stop sys-net before suspend and start it on wake, so the Wi-Fi card is
+  # never inside a VM across a suspend (passed-through cards often don't wake).
+  systemd.services.sys-net-sleep = {
+    description = "Stop sys-net before suspend, start it after";
+    before = [ "sleep.target" ];
+    wantedBy = [ "sleep.target" ];
+    unitConfig.StopWhenUnneeded = true;
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = "${pkgs.systemd}/bin/systemctl stop microvm@sys-net.service";
+      ExecStop = "${pkgs.systemd}/bin/systemctl start --no-block microvm@sys-net.service";
+    };
   };
   # microvm deletes and recreates the tap on every sys-net start, so connect it
   # once the tap exists. "-": a failure here must not stop sys-net from starting.
@@ -192,16 +233,34 @@ in
     config = guestBase name vm;
   }) vms // {
     sys-net = {
-      autostart = false;
+      # The host's internet comes through it, so it starts at boot.
+      autostart = true;
       config = {
         imports = [ (guestBase "sys-net" vms.sys-net) ];
         microvm = {
           mem = 768; # MiB
           interfaces = [ { type = "tap"; id = "vm-sysnet"; mac = "02:00:00:00:04:01"; } ];
+          devices = [ { bus = "pci"; path = wifiPci; } ];
           # Saved Wi-Fi networks survive reboots: /var/lib/microvms/sys-net/wifi.img
           volumes = [ { image = "wifi.img"; mountPoint = "/etc/NetworkManager/system-connections"; size = 16; } ];
         };
+        hardware.enableRedistributableFirmware = true;  # the card's iwlwifi firmware
+        hardware.wirelessRegulatoryDatabase = true;
+
+        # Fixed names, so NAT can name them: the link to the host, and the card.
+        systemd.network.links."10-uplink" = {
+          matchConfig.MACAddress = "02:00:00:00:04:01";
+          linkConfig.Name = "uplink";
+        };
+        systemd.network.links."10-wifi" = {
+          matchConfig.Driver = "iwlwifi";
+          linkConfig.Name = "wifi";
+        };
+        networking.nat = { enable = true; internalInterfaces = [ "uplink" ]; externalInterface = "wifi"; };
+
         networking.networkmanager.enable = true;
+        # Same as the host had: a different MAC address per network.
+        networking.networkmanager.wifi.macAddress = "stable-ssid";
         # nmtui runs as `user`; this group may change networks without a password.
         users.users.user.extraGroups = [ "networkmanager" ];
         networking.networkmanager.ensureProfiles.profiles.uplink = {
