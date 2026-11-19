@@ -169,13 +169,25 @@ in
   # shortcut: never-default, so the host still goes out over its own Wi-Fi;
   # stage 3a-2 makes this the default route when the card moves into sys-net.
   networking.networkmanager.ensureProfiles.profiles.sys-net = {
-    connection = { id = "sys-net"; type = "tun"; interface-name = "vm-sysnet"; };
+    # autoconnect off: NM would recreate the tap the moment microvm's tap-up
+    # deletes it, and tap-up then fails (busy). The ExecStartPost below connects it.
+    connection = { id = "sys-net"; type = "tun"; interface-name = "vm-sysnet"; autoconnect = false; };
     tun = { mode = 2; owner = toString microvmUid; vnet-hdr = true; multi-queue = true; };
     ipv4 = { method = "manual"; address1 = "${hostAddr}/30"; never-default = true; };
     ipv6.method = "disabled";
   };
+  # microvm deletes and recreates the tap on every sys-net start, so connect it
+  # once the tap exists. "-": a failure here must not stop sys-net from starting.
+  systemd.services."microvm-tap-interfaces@sys-net".serviceConfig.ExecStartPost =
+    "-" + pkgs.writeShellScript "sys-net-link-up" ''
+      for _ in $(seq 20); do
+        ${pkgs.networkmanager}/bin/nmcli connection up sys-net && exit 0
+        sleep 0.5
+      done
+      exit 1
+    '';
 
-  microvm.vms = lib.mapAttrs (name: vm: {
+  microvm.vms =lib.mapAttrs (name: vm: {
     autostart = false;
     config = guestBase name vm;
   }) vms // {
