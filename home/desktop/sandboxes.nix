@@ -190,8 +190,6 @@ in
   # for calls: RAM only, so log in each boot and nothing stays on disk.
   vesktop          = makeGuiSandbox { package = pkgs.vesktop;          name = "vesktop"; rawPipeWire = true; };
   telegram-desktop = makeGuiSandbox { package = pkgs.telegram-desktop; name = "telegram"; };
-  # Signal's login and message database are one store: it stays on disk.
-  signal-desktop   = makeGuiSandbox { package = pkgs.signal-desktop;   name = "signal"; machineId = true; state = "disk"; };
 
   # Element's login, message cache and E2EE keys are one store: it stays on disk.
   # Its database key goes in the host keyring, so the DB is useless without it.

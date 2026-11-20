@@ -64,7 +64,6 @@ in
     # Clean Firefox (unsandboxed, outside Mullvad) is in modules/desktop/programs.nix.
 
     # --- Communication ------------------------------------------------------
-    sandboxes.signal-desktop
     sandboxes.element-desktop  # Matrix (fox-red)
     sandboxes.telegram-desktop # calls only, RAM only
     sandboxes.vesktop          # Discord calls only, RAM only

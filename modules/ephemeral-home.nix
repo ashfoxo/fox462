@@ -24,7 +24,6 @@ let
     { directory = ".config/Yubico"; mode = "0700"; }   # u2f_keys: sudo and lock screen with the key
 
     # --- Sandboxed apps that keep state (sandboxes.nix: state = "disk" / "logins") ---
-    ".local/share/sandboxes/signal"
     ".local/share/sandboxes/element"
     ".local/share/sandboxes/librewolf"
     ".local/share/sandboxes/webapp-claude" ".local/share/sandboxes/webapp-elk"
