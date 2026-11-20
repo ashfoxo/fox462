@@ -128,6 +128,11 @@ let
 
     # Console logs straight in as root (journalctl -fu microvm@<vm> shows it).
     services.getty.autologinUser = "root";
+    # The VM's own log goes to that console too, so the host can read it.
+    services.journald.extraConfig = ''
+      ForwardToConsole=yes
+      MaxLevelConsole=info
+    '';
 
     # Apps run as this plain user, never root. Linger gives it /run/user/1000.
     users.users.user = { isNormalUser = true; uid = 1000; linger = true; };
