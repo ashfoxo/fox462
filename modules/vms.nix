@@ -41,7 +41,54 @@ let
       launchers = [ { app = "wifi"; label = "Wi-Fi"; icon = "network-wireless"; } ];
     };
     sys-vpn = { cid = 5; apps = { }; launchers = [ ]; };
+    calls = {
+      cid = 6;
+      pci = true; # USB (the webcam) needs a PCI bus, so its NIC is PCI too
+      audio = true;
+      apps = {
+        # Zoom without its bubblewrap FHS wrapper (the VM is the sandbox): the
+        # unpacked binaries run through nix-ld, with the FHS library set
+        # nixpkgs builds for it. Its Wayland support is patchy, so it gets a
+        # private X server (xwayland-satellite), forwarded by waypipe like any
+        # app; a fresh display number each launch, so a leftover one can't block it.
+        zoom = [ "${pkgs.bash}/bin/sh" "-c" ''
+          d=$(( $$ % 50 + 10 ))
+          ${lib.getExe pkgs.xwayland-satellite} :$d &
+          sleep 1
+          export DISPLAY=:$d QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1
+          export PATH=${pkgs.pulseaudio}/bin:$PATH
+          export NIX_LD_LIBRARY_PATH=/run/opengl-driver/lib:${zoomDir}:${zoomDir}/Qt/lib:${pkgs.zoom-us.fhsenv}/usr/lib64
+          exec ${zoomDir}/ZoomLauncher
+        '' ];
+        telegram = [ (lib.getExe pkgs.telegram-desktop) ];
+        vesktop = [ (lib.getExe pkgs.vesktop) "--ozone-platform=wayland" ];
+      };
+      launchers = [
+        { app = "zoom"; label = "Zoom"; icon = "Zoom"; }
+        { app = "telegram"; label = "Telegram"; icon = "org.telegram.desktop"; }
+        { app = "vesktop"; label = "Vesktop"; icon = "vesktop"; }
+      ];
+    };
+    torrent = {
+      cid = 7;
+      pci = true; # the ~/torrents share (virtiofs) needs PCI, so its NIC is PCI too
+      # The torrent list is forgotten at power-off, as before; downloads land
+      # in the host's ~/torrents (shared in).
+      apps.qbittorrent = [ "${pkgs.bash}/bin/sh" "-c" ''
+        c=$HOME/.config/qBittorrent/qBittorrent.conf
+        mkdir -p "$(dirname "$c")"
+        [ -e "$c" ] || printf '[BitTorrent]\nSession\\DefaultSavePath=/home/user/torrents\nSession\\TempPathEnabled=false\n' > "$c"
+        exec ${lib.getExe pkgs.qbittorrent}
+      '' ];
+      launchers = [ { app = "qbittorrent"; label = "qBittorrent"; icon = "qbittorrent"; } ];
+    };
   };
+  zoomDir = "${pkgs.zoom-us.unpacked}/opt/zoom";
+  # Audio for VMs with audio = true: their PulseAudio clients reach the host's
+  # PipeWire over vsock port 7000 + cid, through the same CID-checking gate.
+  audioPort = vm: toString (7000 + vm.cid);
+  # The webcam (lsusb-style id), handed to the calls VM while it runs.
+  webcam = { vendor = "0c45"; product = "6a09"; };
   port = vm: toString (5000 + vm.cid);
 
   # Links between VMs. Each is a pair of Unix datagram sockets in linkDir that
@@ -51,6 +98,8 @@ let
   links = {
     sysnet-vpn    = { id = "11"; a = "sys-net"; b = "sys-vpn";   net = "10.137.1"; };
     vpn-untrusted = { id = "12"; a = "sys-vpn"; b = "untrusted"; net = "10.137.2"; };
+    sysnet-calls  = { id = "13"; a = "sys-net"; b = "calls";     net = "10.137.3"; };
+    vpn-torrent   = { id = "14"; a = "sys-vpn"; b = "torrent";   net = "10.137.4"; };
   };
   linkDir = "/run/microvm-links";
   linkMac = l: side: "02:00:00:00:${l.id}:0${if side == "a" then "1" else "2"}";
@@ -143,12 +192,14 @@ let
       wantedBy = [ "sockets.target" ];
       socketConfig = { ListenStream = "vsock::6000"; Accept = true; };
     };
+    systemd.services."app-launch@".requires = [ "user@1000.service" ];  # /run/user/1000
+    systemd.services."app-launch@".after = [ "user@1000.service" ];
     systemd.services."app-launch@".serviceConfig = {
       User = "user";
       StandardInput = "socket";
       StandardOutput = "null";
       StandardError = "journal";
-      Environment = "XDG_RUNTIME_DIR=/run/user/1000";
+      Environment = [ "XDG_RUNTIME_DIR=/run/user/1000" "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus" ];
       ExecStart = pkgs.writeShellScript "app-launch" ''
         read -r -t 5 name || exit 1
         case "$name" in
@@ -160,6 +211,27 @@ let
     };
 
     system.stateVersion = "26.05";
+
+    # A separate module, so it merges with the above instead of replacing
+    # whole sections (`//` would drop the rest of `systemd`).
+    imports = [ (lib.optionalAttrs (vm.audio or false) {
+    # The usual PulseAudio socket, forwarded to the host's PipeWire. No shared
+    # memory: it can't cross the VM boundary, so audio goes in-band.
+    systemd.services.pulse-forward = {
+      wantedBy = [ "multi-user.target" ];
+      serviceConfig = {
+        User = "user";
+        ExecStartPre = "${pkgs.coreutils}/bin/mkdir -p /run/user/1000/pulse";
+        ExecStart = "${pkgs.socat}/bin/socat UNIX-LISTEN:/run/user/1000/pulse/native,fork,unlink-early,mode=600 VSOCK-CONNECT:2:${audioPort vm}";
+        Restart = "always";
+        RestartSec = 2;
+      };
+      # /run/user/1000 must exist first (made by user@1000, started by linger).
+      requires = [ "user@1000.service" ];
+      after = [ "user@1000.service" ];
+    };
+    environment.etc."pulse/client.conf".text = "enable-shm = no\n";
+    }) ];
   };
 in
 {
@@ -215,6 +287,13 @@ in
       StandardError = "journal";
       Environment = "PATH=${pkgs.socat}/bin";
     };
+  } // lib.optionalAttrs (vm.audio or false) {
+    "pulse-${name}-gate@".serviceConfig = {
+      ExecStart = "${pkgs.bash}/bin/bash ${../scripts/waypipe-gate.sh} %i ${toString vm.cid} %t/pulse/native";
+      StandardInput = "socket";
+      StandardError = "journal";
+      Environment = "PATH=${pkgs.socat}/bin";
+    };
   }) vms;
   systemd.user.sockets = lib.concatMapAttrs (name: vm: {
     "waypipe-${name}-gate" = {
@@ -223,7 +302,19 @@ in
       wantedBy = [ "graphical-session.target" ];
       socketConfig = { ListenStream = "vsock::${port vm}"; Accept = true; };
     };
+  } // lib.optionalAttrs (vm.audio or false) {
+    "pulse-${name}-gate" = {
+      description = "Audio connections from VMs, for the ${name} VM";
+      partOf = [ "graphical-session.target" ];
+      wantedBy = [ "graphical-session.target" ];
+      socketConfig = { ListenStream = "vsock::${audioPort vm}"; Accept = true; };
+    };
   }) vms;
+
+  # qemu (as microvm) opens the webcam through libusb while calls runs.
+  services.udev.extraRules = ''
+    SUBSYSTEM=="usb", ATTR{idVendor}=="${webcam.vendor}", ATTR{idProduct}=="${webcam.product}", OWNER="microvm"
+  '';
 
   # The host's end of the sys-net link, and its way to the internet: the Wi-Fi
   # card lives in sys-net, which shares its connection (NAT). microvm creates
@@ -278,7 +369,17 @@ in
       # The host's internet comes through it, so it starts at boot.
       autostart = true;
       config = {
-        imports = [ (guestBase "sys-net" vms.sys-net) ];
+        imports = [
+          (guestBase "sys-net" vms.sys-net)
+          # One static NM profile per link sys-net serves (sys-vpn, calls).
+          {
+            networking.networkmanager.ensureProfiles.profiles = lib.listToAttrs (map (e: lib.nameValuePair e.name {
+              connection = { id = e.name; type = "ethernet"; interface-name = e.name; };
+              ipv4 = { method = "manual"; address1 = "${linkAddr e.name "a"}/30"; };
+              ipv6.method = "disabled";
+            }) (linkEnds "sys-net"));
+          }
+        ];
         microvm = {
           mem = 768; # MiB
           interfaces = [ { type = "tap"; id = "vm-sysnet"; mac = "02:00:00:00:04:01"; } ];
@@ -298,7 +399,11 @@ in
           matchConfig.Driver = "iwlwifi";
           linkConfig.Name = "wifi";
         };
-        networking.nat = { enable = true; internalInterfaces = [ "uplink" "sysnet-vpn" ]; externalInterface = "wifi"; };
+        networking.nat = {
+          enable = true;
+          internalInterfaces = [ "uplink" ] ++ map (e: e.name) (linkEnds "sys-net");
+          externalInterface = "wifi";
+        };
         # Forward only out to Wi-Fi (and its replies): the host and sys-vpn
         # can't reach each other through sys-net.
         networking.firewall.extraCommands = ''
@@ -317,11 +422,6 @@ in
           connection = { id = "uplink"; type = "ethernet"; };
           ethernet.mac-address = "02:00:00:00:04:01";
           ipv4 = { method = "manual"; address1 = "${sysNetAddr}/30"; };
-          ipv6.method = "disabled";
-        };
-        networking.networkmanager.ensureProfiles.profiles.sysnet-vpn = {
-          connection = { id = "sysnet-vpn"; type = "ethernet"; interface-name = "sysnet-vpn"; };
-          ipv4 = { method = "manual"; address1 = "${linkAddr "sysnet-vpn" "a"}/30"; };
           ipv6.method = "disabled";
         };
       };
@@ -430,6 +530,56 @@ in
         # Out through sys-vpn (Mullvad); Mullvad's resolver through the tunnel.
         networking.interfaces.vpn-untrusted.ipv4.addresses = [ { address = linkAddr "vpn-untrusted" "b"; prefixLength = 30; } ];
         networking.defaultGateway = { address = linkAddr "vpn-untrusted" "a"; interface = "vpn-untrusted"; };
+        networking.nameservers = [ "10.64.0.1" ];
+      };
+    };
+
+    # calls: Zoom, Telegram and Vesktop with the webcam and audio. Straight out
+    # through sys-net, no Mullvad (Zoom was always outside it). The webcam and
+    # microphone are usable by these apps whenever calls is running.
+    calls = {
+      autostart = false;
+      config = {
+        imports = [ (guestBase "calls" vms.calls) ];
+        microvm = {
+          mem = 3072; # MiB
+          vcpu = lib.mkForce 4;  # video is encoded on the CPU here
+          # PCI and USB on: the webcam needs a USB bus, and microvm.nix adds a PCI
+          # USB controller too, which needs PCI. (q35 fails: microvm.nix adds the
+          # webcam before its controller.)
+          qemu.machineOpts = { accel = "kvm:tcg"; mem-merge = "on"; acpi = "on"; pit = "off"; pic = "off"; pcie = "on"; usb = "on"; };
+          devices = [ { bus = "usb"; path = "vendorid=0x${webcam.vendor},productid=0x${webcam.product}"; } ];
+          # Zoom's login survives restarts, as on the host before.
+          volumes = [ { image = "zoom.img"; mountPoint = "/home/user/.zoom"; size = 256; } ];
+        };
+        systemd.tmpfiles.rules = [ "d /home/user/.zoom 0700 user users -" ];
+        users.users.user.extraGroups = [ "video" ];
+        # No GPU in here: Mesa gives software OpenGL, which Zoom, Telegram and
+        # Vesktop all need to draw at all.
+        hardware.graphics.enable = true;
+        programs.nix-ld.enable = true;  # runs the unpacked Zoom binaries
+        # Zoom encrypts its saved data with a key tied to the machine ID; a new
+        # random one every boot makes it unreadable (and Zoom crashes).
+        environment.etc."machine-id".text = "ba3ae33b31131dfda493e8dffb3cd946\n";
+        networking.interfaces.sysnet-calls.ipv4.addresses = [ { address = linkAddr "sysnet-calls" "b"; prefixLength = 30; } ];
+        networking.defaultGateway = { address = linkAddr "sysnet-calls" "a"; interface = "sysnet-calls"; };
+        networking.nameservers = [ "9.9.9.9" ];
+      };
+    };
+
+    # torrent: qBittorrent behind sys-vpn (Mullvad). Downloads go straight
+    # into the host's ~/torrents through a virtiofs share; guest `user` and
+    # host arlo are both uid 1000, so the files are yours on the host.
+    torrent = {
+      autostart = false;
+      config = {
+        imports = [ (guestBase "torrent" vms.torrent) ];
+        microvm = {
+          mem = 1024; # MiB
+          shares = [ { proto = "virtiofs"; tag = "torrents"; source = "/home/arlo/torrents"; mountPoint = "/home/user/torrents"; } ];
+        };
+        networking.interfaces.vpn-torrent.ipv4.addresses = [ { address = linkAddr "vpn-torrent" "b"; prefixLength = 30; } ];
+        networking.defaultGateway = { address = linkAddr "vpn-torrent" "a"; interface = "vpn-torrent"; };
         networking.nameservers = [ "10.64.0.1" ];
       };
     };
