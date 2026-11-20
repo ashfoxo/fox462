@@ -25,6 +25,7 @@ let
   vms = {
     untrusted = {
       cid = 3;
+      autoStop = true;
       apps = {
         terminal = [ "${pkgs.foot}/bin/foot" ];
         mullvad-browser = [ (lib.getExe pkgs.mullvad-browser) ];
@@ -43,6 +44,7 @@ let
     sys-vpn = { cid = 5; apps = { }; launchers = [ ]; };
     calls = {
       cid = 6;
+      autoStop = true;
       pci = true; # USB (the webcam) needs a PCI bus, so its NIC is PCI too
       audio = true;
       apps = {
@@ -71,6 +73,7 @@ let
     };
     torrent = {
       cid = 7;
+      autoStop = true;
       pci = true; # the ~/torrents share (virtiofs) needs PCI, so its NIC is PCI too
       # The torrent list is forgotten at power-off, as before; downloads land
       # in the host's ~/torrents (shared in).
@@ -214,7 +217,17 @@ let
 
     # A separate module, so it merges with the above instead of replacing
     # whole sections (`//` would drop the rest of `systemd`).
-    imports = [ (lib.optionalAttrs (vm.audio or false) {
+    imports = [
+    # autoStop: when an app exits (e.g. Super+Q) and no other app is still
+    # open, the VM powers off. "+": poweroff needs root, the app runs as user.
+    (lib.optionalAttrs (vm.autoStop or false) {
+      systemd.services."app-launch@".serviceConfig.ExecStopPost = "+" + pkgs.writeShellScript "stop-when-idle" ''
+        sleep 3
+        ${pkgs.systemd}/bin/systemctl list-units --plain --no-legend --state=active,activating 'app-launch@*.service' | grep -q . \
+          || ${pkgs.systemd}/bin/systemctl poweroff
+      '';
+    })
+    (lib.optionalAttrs (vm.audio or false) {
     # The usual PulseAudio socket, forwarded to the host's PipeWire. No shared
     # memory: it can't cross the VM boundary, so audio goes in-band.
     systemd.services.pulse-forward = {
@@ -235,7 +248,16 @@ let
   };
 in
 {
-  imports = [ inputs.microvm.nixosModules.host ];
+  imports = [
+    inputs.microvm.nixosModules.host
+    # VMs that power themselves off when idle must stay off: restart them only
+    # after a crash, not after a clean poweroff (microvm's default is always).
+    {
+      systemd.services = lib.concatMapAttrs (name: vm: lib.optionalAttrs (vm.autoStop or false) {
+        "microvm@${name}".serviceConfig.Restart = lib.mkForce "on-failure";
+      }) vms;
+    }
+  ];
 
   # Kernel modules are locked after boot (core/hardening.nix), so these load
   # now: vsock for windows, VFIO for handing the Wi-Fi card to sys-net.
