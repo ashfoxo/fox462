@@ -33,6 +33,9 @@ bind(mod .. " + SHIFT + P", exec("display-main"),           "Displays: Pick the 
 -----------------
 
 bind(mod .. " + Q",         hl.dsp.window.close(),                               "Window: Close")
+-- Qubes-style clipboard (modules/vms.nix, scripts/vm-clip.sh), in a VM window:
+bind(mod .. " + SHIFT + C", exec("vm-clip copy"),  "Clipboard: Copy this VM's clipboard to the host")
+bind(mod .. " + SHIFT + V", exec("vm-clip paste"), "Clipboard: Offer the host clipboard to this VM (then Ctrl+V)")
 bind(mod .. " + F",         hl.dsp.window.fullscreen(),                          "Window: Fullscreen")
 bind(mod .. " + SHIFT + F", hl.dsp.window.fullscreen({ mode = "maximized" }),    "Window: Maximize, keep bar and gaps")
 bind(mod .. " + V",         hl.dsp.window.float(),                               "Window: Toggle floating")

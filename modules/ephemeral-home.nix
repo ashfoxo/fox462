@@ -52,7 +52,6 @@ let
     ".config/rclone"                         # the `filen` remote for `push` (home/desktop/push.nix)
     ".config/Electron"                       # Filen's IndexedDB (and any Electron app with the default name)
     ".local/share/Steam" ".steam"
-    ".zoom"
     ".config/chirp"
     ".local/share/direnv"                    # which .envrc files you allowed
     ".config/syncthing" ".local/state/syncthing"

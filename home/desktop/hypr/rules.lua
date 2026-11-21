@@ -85,6 +85,10 @@ local c = require("arlo.palette")
 local vm_colours = {
     ["untrusted"] = c.rust_text,
     ["sys-net"]   = c.amber,
+    ["portal"]    = c.amber,       -- the Wi-Fi login page: sys-net's helper
+    ["calls"]     = c.teal_text,
+    ["personal"]  = c.forest_text,
+    ["torrent"]   = c.dim,
 }
 for vm, colour in pairs(vm_colours) do
     hl.window_rule({

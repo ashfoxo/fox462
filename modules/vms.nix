@@ -16,7 +16,7 @@
 #
 # Launchers: vm-open starts the VM if needed and sends an app name to the VM's
 # vsock port 6000; the VM opens only names in its `apps`.
-{ inputs, pkgs, lib, utils, ... }:
+{ config, inputs, pkgs, lib, utils, ... }:
 let
   # cid: the VM's vsock address (the host assigns it; a VM can't fake it).
   # Its windows arrive on host port 5000 + cid.
@@ -60,13 +60,14 @@ let
           export DISPLAY=:$d QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1
           export PATH=${pkgs.pulseaudio}/bin:$PATH
           export NIX_LD_LIBRARY_PATH=/run/opengl-driver/lib:${zoomDir}:${zoomDir}/Qt/lib:${pkgs.zoom-us.fhsenv}/usr/lib64
-          exec ${zoomDir}/ZoomLauncher
+          exec ${zoomDir}/ZoomLauncher ''${APP_LINK:+"$APP_LINK"}
         '' ];
         telegram = [ (lib.getExe pkgs.telegram-desktop) ];
         vesktop = [ (lib.getExe pkgs.vesktop) "--ozone-platform=wayland" ];
       };
       launchers = [
-        { app = "zoom"; label = "Zoom"; icon = "Zoom"; }
+        # Zoom meeting links (from Firefox's "Launch meeting") open here.
+        { app = "zoom"; label = "Zoom"; icon = "Zoom"; links = [ "zoommtg" "zoomus" ]; }
         { app = "telegram"; label = "Telegram"; icon = "org.telegram.desktop"; }
         { app = "vesktop"; label = "Vesktop"; icon = "vesktop"; }
       ];
@@ -85,13 +86,55 @@ let
       '' ];
       launchers = [ { app = "qbittorrent"; label = "qBittorrent"; icon = "qbittorrent"; } ];
     };
+    # Logged-in browsing and Matrix, behind sys-vpn. Its home is kept.
+    personal = {
+      cid = 8;
+      autoStop = true;
+      audio = true;
+      apps = {
+        librewolf = [ (lib.getExe librewolfLogins) ];
+        # No keyring in the VM: Element keeps its database key in its profile,
+        # on the VM's disk image (inside the host's encrypted disk).
+        element = [ (lib.getExe pkgs.element-desktop) "--password-store=basic" ];
+      };
+      launchers = [
+        { app = "librewolf"; label = "LibreWolf"; icon = "librewolf"; }
+        { app = "element"; label = "Element"; icon = "element"; }
+      ];
+    };
+    # Hotel/airport Wi-Fi login pages: straight out through sys-net (no
+    # Mullvad, which can't connect until you've logged in), thrown away after.
+    portal = {
+      cid = 9;
+      autoStop = true;
+      apps.login = [ (lib.getExe pkgs.firefox) "--private-window" "http://detectportal.firefox.com/canonical.html" ];
+      launchers = [ { app = "login"; label = "Wi-Fi login page"; icon = "network-wireless"; } ];
+    };
+  };
+  # The host's LibreWolf settings (home/desktop/sandboxes.nix), for personal.
+  librewolfLogins = pkgs.librewolf.override {
+    extraPrefs = ''
+      lockPref("places.history.enabled", false);
+      lockPref("browser.cache.disk.enable", false);
+      lockPref("browser.cache.offline.enable", false);
+      lockPref("browser.sessionstore.max_tabs_undo", 0);
+      lockPref("browser.sessionstore.resume_from_crash", false);
+      lockPref("browser.formfill.enable", false);
+      lockPref("browser.download.manager.addToRecentDocs", false);
+      lockPref("privacy.clearOnShutdown.cookies", false);
+      lockPref("privacy.clearOnShutdown_v2.cookiesAndStorage", false);
+      lockPref("network.cookie.lifetimePolicy", 0);
+    '';
   };
   zoomDir = "${pkgs.zoom-us.unpacked}/opt/zoom";
   # Audio for VMs with audio = true: their PulseAudio clients reach the host's
   # PipeWire over vsock port 7000 + cid, through the same CID-checking gate.
   audioPort = vm: toString (7000 + vm.cid);
-  # The webcam (lsusb-style id), handed to the calls VM while it runs.
-  webcam = { vendor = "0c45"; product = "6a09"; };
+  # Webcams (lsusb-style ids), handed to the calls VM while it runs.
+  webcams = [
+    { vendor = "0c45"; product = "6a09"; } # built in
+    { vendor = "04a9"; product = "3113"; } # Canon EOS R8 in UVC webcam mode
+  ];
   port = vm: toString (5000 + vm.cid);
 
   # Links between VMs. Each is a pair of Unix datagram sockets in linkDir that
@@ -103,8 +146,16 @@ let
     vpn-untrusted = { id = "12"; a = "sys-vpn"; b = "untrusted"; net = "10.137.2"; };
     sysnet-calls  = { id = "13"; a = "sys-net"; b = "calls";     net = "10.137.3"; };
     vpn-torrent   = { id = "14"; a = "sys-vpn"; b = "torrent";   net = "10.137.4"; };
+    vpn-personal  = { id = "15"; a = "sys-vpn"; b = "personal";  net = "10.137.5"; };
+    sysnet-portal = { id = "16"; a = "sys-net"; b = "portal";    net = "10.137.6"; };
   };
+  # Each link's two sockets live in their own folder, group vml-<link>, so
+  # only the two VMs on that link (each qemu runs as its own user, below) can
+  # reach them.
   linkDir = "/run/microvm-links";
+  # qemu's user per VM. sys-net stays `microvm`: microvm.nix hardcodes that
+  # user for the tap device and the Wi-Fi card's VFIO node.
+  vmUser = name: if name == "sys-net" then "microvm" else "vm-${name}";
   linkMac = l: side: "02:00:00:00:${l.id}:0${if side == "a" then "1" else "2"}";
   linkEnds = vmName: lib.concatLists (lib.mapAttrsToList (n: l:
     lib.optional (l.a == vmName) { name = n; link = l; me = "a"; peer = "b"; }
@@ -127,12 +178,12 @@ let
     name = "vm-open";
     runtimeInputs = [ pkgs.socat pkgs.systemd pkgs.libnotify ];
     text = ''
-      # vm-open <vm> <cid> <app>: start the VM if it isn't running, then ask
-      # it for the app, retrying while it boots.
-      vm=$1 cid=$2 app=$3
+      # vm-open <vm> <cid> <app> [link]: start the VM if it isn't running, then
+      # ask it for the app (and the link to open), retrying while it boots.
+      vm=$1 cid=$2 app=$3 link=''${4:-}
       systemctl start "microvm@$vm.service"
       for _ in $(seq 60); do
-        printf '%s\n' "$app" | socat -u - "VSOCK-CONNECT:$cid:6000" 2>/dev/null && exit 0
+        printf '%s\n%s\n' "$app" "$link" | socat -u - "VSOCK-CONNECT:$cid:6000" 2>/dev/null && exit 0
         sleep 0.5
       done
       notify-send "$vm VM" "Couldn't open $app: the VM didn't answer within 30 seconds."
@@ -140,8 +191,17 @@ let
     '';
   };
 
-  # The Wi-Fi card (IOMMU group 6, alone in it).
+  # The Wi-Fi card (IOMMU group 6, alone in it), and its vendor:device id.
   wifiPci = "0000:00:14.3";
+  wifiId = "8086:02f0";
+  # Fixed, so Element and LibreWolf in personal can read their own saved data.
+  personalMachineId = "90c6c67b7f439599f8df4a80b432c580";
+
+  vmClip = pkgs.writeShellApplication {
+    name = "vm-clip";
+    runtimeInputs = with pkgs; [ wl-clipboard socat jq libnotify config.programs.hyprland.package ];
+    text = builtins.readFile ../scripts/vm-clip.sh;
+  };
 
   # Escape hatch: sudo wifi-to-host gives the card back to the host until the
   # next boot (sys-net starts at boot and takes it again).
@@ -151,7 +211,8 @@ let
     text = ''
       systemctl stop microvm@sys-net.service
       d=/sys/bus/pci/devices/${wifiPci}
-      echo > "$d/driver_override"
+      # vfio-pci.ids (boot.kernelParams) would grab it again: name the driver.
+      echo iwlwifi > "$d/driver_override"
       if [ -e "$d/driver" ]; then echo ${wifiPci} > "$d/driver/unbind"; fi
       echo ${wifiPci} > /sys/bus/pci/drivers_probe
       echo "Wi-Fi is back on the host (driver: $(basename "$(readlink "$d/driver")"))."
@@ -167,7 +228,7 @@ let
       vsock.cid = vm.cid;
       # One NIC per link this VM is on (see `links`).
       qemu.extraArgs = lib.concatMap (e: [
-        "-netdev" "dgram,id=${e.name},local.type=unix,local.path=${linkDir}/${e.name}.${e.me},remote.type=unix,remote.path=${linkDir}/${e.name}.${e.peer}"
+        "-netdev" "dgram,id=${e.name},local.type=unix,local.path=${linkDir}/${e.name}/${e.me},remote.type=unix,remote.path=${linkDir}/${e.name}/${e.peer}"
         "-device" "${if vm.pci or false then "virtio-net-pci" else "virtio-net-device"},netdev=${e.name},mac=${linkMac e.link e.me}"
       ]) (linkEnds name);
     };
@@ -205,6 +266,14 @@ let
       Environment = [ "XDG_RUNTIME_DIR=/run/user/1000" "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus" ];
       ExecStart = pkgs.writeShellScript "app-launch" ''
         read -r -t 5 name || exit 1
+        # Optional link for the app (Zoom meeting links). Only Zoom's own schemes,
+        # in plain URL characters, so nothing else can ride along.
+        read -r -t 1 APP_LINK || APP_LINK=
+        re='^zoom(mtg|us)://[A-Za-z0-9._~:/?#@&+,;=%-]+$'
+        if [ -n "$APP_LINK" ] && ! [[ $APP_LINK =~ $re ]]; then
+          echo "refused link '$APP_LINK'" >&2; exit 1
+        fi
+        export APP_LINK
         case "$name" in
         ${lib.concatStrings (lib.mapAttrsToList (n: cmd: "  ${n}) set -- ${lib.escapeShellArgs cmd} ;;\n") vm.apps)}
           *) echo "refused unknown app '$name'" >&2; exit 1 ;;
@@ -250,11 +319,29 @@ in
 {
   imports = [
     inputs.microvm.nixosModules.host
-    # VMs that power themselves off when idle must stay off: restart them only
-    # after a crash, not after a clean poweroff (microvm's default is always).
     {
-      systemd.services = lib.concatMapAttrs (name: vm: lib.optionalAttrs (vm.autoStop or false) {
-        "microvm@${name}".serviceConfig.Restart = lib.mkForce "on-failure";
+      systemd.user.services.vm-clip = {
+        description = "Keep the host clipboard away from VM windows";
+        partOf = [ "graphical-session.target" ];
+        after = [ "graphical-session.target" ];
+        wantedBy = [ "graphical-session.target" ];
+        serviceConfig = { ExecStart = "${vmClip}/bin/vm-clip watch"; Restart = "always"; RestartSec = 2; };
+      };
+    }
+    {
+      systemd.services = lib.concatMapAttrs (name: vm: {
+        "microvm@${name}".serviceConfig = {
+          # Link sockets must be writable by the VM at the other end (same group).
+          UMask = "0007";
+        } // lib.optionalAttrs (name != "sys-net") {
+          # Its own user: a qemu escape lands in one VM's files, not all of them.
+          User = lib.mkForce (vmUser name);
+          ExecStartPre = "+${pkgs.coreutils}/bin/chown -hR ${vmUser name}:kvm /var/lib/microvms/${name}";
+        } // lib.optionalAttrs (vm.autoStop or false) {
+          # VMs that power themselves off when idle must stay off: restart them
+          # only after a crash, not after a clean poweroff (microvm's default).
+          Restart = lib.mkForce "on-failure";
+        };
       }) vms;
     }
   ];
@@ -262,22 +349,44 @@ in
   # Kernel modules are locked after boot (core/hardening.nix), so these load
   # now: vsock for windows, VFIO for handing the Wi-Fi card to sys-net.
   boot.kernelModules = [ "vhost_vsock" "vfio" "vfio_pci" "vfio_iommu_type1" ];
+  # VFIO claims the Wi-Fi card in the initrd, before the host's iwlwifi driver
+  # ever touches it. (wifi-to-host overrides this until the next boot.)
+  boot.initrd.kernelModules = [ "vfio" "vfio_pci" "vfio_iommu_type1" ];
+  boot.kernelParams = [ "vfio-pci.ids=${wifiId}" ];
 
-  users.users.microvm.uid = microvmUid;
+  users.users = {
+    microvm = { uid = microvmUid; extraGroups = map (e: "vml-${e.name}") (linkEnds "sys-net"); };
+  } // lib.mapAttrs' (name: _: lib.nameValuePair (vmUser name) {
+    isSystemUser = true;
+    group = "kvm";
+    extraGroups = map (e: "vml-${e.name}") (linkEnds name);
+  }) (removeAttrs vms [ "sys-net" ]);
+  users.groups = lib.mapAttrs' (n: _: lib.nameValuePair "vml-${n}" { }) links;
 
-  # The sockets of the VM-to-VM links (only qemu, running as microvm, uses them).
-  systemd.tmpfiles.rules = [ "d ${linkDir} 0750 microvm kvm -" ];
+  systemd.tmpfiles.rules = [ "d ${linkDir} 0755 root root -" ]
+    ++ lib.mapAttrsToList (n: _: "d ${linkDir}/${n} 0770 root vml-${n} -") links;
 
   # sys-vpn's Mullvad key, handed into the VM as a systemd credential.
-  sops.secrets.mullvad-sysvpn-key.owner = "microvm";
+  sops.secrets.mullvad-sysvpn-key.owner = vmUser "sys-vpn";
 
-  environment.systemPackages = [ vmOpen wifiToHost ] ++ lib.concatLists (lib.mapAttrsToList (name: vm:
+  # Qubes-style clipboard (scripts/vm-clip.sh): a VM only gets what you hand
+  # it with Super+Shift+V, and only gives what you take with Super+Shift+C.
+  # (The user service is in `imports` above, next to the other host units.)
+
+  environment.systemPackages = [ vmOpen wifiToHost vmClip ] ++ lib.concatLists (lib.mapAttrsToList (name: vm:
     map (l: pkgs.makeDesktopItem {
       name = "vm-${name}-${l.app}";
       desktopName = "${name}: ${l.label}";
-      exec = "vm-open ${name} ${toString vm.cid} ${l.app}";
+      exec = "vm-open ${name} ${toString vm.cid} ${l.app}" + lib.optionalString (l ? links) " %u";
+      mimeTypes = map (s: "x-scheme-handler/${s}") (l.links or [ ]);
       inherit (l) icon;
     }) vm.launchers) vms);
+
+  # Link types a VM app handles open there by default, not in a host app
+  # (the host's own Zoom claims zoommtg too).
+  xdg.mime.defaultApplications = lib.mkMerge (lib.concatLists (lib.mapAttrsToList (name: vm:
+    map (l: lib.genAttrs (map (s: "x-scheme-handler/${s}") (l.links or [ ])) (_: "vm-${name}-${l.app}.desktop"))
+      vm.launchers) vms));
 
   # Your user may start, stop and restart VMs without the PIN and touch, so a
   # launcher click doesn't ask. Only microvm@ units, only those three verbs.
@@ -333,10 +442,10 @@ in
     };
   }) vms;
 
-  # qemu (as microvm) opens the webcam through libusb while calls runs.
-  services.udev.extraRules = ''
-    SUBSYSTEM=="usb", ATTR{idVendor}=="${webcam.vendor}", ATTR{idProduct}=="${webcam.product}", OWNER="microvm"
-  '';
+  # qemu (as calls' own user) opens the webcams through libusb while calls runs.
+  services.udev.extraRules = lib.concatMapStrings (w: ''
+    SUBSYSTEM=="usb", ATTR{idVendor}=="${w.vendor}", ATTR{idProduct}=="${w.product}", OWNER="${vmUser "calls"}"
+  '') webcams;
 
   # The host's end of the sys-net link, and its way to the internet: the Wi-Fi
   # card lives in sys-net, which shares its connection (NAT). microvm creates
@@ -434,6 +543,14 @@ in
           iptables -A FORWARD -o wifi -j ACCEPT
           iptables -A FORWARD -i wifi -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
         '';
+        # The login-page VM must use the Wi-Fi's own DNS: hotel login pages
+        # work by answering every name with themselves. sys-net relays it.
+        services.dnsmasq = {
+          enable = true;
+          resolveLocalQueries = false;
+          settings = { interface = [ "sysnet-portal" ]; bind-dynamic = true; resolv-file = "/run/NetworkManager/resolv.conf"; };
+        };
+        networking.firewall.interfaces.sysnet-portal = { allowedUDPPorts = [ 53 ]; allowedTCPPorts = [ 53 ]; };
 
         networking.networkmanager.enable = true;
         # Same as the host had: a different MAC address per network.
@@ -542,6 +659,69 @@ in
         };
         # Mullvad's resolver, reached through the tunnel.
         environment.etc."netns/vpn/resolv.conf".text = "nameserver 10.64.0.1\n";
+
+        # Kill switch proof, in the log (journalctl -u microvm@sys-vpn | grep KILLSWITCH).
+        # At boot, before any Mullvad server is set, nothing may leave "vpn";
+        # then every 10 minutes, its only default routes must be wg-mullvad's.
+        systemd.services.killswitch-boot = {
+          wantedBy = [ "multi-user.target" ];
+          requires = [ "wireguard-wg-mullvad.service" ];
+          after = [ "wireguard-wg-mullvad.service" ];
+          before = [ "vpn-mullvad-rotate.service" ];
+          serviceConfig = { Type = "oneshot"; RemainAfterExit = true; };
+          script = ''
+            if ${pkgs.iproute2}/bin/ip netns exec vpn ${pkgs.iputils}/bin/ping -c1 -W2 9.9.9.9 >/dev/null 2>&1; then
+              echo "KILLSWITCH FAIL: traffic left vpn with no Mullvad server set"; exit 1
+            fi
+            echo "KILLSWITCH OK: with no Mullvad server set, nothing leaves vpn"
+          '';
+        };
+        systemd.services.killswitch-routes = {
+          serviceConfig.Type = "oneshot";
+          script = ''
+            bad=$(for v in -4 -6; do ${pkgs.iproute2}/bin/ip $v -n vpn route show default; done | grep -v 'dev wg-mullvad' || true)
+            if [ -n "$bad" ]; then echo "KILLSWITCH FAIL: vpn has a way out besides Mullvad: $bad"; exit 1; fi
+            echo "KILLSWITCH OK: vpn's only way out is wg-mullvad"
+          '';
+        };
+        systemd.timers.killswitch-routes = {
+          wantedBy = [ "timers.target" ];
+          timerConfig = { OnBootSec = "2min"; OnUnitActiveSec = "10min"; };
+        };
+      };
+    };
+
+    personal = {
+      autostart = false;
+      config = {
+        imports = [ (guestBase "personal" vms.personal) ];
+        microvm = {
+          mem = 4096; # MiB
+          vcpu = lib.mkForce 4;
+          # Its home survives restarts: logins, Element's keys and history.
+          volumes = [ { image = "home.img"; mountPoint = "/home/user"; size = 8192; } ];
+        };
+        systemd.tmpfiles.rules = [ "d /home/user 0700 user users -" ];
+        hardware.graphics.enable = true;  # software OpenGL; Element (Electron) needs it
+        environment.etc."machine-id".text = "${personalMachineId}\n";
+        # Links clicked in Element open in LibreWolf, in here.
+        environment.systemPackages = [ librewolfLogins pkgs.xdg-utils ];
+        xdg.mime.defaultApplications = lib.genAttrs [ "x-scheme-handler/http" "x-scheme-handler/https" "text/html" ] (_: "librewolf.desktop");
+        networking.interfaces.vpn-personal.ipv4.addresses = [ { address = linkAddr "vpn-personal" "b"; prefixLength = 30; } ];
+        networking.defaultGateway = { address = linkAddr "vpn-personal" "a"; interface = "vpn-personal"; };
+        networking.nameservers = [ "10.64.0.1" ];
+      };
+    };
+
+    portal = {
+      autostart = false;
+      config = {
+        imports = [ (guestBase "portal" vms.portal) ];
+        microvm.mem = 1536; # MiB
+        networking.interfaces.sysnet-portal.ipv4.addresses = [ { address = linkAddr "sysnet-portal" "b"; prefixLength = 30; } ];
+        networking.defaultGateway = { address = linkAddr "sysnet-portal" "a"; interface = "sysnet-portal"; };
+        # The Wi-Fi's own DNS, relayed by sys-net.
+        networking.nameservers = [ (linkAddr "sysnet-portal" "a") ];
       };
     };
 
@@ -570,12 +750,27 @@ in
           # USB controller too, which needs PCI. (q35 fails: microvm.nix adds the
           # webcam before its controller.)
           qemu.machineOpts = { accel = "kvm:tcg"; mem-merge = "on"; acpi = "on"; pit = "off"; pic = "off"; pcie = "on"; usb = "on"; };
-          devices = [ { bus = "usb"; path = "vendorid=0x${webcam.vendor},productid=0x${webcam.product}"; } ];
+          devices = map (w: { bus = "usb"; path = "vendorid=0x${w.vendor},productid=0x${w.product}"; }) webcams;
           # Zoom's login survives restarts, as on the host before.
           volumes = [ { image = "zoom.img"; mountPoint = "/home/user/.zoom"; size = 256; } ];
         };
         systemd.tmpfiles.rules = [ "d /home/user/.zoom 0700 user users -" ];
-        users.users.user.extraGroups = [ "video" ];
+        users.users.user.extraGroups = [ "video" "audio" ];
+        # The R8's mic input arrives here as a USB sound card, which Zoom can't
+        # see (it only sees the host's audio). Relay it to the host's
+        # "Canon-mic" input (modules/desktop/default.nix), which Zoom does see.
+        # shortcut: retries every 5 s while the camera is unplugged; fine unless the journal noise bothers you.
+        systemd.services.canon-mic = {
+          wantedBy = [ "multi-user.target" ];
+          requires = [ "pulse-forward.service" ];
+          after = [ "pulse-forward.service" ];
+          environment.PULSE_SERVER = "unix:/run/user/1000/pulse/native";
+          script = ''
+            ${pkgs.alsa-utils}/bin/arecord -q -D plughw:CARD=Camera -f S16_LE -r 48000 -c 2 -t raw \
+              | ${pkgs.pulseaudio}/bin/pacat --playback -d canon-mic --raw --format=s16le --rate=48000 --channels=2 --latency-msec=30
+          '';
+          serviceConfig = { User = "user"; Restart = "always"; RestartSec = 5; };
+        };
         # No GPU in here: Mesa gives software OpenGL, which Zoom, Telegram and
         # Vesktop all need to draw at all.
         hardware.graphics.enable = true;

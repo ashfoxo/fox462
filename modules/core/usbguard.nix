@@ -33,6 +33,10 @@
       allow id 1ea7:0064 serial "" name "2.4G Mouse" hash "nCMm/ymO0jVjDVqJjR6/qW7O6K8P8T8DftAjC0+we0s=" with-interface 03:01:02
       allow id 413c:2105 serial "" name "Dell USB Keyboard" hash "wqROqDHTqC75UkiKSyBDwVpJWESb5wGrSNY6N0VRTSs=" with-interface 03:01:01
 
+      # Cameras
+      # Canon EOS R8 in UVC webcam mode (video + its mic input). The serial pins this body.
+      allow id 04a9:3113 serial "A00000000000000000000001C4027B00" name "Canon Digital Camera" hash "lf++8ztLfeaF7166XGxi++3FZyivcSTyfQawgfzOA2I=" with-interface { 0e:01:00 0e:02:00 01:01:00 01:02:00 01:02:00 }
+
       # Storage
       # No hash: it differs between USB 2 and USB 3 ports. The serial pins it.
       allow id 04e8:61fb serial "S6NRNS0XA18467X" name "PSSD T7 Shield" with-interface { 08:06:50 08:06:62 }

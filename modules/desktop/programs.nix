@@ -25,8 +25,6 @@ let
     '';
   };
 
-  # Zoom: excluded from Mullvad.
-  zoomSplit = mullvadExclude { pkg = pkgs.zoom-us; name = "zoom-us"; bins = [ "zoom" "zoom-us" ]; };
 
   # Firefox: the "clean" browser. Not sandboxed, no extensions, outside the
   # Mullvad tunnel, but DNS is always encrypted: DNS-over-HTTPS to Quad9 in
@@ -98,7 +96,6 @@ in
     unzip
     helix
 
-    zoomSplit       # Zoom, outside Mullvad
     firefoxClean    # clean browser, outside Mullvad, encrypted DNS
   ];
 }

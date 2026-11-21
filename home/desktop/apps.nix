@@ -21,34 +21,6 @@
 # steam and fluent-reader (AppImage) can't be sandboxed this way.
 
 let
-  # qBittorrent's home is in RAM (sandboxes.nix), so its settings file is gone
-  # after every boot. Before each start, write the one setting that matters
-  # (downloads go to ~/torrents, which the sandbox binds from disk) if it is
-  # missing. The torrent list itself is forgotten at power-off.
-  qbittorrent = let
-    inner = sandboxes.qbittorrent;
-    conf = "/run/sandbox-ram/qbittorrent/.config/qBittorrent/qBittorrent.conf";
-    torrents = "${config.home.homeDirectory}/torrents";
-  in pkgs.symlinkJoin {
-    name = "qbittorrent-seeded";
-    paths = [ inner ];
-    postBuild = ''
-      rm "$out/bin/qbittorrent"
-      cat > "$out/bin/qbittorrent" <<'EOF'
-      #!${pkgs.runtimeShell}
-      mkdir -p ${torrents} "$(dirname ${conf})"
-      [ -e ${conf} ] || printf '[BitTorrent]\nSession\\DefaultSavePath=${torrents}\nSession\\TempPathEnabled=false\n' > ${conf}
-      exec ${inner}/bin/qbittorrent "$@"
-      EOF
-      chmod +x "$out/bin/qbittorrent"
-      for f in "$out"/share/applications/*.desktop; do
-        [ -e "$f" ] || continue
-        src=$(readlink -f "$f"); rm "$f"
-        sed -e "s|^Exec=[^ ]*|Exec=$out/bin/qbittorrent|" "$src" > "$f"
-      done
-    '';
-  };
-
   sandboxes = import ./sandboxes.nix {
     inherit pkgs nixpak;
     extraGpuDev = osConfig.fox.desktop.sandboxGpuDevices;
@@ -65,8 +37,6 @@ in
 
     # --- Communication ------------------------------------------------------
     sandboxes.element-desktop  # Matrix (fox-red)
-    sandboxes.telegram-desktop # calls only, RAM only
-    sandboxes.vesktop          # Discord calls only, RAM only
 
     # --- Media ---------------------------------------------------------------
     pkgs.feishin               # Navidrome music
@@ -103,9 +73,6 @@ in
 
     # --- Security ------------------------------------------------------------
     pkgs.bitwarden-desktop
-
-    # --- Downloads -----------------------------------------------------------
-    qbittorrent
 
     # --- Tools -------------------------------------------------------------
     pkgs.ghostty

@@ -186,10 +186,7 @@ in
   prismlauncher    = makeGuiSandbox { package = pkgs.prismlauncher;    name = "prismlauncher"; state = "disk"; };  # worlds; synced by syncthing.nix
 
   # --- Communication ---
-  # Day to day, Telegram and Discord come through the Matrix bridges. These are
-  # for calls: RAM only, so log in each boot and nothing stays on disk.
-  vesktop          = makeGuiSandbox { package = pkgs.vesktop;          name = "vesktop"; rawPipeWire = true; };
-  telegram-desktop = makeGuiSandbox { package = pkgs.telegram-desktop; name = "telegram"; };
+  # Telegram, Discord (Vesktop) and Zoom for calls run in the calls VM (modules/vms.nix).
 
   # Element's login, message cache and E2EE keys are one store: it stays on disk.
   # Its database key goes in the host keyring, so the DB is useless without it.
@@ -247,17 +244,7 @@ in
   # qBittorrent downloads into ~/torrents, the same path inside and outside
   # the sandbox. apps.nix points its save path there; restic.nix leaves it
   # out of backups. It can also still see ~/Shared like every sandbox.
-  qbittorrent = makeGuiSandbox {
-    package = pkgs.qbittorrent;
-    name = "qbittorrent";
-    extraEnv = { QT_QPA_PLATFORM = "wayland"; };  # the sandbox has no X11
-    extraBindRw = sloth: [
-      [
-        (sloth.mkdir (sloth.concat [ sloth.homeDir "/torrents" ]))
-        (sloth.concat [ sloth.homeDir "/torrents" ])
-      ]
-    ];
-  };
+  # qBittorrent runs in the torrent VM (modules/vms.nix).
 
   # Firefox and Feishin used to be here. Firefox is now the unsandboxed
   # "clean" browser (modules/desktop/programs.nix); Feishin runs unsandboxed (apps.nix).

@@ -29,6 +29,12 @@
     alsa.support32Bit = true;   # 32-bit Steam titles
     pulse.enable = true;
     wireplumber.enable = true;  # provides wpctl, used by hypr/binds.lua
+    # "Canon-mic": a microphone the calls VM fills with the R8's mic input
+    # (modules/vms.nix, canon-mic). Its sink, "Canon-mic-relay", is only for that.
+    extraConfig.pipewire-pulse."10-canon-mic"."pulse.cmd" = [
+      { cmd = "load-module"; args = "module-null-sink sink_name=canon-mic sink_properties=device.description=Canon-mic-relay"; flags = [ "nofail" ]; }
+      { cmd = "load-module"; args = "module-remap-source master=canon-mic.monitor source_name=canon-mic-in source_properties=device.description=Canon-mic"; flags = [ "nofail" ]; }
+    ];
   };
   services.pulseaudio.enable = false;
   security.rtkit.enable = true;  # realtime scheduling; prevents crackling under load

@@ -87,6 +87,7 @@
             shellcheck -S warning *.sh scripts/*.sh
             bash scripts/dvd-classify-test.sh
             bash scripts/waypipe-gate-test.sh
+            bash scripts/vm-clip-test.sh
             touch $out
           '';
     };
