@@ -376,7 +376,7 @@ in
   environment.systemPackages = [ vmOpen wifiToHost vmClip ] ++ lib.concatLists (lib.mapAttrsToList (name: vm:
     map (l: pkgs.makeDesktopItem {
       name = "vm-${name}-${l.app}";
-      desktopName = "${name}: ${l.label}";
+      desktopName = l.label;  # just the app's name; the border colour shows the VM
       exec = "vm-open ${name} ${toString vm.cid} ${l.app}" + lib.optionalString (l ? links) " %u";
       mimeTypes = map (s: "x-scheme-handler/${s}") (l.links or [ ]);
       inherit (l) icon;
@@ -729,6 +729,8 @@ in
       autostart = false;
       config = {
         imports = [ (guestBase "untrusted" vms.untrusted) ];
+        # Not exactly 2048: qemu's microvm machine corrupts the initrd at that size.
+        microvm.mem = 2560; # MiB; Mullvad Browser, and foot's 512 MiB drawing buffer through waypipe
         # Out through sys-vpn (Mullvad); Mullvad's resolver through the tunnel.
         networking.interfaces.vpn-untrusted.ipv4.addresses = [ { address = linkAddr "vpn-untrusted" "b"; prefixLength = 30; } ];
         networking.defaultGateway = { address = linkAddr "vpn-untrusted" "a"; interface = "vpn-untrusted"; };
