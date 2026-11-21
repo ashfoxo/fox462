@@ -89,6 +89,7 @@ let
     # Logged-in browsing and Matrix, behind sys-vpn. Its home is kept.
     personal = {
       cid = 8;
+      trustClipboard = true;  # your own logins: shares the host clipboard, no Super+Shift+V
       autoStop = true;
       audio = true;
       apps = {
@@ -200,7 +201,8 @@ let
   vmClip = pkgs.writeShellApplication {
     name = "vm-clip";
     runtimeInputs = with pkgs; [ wl-clipboard socat jq libnotify config.programs.hyprland.package ];
-    text = builtins.readFile ../scripts/vm-clip.sh;
+    # VMs with trustClipboard share the host clipboard like host apps.
+    text = "export VM_CLIP_TRUSTED=\"${toString (lib.attrNames (lib.filterAttrs (_: vm: vm.trustClipboard or false) vms))}\"\n" + builtins.readFile ../scripts/vm-clip.sh;
   };
 
   # Escape hatch: sudo wifi-to-host gives the card back to the host until the

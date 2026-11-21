@@ -11,4 +11,8 @@ is host      "[Untrusted] caps are not a VM label"
 is host      "[untrusted]no space after the label"
 is host      ""
 is host     " [untrusted] leading space"
+export VM_CLIP_TRUSTED="personal"
+is host      "[personal] LibreWolf"
+is untrusted "[untrusted] still gated"
+is personal-x "[personal-x] a name that only starts with a trusted one"
 exit $fail

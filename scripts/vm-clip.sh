@@ -17,8 +17,13 @@
 set -euo pipefail
 
 # The VM's name for "[vm] ..." titles (added by the host's waypipe), else host.
+# VMs in VM_CLIP_TRUSTED (space-separated) share the host clipboard: "host".
 domain() {
-  if [[ $1 =~ ^\[([a-z0-9-]+)\]\  ]]; then echo "${BASH_REMATCH[1]}"; else echo host; fi
+  if [[ $1 =~ ^\[([a-z0-9-]+)\]\  ]] && [[ " ${VM_CLIP_TRUSTED:-} " != *" ${BASH_REMATCH[1]} "* ]]; then
+    echo "${BASH_REMATCH[1]}"
+  else
+    echo host
+  fi
 }
 
 dir=${XDG_RUNTIME_DIR:-/tmp}/vm-clip
