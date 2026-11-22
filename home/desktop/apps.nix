@@ -31,8 +31,6 @@ in
   home.packages = [
 
     # --- Browsers -----------------------------------------------------------
-    sandboxes.mullvad-browser
-    sandboxes.librewolf
     # Clean Firefox (unsandboxed, outside Mullvad) is in modules/desktop/programs.nix.
 
     # --- Communication ------------------------------------------------------

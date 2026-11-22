@@ -18,7 +18,9 @@
 let
   c = (import ../../lib/palette.nix).for "zathura";
 
-  browser = "mullvad-browser.desktop";
+  # A throwaway Mullvad Browser in the untrusted VM (modules/vms.nix). Local
+  # HTML files can't reach it: it only gets links, not host files.
+  browser = "vm-untrusted-mullvad-browser.desktop";
   # zathura's PDF support is a plugin with its own entry; same zathura.
   pdf     = "org.pwmt.zathura-pdf-mupdf.desktop";
   image   = "imv-dir.desktop";   # opens the whole folder: arrows flip through it

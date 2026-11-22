@@ -25,7 +25,6 @@ let
 
     # --- Sandboxed apps that keep state (sandboxes.nix: state = "disk" / "logins") ---
     ".local/share/sandboxes/element"
-    ".local/share/sandboxes/librewolf"
     ".local/share/sandboxes/webapp-claude" ".local/share/sandboxes/webapp-elk"
     ".local/share/sandboxes/webapp-spotify"
     ".local/share/sandboxes/prismlauncher"   # Minecraft worlds, synced by syncthing.nix

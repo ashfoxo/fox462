@@ -32,7 +32,8 @@ let
       };
       launchers = [
         { app = "terminal"; label = "Terminal"; icon = "utilities-terminal"; }
-        { app = "mullvad-browser"; label = "Mullvad Browser"; icon = "mullvad-browser"; }
+        # Links clicked anywhere on the host open here (home/desktop/defaults.nix).
+        { app = "mullvad-browser"; label = "Mullvad Browser"; icon = "mullvad-browser"; links = [ "http" "https" ]; }
       ];
     };
     sys-net = {
@@ -96,7 +97,7 @@ let
         librewolf = [ (lib.getExe librewolfLogins) ];
         # No keyring in the VM: Element keeps its database key in its profile,
         # on the VM's disk image (inside the host's encrypted disk).
-        element = [ (lib.getExe pkgs.element-desktop) "--password-store=basic" ];
+        element = [ (lib.getExe pkgs.element-desktop) "--password-store=basic" "--ozone-platform=wayland" ];
       };
       launchers = [
         { app = "librewolf"; label = "LibreWolf"; icon = "librewolf"; }
@@ -268,18 +269,23 @@ let
       Environment = [ "XDG_RUNTIME_DIR=/run/user/1000" "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus" ];
       ExecStart = pkgs.writeShellScript "app-launch" ''
         read -r -t 5 name || exit 1
-        # Optional link for the app (Zoom meeting links). Only Zoom's own schemes,
-        # in plain URL characters, so nothing else can ride along.
+        # Optional link for the app: only the link types its launcher claims
+        # (`links`, e.g. http(s) for Mullvad Browser, zoommtg for Zoom), and no
+        # spaces, so nothing else can ride along. It's passed as one argument.
         read -r -t 1 APP_LINK || APP_LINK=
-        re='^zoom(mtg|us)://[A-Za-z0-9._~:/?#@&+,;=%-]+$'
-        if [ -n "$APP_LINK" ] && ! [[ $APP_LINK =~ $re ]]; then
-          echo "refused link '$APP_LINK'" >&2; exit 1
-        fi
-        export APP_LINK
+        schemes=
         case "$name" in
-        ${lib.concatStrings (lib.mapAttrsToList (n: cmd: "  ${n}) set -- ${lib.escapeShellArgs cmd} ;;\n") vm.apps)}
+        ${lib.concatStrings (lib.mapAttrsToList (n: cmd: "  ${n}) set -- ${lib.escapeShellArgs cmd}; schemes='${lib.concatStringsSep "|" (lib.concatMap (l: lib.optionals (l.app == n) (l.links or [ ])) vm.launchers)}' ;;\n") vm.apps)}
           *) echo "refused unknown app '$name'" >&2; exit 1 ;;
         esac
+        if [ -n "$APP_LINK" ]; then
+          re="^($schemes)://[^[:space:]]+\$"
+          if [ -z "$schemes" ] || ! [[ $APP_LINK =~ $re ]]; then
+            echo "refused link '$APP_LINK'" >&2; exit 1
+          fi
+          set -- "$@" "$APP_LINK"
+        fi
+        export APP_LINK
         exec </dev/null ${pkgs.waypipe}/bin/waypipe --no-gpu --vsock -s 2:${port vm} server -- "$@"
       '';
     };

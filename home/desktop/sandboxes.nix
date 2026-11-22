@@ -21,7 +21,7 @@ let
   # state: where the app's home lives. "ram": in /run/sandbox-ram, gone at
   # power-off. "disk": ~/.local/share/sandboxes/<name>, kept. "logins": the
   # disk home, but ~/.cache is in RAM (the app itself must keep history and
-  # caches off, see librewolf below). /tmp is always in RAM.
+  # caches off). /tmp is always in RAM.
   # persist: with state "ram", folders (relative to the home) that are kept on
   # disk anyway, in ~/.local/share/sandboxes/<name>/<folder>: the login of the
   # app. Folders only, since a file can't be bound before it exists.
@@ -145,42 +145,7 @@ let
 in
 {
   # --- Browsers ---
-  # File dialogs stay inside the sandbox: the portal file picker is turned
-  # off, so open/save dialogs show only what the browser can actually reach
-  # (its sandbox home, with ~/Shared = ~/sandbox_folders/mullvad-browser).
-  # Downloads go straight to ~/Shared.
-  mullvad-browser = makeGuiSandbox {
-    package = pkgs.mullvad-browser.override {
-      extraPrefs = ''
-        lockPref("widget.use-xdg-desktop-portal.file-picker", 0);
-        defaultPref("browser.download.folderList", 2);
-        defaultPref("browser.download.dir", "/home/arlo/Shared");
-        defaultPref("browser.download.useDownloadDir", true);
-      '';
-    };
-    name = "mullvad-browser";
-  };
-  # The one browser that keeps logins across reboots. History, disk cache,
-  # session restore and form data are off, and cookies are not cleared at exit.
-  # shortcut: logins live in the on-disk profile; site storage persists with them.
-  librewolf = makeGuiSandbox {
-    package = pkgs.librewolf.override {
-      extraPrefs = ''
-        lockPref("places.history.enabled", false);
-        lockPref("browser.cache.disk.enable", false);
-        lockPref("browser.cache.offline.enable", false);
-        lockPref("browser.sessionstore.max_tabs_undo", 0);
-        lockPref("browser.sessionstore.resume_from_crash", false);
-        lockPref("browser.formfill.enable", false);
-        lockPref("browser.download.manager.addToRecentDocs", false);
-        lockPref("privacy.clearOnShutdown.cookies", false);
-        lockPref("privacy.clearOnShutdown_v2.cookiesAndStorage", false);
-        lockPref("network.cookie.lifetimePolicy", 0);
-      '';
-    };
-    name = "librewolf";
-    state = "logins";
-  };
+  # Mullvad Browser runs in the untrusted VM, LibreWolf in personal (modules/vms.nix).
 
   # --- Gaming ---
   prismlauncher    = makeGuiSandbox { package = pkgs.prismlauncher;    name = "prismlauncher"; state = "disk"; };  # worlds; synced by syncthing.nix

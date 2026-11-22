@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Shared by element-dump.sh / element-apply.sh. Needs MATRIX_TOKEN and MATRIX_HS in the env.
 command -v jq >/dev/null || exec nix shell nixpkgs#jq -c "$0" "$@"
 : "${MATRIX_TOKEN:?set MATRIX_TOKEN (Element > Settings > Help & About > Advanced)}"
@@ -7,4 +8,5 @@ api() { # METHOD PATH [JSON body]; PATH is relative to /_matrix/client/v3
     ${3:+-d "$3"} "$MATRIX_HS/_matrix/client/v3$2"
 }
 enc() { jq -rn --arg s "$1" '$s|@uri'; }
+# shellcheck disable=SC2034  # used by the scripts that source this one
 ME=$(api GET /account/whoami | jq -r .user_id)

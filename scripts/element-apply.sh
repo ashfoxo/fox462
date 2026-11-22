@@ -13,7 +13,7 @@ for r in $(api GET /joined_rooms | jq -r '.joined_rooms[]'); do
   space[$(api GET "/rooms/$e/state/m.room.name" | jq -r .name)]=$r
 done
 run() { if [ "$dry" = --dry-run ]; then echo "would: $*"; else "$@" >/dev/null; fi; }
-while IFS=$'\t' read -r room name kind _ _ sp fav low _; do
+while IFS=$'\t' read -r room name _ _ _ sp fav low _; do
   [[ $room == '#'* || -z $room || -z $sp ]] && continue
   case $sp in Family|Friends|Gay|Furry|Feed|"Small groups"|Communities|Misc) ;; *) echo "bad space '$sp' for $name" >&2; exit 1;; esac
   if [ -z "${space[$sp]:-}" ]; then
