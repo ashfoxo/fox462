@@ -10,7 +10,7 @@ Scope {
     required property string unit
     required property var args     // [stamp file] or [stamp file, result file]
 
-    property string state: "unknown"  // ok | uptodate | running | skipped | failed | overdue | none | absent | unknown
+    property string state: "unknown"  // ok | uptodate | running | skipped | failed | reboot | overdue | none | absent | unknown
     property real last: 0              // unix seconds of the last good run, 0 = never
     property real next: 0              // unix seconds of the next scheduled run, 0 = unknown
     property string note: ""

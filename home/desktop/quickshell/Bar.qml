@@ -1,5 +1,6 @@
-// The bar: prompt, workspaces and scratchpads on the left; now playing,
-// status, tray, clock and power on the right.
+// The bar: prompt, workspaces and scratchpads on the left; the island
+// (clock, what's playing, recording) in the middle; status, tray and power
+// on the right.
 import QtQuick
 import Quickshell
 import Quickshell.Hyprland
@@ -8,7 +9,7 @@ PanelWindow {
     id: bar
 
     // Which dropdown is open ("" for none). Its bar button gets the green
-    // fill: chat, hidden, power, playing, vpn, netbird, backup, update, wifi, bt, vol.
+    // fill: chat, hidden, power, playing, vpn, netbird, backup, update.
     property string open: ""
     readonly property var monitor: Hyprland.monitorFor(screen)
 
@@ -51,53 +52,31 @@ PanelWindow {
         }
     }
 
+    Island {
+        id: island
+        bar: bar
+        anchors.top: parent.top
+        // Centred while it fits; when it grows wider than the space either
+        // side of the centre allows, it slides over within the gap between
+        // the left and right sides (24px breathing room each side).
+        x: Math.max(leftSide.x + leftSide.width + 24, Math.min((bar.width - width) / 2, rightSide.x - 24 - width))
+        room: rightSide.x - (leftSide.x + leftSide.width) - 48
+    }
+
     Row {
+        id: rightSide
         anchors {
             right: parent.right
             rightMargin: 14
             top: parent.top
         }
 
-        // Shown while something plays here or on your other devices, or is
-        // paused here. The title gets whatever space is free between the
-        // left side and the status (at most 400px) and is cut with "…";
-        // under 60px free it hides rather than overlap the left side.
-        BarButton {
-            id: playing
-
-            // 14 + 14 margins, 24 breathing room, 18 spacer, ~40 icon and padding.
-            readonly property real room: bar.width - leftSide.width - status.width - tray.width - clock.width - power.width - 110
-
-            visible: Playing.label !== "" && room >= 60
-            icon: Playing.barIcon
-            text: Playing.label
-            maxTextWidth: Math.min(400, room)
-            color: Playing.playing ? Config.colors.fg : Config.colors.faint
-            iconColor: Playing.playing ? Config.colors.forest_text : Config.colors.faint
-            open: bar.open === "playing"
-            onClicked: bar.toggle("playing")
-        }
-        Item {
-            visible: playing.visible
-            width: 18
-            height: 1
-        }
-
         StatusItems {
-            id: status
             bar: bar
         }
 
         Tray {
-            id: tray
             bar: bar
-        }
-
-        BarButton {
-            id: clock
-            text: Qt.formatTime(clockSource.date, "HH:mm")
-            bold: true
-            interactive: false
         }
 
         BarButton {
@@ -109,15 +88,10 @@ PanelWindow {
         }
     }
 
-    SystemClock {
-        id: clockSource
-        precision: SystemClock.Minutes
-    }
-
     Popups {
         bar: bar
     }
 
     PowerMenu { bar: bar; anchorItem: power; name: "power" }
-    PlayingMenu { bar: bar; anchorItem: playing; name: "playing" }
+    PlayingMenu { bar: bar; anchorItem: island.playingItem; name: "playing" }
 }

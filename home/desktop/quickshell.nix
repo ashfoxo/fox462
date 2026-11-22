@@ -77,6 +77,16 @@ let
       temp = { warn = 80; crit = 90; };   # °C
     };
 
+    # The update dropdown's rows: each copies its command. The laptop first:
+    # it builds before it commits, so a lock that doesn't build is never
+    # committed (undo: git checkout flake.lock), and the commit message lists
+    # the package versions that changed. The servers then deploy that commit
+    # (deploy.sh refuses uncommitted changes).
+    updateCommands = [
+      { label = "update laptop"; cmd = ''cd ~/fox-den && nix flake update && sudo nixos-rebuild boot --flake .#fox-amber && git commit -m "flake: update inputs" -m "$(nix store diff-closures /run/current-system /nix/var/nix/profiles/system | grep '→')" -- flake.lock''; }
+    ] ++ map (host: { label = "deploy ${host}"; cmd = "cd ~/fox-den && ./deploy.sh ${host} switch"; })
+      [ "fox-red" "fox-green" "fox-copper" ];
+
     # Sizes. The font, gaps and dropdowns are proportioned for a 30px bar;
     # if you change the height, change the font size by about the same ratio.
     bar.height = 30;
@@ -133,7 +143,7 @@ let
   # its dropdown: qs-unit <unit> <stamp file> [<result file>]. The stamp is
   # touched after each good run; the result file, if the job writes one, is
   # "<state> <note>" (modules/services/auto-update.nix). One per line:
-  #   state ok|uptodate|running|skipped|failed|overdue|none|absent
+  #   state ok|uptodate|running|skipped|failed|reboot|overdue|none|absent
   #   last  <unix time of the last good run, 0 if never>
   #   next  <unix time of the next scheduled run, 0 if unknown>
   #   note  <what the last run did or why it skipped>   (only with a result)
@@ -161,6 +171,8 @@ let
       result=$(systemctl show -p Result --value "$unit")
       if [ "$active" = activating ] && [ "$sub" != auto-restart ]; then state=running
       elif [ "$sub" = auto-restart ] || [ "$result" != success ] || [ "$rstate" = failed ]; then state=failed
+      # Built with `nixos-rebuild boot`, not running yet.
+      elif [ "$unit" = nixos-update ] && [ "$(readlink -f /run/current-system)" != "$(readlink -f /nix/var/nix/profiles/system)" ]; then state=reboot
       elif [ "$rstate" = skipped ]; then state=skipped
       elif [ "$last" = 0 ]; then state=none
       # Both are daily with up to 1h random delay, so allow 26h.
@@ -339,9 +351,15 @@ let
     cp -r ${./quickshell}/. $out/
     cp ${configQml} $out/Config.qml
   '';
+
+  # Pokes the running bar's island (Osd.qml): `qs-island brightness` after
+  # the brightness keys (hypr/binds.lua), `qs-island flash <text>`.
+  islandScript = pkgs.writeShellScriptBin "qs-island" ''
+    exec ${pkgs.quickshell}/bin/quickshell ipc --path ${shellDir} call island "$@"
+  '';
 in
 {
-  home.packages = [ pkgs.quickshell ];
+  home.packages = [ pkgs.quickshell islandScript ];
 
   systemd.user.services.quickshell = {
     Unit = {

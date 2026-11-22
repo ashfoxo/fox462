@@ -159,50 +159,24 @@ in
   # with it. This one asks the host's desktop portal to open the link instead,
   # with "ask" so you pick the browser: the system default is Mullvad, which
   # can't hand the login back to Element, so pick the clean Firefox.
-  #
-  # It waits for GPG to be unlocked (the YubiKey touch, gpg-unlock.nix) before
-  # starting. Until then the keyring can't answer, and Element takes that to
-  # mean there is no key yet: it writes a new one over the old, and the saved
-  # login is lost. Runs outside the sandbox, so it covers the login autostart
-  # and Super + C alike.
-  element-desktop = let
-    waitForGpg = pkgs.writeShellScript "wait-for-gpg" ''
-      export PATH=${lib.makeBinPath [ pkgs.gnupg pkgs.gawk pkgs.libnotify ]}
-      unlocked() {
-        # A real decrypt test: KEYINFO says "cached" even for a bad preset.
-        echo x | gpg --batch --default-recipient-self -e 2>/dev/null | gpg --batch --pinentry-mode error -d >/dev/null 2>&1
-      }
-      unlocked && exit 0
-      notify-send -a Element "Element is waiting" "Touch your YubiKey to unlock app logins"
-      until unlocked; do sleep 2; done
-    '';
-    sandboxed = makeGuiSandbox {
-      package = let
-        element = pkgs.element-desktop.override { commandLineArgs = "--password-store=gnome-libsecret"; };
-        xdgOpen = pkgs.writeShellScriptBin "xdg-open" ''
-          exec ${pkgs.glib.bin}/bin/gdbus call --session \
-            --dest org.freedesktop.portal.Desktop --object-path /org/freedesktop/portal/desktop \
-            --method org.freedesktop.portal.OpenURI.OpenURI "" "$1" "{'ask': <true>}" > /dev/null
-        '';
-      in pkgs.symlinkJoin {
-        name = "element-desktop-xdg-open";
-        paths = [ element ];
-        nativeBuildInputs = [ pkgs.makeWrapper ];
-        postBuild = ''
-          wrapProgram $out/bin/element-desktop --prefix PATH : ${xdgOpen}/bin
-        '';
-        meta.mainProgram = "element-desktop";
-      };
-      name = "element"; machineId = true; state = "disk"; secrets = true;
+  element-desktop = makeGuiSandbox {
+    package = let
+      element = pkgs.element-desktop.override { commandLineArgs = "--password-store=gnome-libsecret"; };
+      xdgOpen = pkgs.writeShellScriptBin "xdg-open" ''
+        exec ${pkgs.glib.bin}/bin/gdbus call --session \
+          --dest org.freedesktop.portal.Desktop --object-path /org/freedesktop/portal/desktop \
+          --method org.freedesktop.portal.OpenURI.OpenURI "" "$1" "{'ask': <true>}" > /dev/null
+      '';
+    in pkgs.symlinkJoin {
+      name = "element-desktop-xdg-open";
+      paths = [ element ];
+      nativeBuildInputs = [ pkgs.makeWrapper ];
+      postBuild = ''
+        wrapProgram $out/bin/element-desktop --prefix PATH : ${xdgOpen}/bin
+      '';
+      meta.mainProgram = "element-desktop";
     };
-  in pkgs.symlinkJoin {
-    name = "element-desktop-sandboxed";
-    paths = [ sandboxed ];
-    nativeBuildInputs = [ pkgs.makeWrapper ];
-    postBuild = ''
-      wrapProgram $out/bin/element-desktop --run ${waitForGpg}
-    '';
-    meta.mainProgram = "element-desktop";
+    name = "element"; machineId = true; state = "disk"; secrets = true;
   };
 
   # --- Downloads ---

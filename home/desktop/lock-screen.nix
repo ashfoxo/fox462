@@ -6,6 +6,5 @@
 pkgs: pkgs.writeShellScriptBin "lock-screen" ''
   ${pkgs.procps}/bin/pgrep -x hyprlock >/dev/null && exit 0
   ${pkgs.coreutils}/bin/date +%s > "$XDG_RUNTIME_DIR/locked-at"
-  ${pkgs.hyprlock}/bin/hyprlock && ${pkgs.coreutils}/bin/rm -f "$XDG_RUNTIME_DIR/password-only" \
-    && ${pkgs.systemd}/bin/systemctl --user start --no-block gpg-unlock  # asks for the GPG touch once you're in
+  ${pkgs.hyprlock}/bin/hyprlock && ${pkgs.coreutils}/bin/rm -f "$XDG_RUNTIME_DIR/password-only"
 ''

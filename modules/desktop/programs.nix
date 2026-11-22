@@ -59,20 +59,10 @@ in
     remotePlay.openFirewall = false;
   };
 
-  # The GPG key's passphrase is random and only stored age-encrypted to the
-  # YubiKeys (and a recovery key in Bitwarden). One touch at login hands it
-  # to the agent for the session: home/desktop/gpg-unlock.nix.
+  # The GPG key has no passphrase: the disk encryption protects it.
   programs.gnupg.agent = {
     enable = true;
     enableSSHSupport = false; # Bitwarden owns SSH_AUTH_SOCK
-    settings = {
-      allow-preset-passphrase = "";  # a flag; `true` renders as an argument gpg rejects
-      # The login touch caches the passphrase for the whole session. The
-      # defaults (10 min, 2 h max) dropped it, and pinentry then asked for a
-      # passphrase nobody types. Power-off clears it.
-      default-cache-ttl = 34560000;
-      max-cache-ttl = 34560000;
-    };
   };
 
   programs.appimage = {

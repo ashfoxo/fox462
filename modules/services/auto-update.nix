@@ -1,11 +1,9 @@
-# Update check for the laptop: every 6 hours, as arlo (never root), it asks
-# whether the flake's inputs have moved and pings you if they have. It builds
-# nothing and never touches the repo; the new lock goes to a scratch file.
-# Update yourself when it suits you:
-#   cd ~/fox-den && nix flake update && sudo nixos-rebuild boot --flake .#fox-amber
-#
-# Skips metered networks (mark your hotspot with
-# `nmcli connection modify "<name>" connection.metered yes`) and no network.
+# Update check for the laptop: every 6 hours and 5 minutes after boot, as
+# arlo (never root), it asks whether nixpkgs or home-manager have moved and
+# pings you if they have. It builds nothing and never touches the repo; the
+# new lock goes to a scratch file. Update yourself when it suits you: click
+# the bar's update icon and copy the command (updateCommands in
+# home/desktop/quickshell.nix). Skipped while there's no network.
 #
 # Try it now: sudo systemctl start nixos-update, then journalctl -u nixos-update
 # The bar's update item reads /var/lib/nixos-update (UnitStatus in
@@ -19,7 +17,7 @@ let
 
   script = pkgs.writeShellApplication {
     name = "nixos-update";
-    runtimeInputs = with pkgs; [ coreutils jq config.nix.package systemd networkmanager libnotify ];
+    runtimeInputs = with pkgs; [ coreutils jq config.nix.package networkmanager libnotify ];
     text = ''
       dir=${dir}
 
@@ -33,14 +31,6 @@ let
           notify-send -a "Update" "$1" "$2" || true
       }
 
-      # Metered: 1 = yes, 3 = guessed yes.
-      metered=$(busctl get-property org.freedesktop.NetworkManager \
-        /org/freedesktop/NetworkManager org.freedesktop.NetworkManager Metered \
-        | cut -d' ' -f2 || echo 0)
-      case "$metered" in
-        1|3) result skipped "metered network"; exit 0 ;;
-        *) ;;
-      esac
       if ! nm-online -q -t 60; then
         result skipped "no network"
         exit 0
@@ -48,10 +38,11 @@ let
 
       nix flake update --flake ${repo} --output-lock-file "$dir/flake.lock.new"
 
-      # Inputs whose locked revision moved, e.g. "nixpkgs home-manager".
+      # Of the inputs that ship software, the ones whose revision moved. The
+      # rest (nixpkgs-unstable, tooling, inputs' own inputs) move constantly.
       changed=$(jq -rn --slurpfile old ${repo}/flake.lock --slurpfile new "$dir/flake.lock.new" '
-        [ $new[0].nodes | to_entries[] | select(.value.locked)
-          | select(.value.locked.rev != $old[0].nodes[.key].locked.rev) | .key ] | join(" ")')
+        [ "nixpkgs", "home-manager"
+          | select($new[0].nodes[.].locked.rev != $old[0].nodes[.].locked.rev) ] | join(" ")')
 
       touch "$dir/last-success"
       if [ -z "$changed" ]; then
@@ -86,6 +77,7 @@ in
     wantedBy = [ "timers.target" ];
     timerConfig = {
       OnCalendar = "0/6:00";
+      OnBootSec = "5min";  # after the reboot that applies an update, the bar stops saying "updates available"
       Persistent = true;
       RandomizedDelaySec = "10min";
     };

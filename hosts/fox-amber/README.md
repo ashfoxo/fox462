@@ -76,7 +76,6 @@ Syncthing's port. Wi-Fi MAC addresses are randomised per network.
   modules can't load once boot is done.
 - User accounts are immutable; their password hashes come from encrypted
   secrets.
-- The GPG key behind `pass` opens with a YubiKey touch at login.
 
 ## Backups
 

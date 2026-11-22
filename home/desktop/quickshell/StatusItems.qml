@@ -1,12 +1,13 @@
 // Status on the right, in groups:
-//   rec | load (only when high) | vpn netbird backup | wifi bt volume profile battery | dnd
+//   load (only when high) | vpn netbird backup update | wifi bt volume profile battery | dnd
 // While things are fine an item is just its icon; text shows up only when
-// it needs you. vpn, netbird and backup go away entirely while fine, and
-// come back while the mouse is over the status. Amber = heads-up, rust =
-// something's wrong.
-// Click vpn, netbird, backup, wifi, bluetooth or volume for its dropdown.
+// it needs you. vpn, netbird, backup and update go away entirely while fine,
+// and come back while the mouse is over the status. Amber = heads-up, rust =
+// something's wrong, teal = notable.
+// Click vpn, netbird, backup or update for its dropdown. Wifi opens nmtui in
+// the sys-net VM, bluetooth opens bluetui, volume opens pavucontrol.
 // Volume also scrolls; the power profile cycles on click; the bell turns
-// do not disturb on and off.
+// do not disturb on and off. Recording is in the island (Island.qml).
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -30,37 +31,6 @@ Row {
 
     HoverHandler {
         id: hover
-    }
-
-    // ---- voice note recording (voicenotes.nix): only while recording --------
-    BarButton {
-        id: rec
-        property bool recording: false
-
-        visible: recording
-        text: "● rec"
-        bold: true
-        fill: Config.colors.rust
-        onClicked: Quickshell.execDetached(["voice-note"])
-
-        Process {
-            id: recCheck
-            command: ["voice-note-status"]
-            stdout: StdioCollector {
-                onStreamFinished: rec.recording = text.includes('"recording"')
-            }
-        }
-        Timer {
-            interval: 1000
-            running: true
-            repeat: true
-            onTriggered: recCheck.running = true
-        }
-    }
-    Item {
-        visible: rec.recording
-        width: root.groupGap
-        height: 1
     }
 
     // ---- load: only when high ----------------------------------------------
@@ -136,34 +106,38 @@ Row {
     }
     BarButton {
         id: updateItem
-        visible: updateStatus.state !== "absent"
-        icon: "\u{F06B0}"
-        text: ({ failed: "update failed", overdue: "update overdue", skipped: "update skipped", ok: "updates available" })[updateStatus.state] ?? ""
+        visible: updateStatus.state !== "absent" && (updateStatus.state !== "uptodate" || hover.hovered || open)
+        icon: updateStatus.state === "reboot" ? "\u{F0709}" : "\u{F06B0}"
+        text: ({ failed: "update failed", overdue: "update overdue" })[updateStatus.state] ?? ""
         color: ({ failed: root.c.rust_text, overdue: root.c.amber, skipped: root.c.amber, none: root.c.amber,
-                  running: root.c.teal_text, ok: root.c.forest_text })[updateStatus.state] ?? root.c.dim
+                  running: root.c.teal_text, ok: root.c.teal_text, reboot: root.c.teal_text })[updateStatus.state] ?? root.c.dim
         open: root.bar.open === "update"
         onClicked: root.bar.toggle("update")
     }
 
     // ---- wi-fi ----------------------------------------------------------------
+    // The card lives in the sys-net VM (modules/vms.nix), so the host only
+    // sees a route out through it: online, but no network name or signal.
+    // Those show only after `sudo wifi-to-host`.
     BarButton {
         id: wifiItem
         readonly property var wired: Networking.devices.values.find(d => d.type === DeviceType.Wired && d.connected) ?? null
         readonly property var wifi: Networking.devices.values.find(d => d.type === DeviceType.Wifi) ?? null
         readonly property var network: wifi ? wifi.networks.values.find(n => n.connected) ?? null : null
-        readonly property bool online: wired !== null || network !== null
+        readonly property bool online: wired !== null || network !== null || Networking.connectivity === NetworkConnectivity.Full
 
         gap: root.groupGap
         icon: wired ? "\u{F0200}"
-            : !network ? "\u{F092D}"
-            : network.signalStrength > 0.75 ? "\u{F0928}"
-            : network.signalStrength > 0.5 ? "\u{F0925}"
-            : network.signalStrength > 0.25 ? "\u{F0922}"
-            : "\u{F091F}"
+            : network ? (network.signalStrength > 0.75 ? "\u{F0928}"
+                : network.signalStrength > 0.5 ? "\u{F0925}"
+                : network.signalStrength > 0.25 ? "\u{F0922}"
+                : "\u{F091F}")
+            : online ? "\u{F05A9}"
+            : "\u{F092D}"
         text: online ? "" : "offline"
         color: online ? root.c.dim : root.c.amber
-        open: root.bar.open === "wifi"
-        onClicked: root.bar.toggle("wifi")
+        // 4 = sys-net's vsock cid in modules/vms.nix.
+        onClicked: Quickshell.execDetached(["vm-open", "sys-net", "4", "wifi"])
     }
 
     // ---- bluetooth: off / on / something connected ----------------------------
@@ -175,8 +149,7 @@ Row {
 
         icon: !on ? "\u{F00B2}" : connected ? "\u{F00B1}" : "\u{F00AF}"
         color: !on ? root.c.faint : connected ? root.c.forest_text : root.c.dim
-        open: root.bar.open === "bt"
-        onClicked: root.bar.toggle("bt")
+        onClicked: Quickshell.execDetached(["ghostty", "-e", "bluetui"])
     }
 
     // ---- volume: scroll to change ---------------------------------------------
@@ -192,8 +165,7 @@ Row {
         text: muted ? "muted" : `${Math.round(volume * 100)}%`
         color: muted ? root.c.amber : root.c.fg
         iconColor: muted ? root.c.amber : root.c.dim
-        open: root.bar.open === "vol"
-        onClicked: root.bar.toggle("vol")
+        onClicked: Quickshell.execDetached(["pavucontrol"])
         onWheel: wheel => {
             const step = wheel.angleDelta.y > 0 ? 0.05 : -0.05;
             sink.audio.volume = Math.max(0, Math.min(1, volume + step));
@@ -272,11 +244,9 @@ Row {
         status: updateStatus
         menuIcon: "\u{F06B0}"
         menuTitle: "update"
-        okText: "built, applies at next boot"
-        actionText: "update now"
-        busyText: "updating…"
+        okText: "updates available"
+        actionText: "check now"
+        busyText: "checking…"
+        commands: Config.updateCommands
     }
-    WifiMenu { bar: root.bar; anchorItem: wifiItem; name: "wifi" }
-    BluetoothMenu { bar: root.bar; anchorItem: btItem; name: "bt" }
-    VolumeMenu { bar: root.bar; anchorItem: volItem; name: "vol" }
 }

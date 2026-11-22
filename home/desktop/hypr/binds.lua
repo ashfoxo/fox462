@@ -88,6 +88,9 @@ bind(mod .. " + O", win.pop(), "Scratchpad: Pop out as a normal window, or back 
 -- On a scratchpad, just hides the scratchpad.
 bind(mod .. " + X", win.hide(), "Window: Hide, bring back from the bar")
 
+-- Super + K: copy a command you run by hand (commands.nix).
+bind(mod .. " + K", exec("quick-commands"), "Commands: Copy one to paste into a terminal")
+
 -----------------
 ---- SESSION ----
 -----------------
@@ -111,8 +114,8 @@ bind("XF86AudioRaiseVolume",  exec("wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5
 bind("XF86AudioLowerVolume",  exec("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"),      "Media: Volume down",      hw)
 bind("XF86AudioMute",         exec("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"),     "Media: Mute",             { locked = true })
 bind("XF86AudioMicMute",      exec("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"),   "Media: Mute microphone",  { locked = true })
-bind("XF86MonBrightnessUp",   exec("brightnessctl set 5%+"),                          "Media: Brightness up",    hw)
-bind("XF86MonBrightnessDown", exec("brightnessctl set 5%-"),                          "Media: Brightness down",  hw)
+bind("XF86MonBrightnessUp",   exec("brightnessctl set 5%+ && qs-island brightness"), "Media: Brightness up",    hw)
+bind("XF86MonBrightnessDown", exec("brightnessctl set 5%- && qs-island brightness"), "Media: Brightness down",  hw)
 
 -- playerctl talks to whatever is playing (Feishin, browsers, mpv).
 bind("XF86AudioPlay",  exec("playerctl play-pause"), "Media: Play or pause", { locked = true })

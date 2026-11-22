@@ -22,7 +22,7 @@
 [
   { name = "term";  key = "grave"; class = "^dev\\.arlo\\.scratchterm$";
     cmd = "ghostty --class=dev.arlo.scratchterm --gtk-single-instance=false"; }
-  { name = "vault"; key = "B"; class = "^bitwarden$"; cmd = "bitwarden"; }
+  { name = "vault"; key = "B"; class = "^bitwarden$"; cmd = "bitwarden"; autostart = true; }
   { name = "music"; key = "M"; class = "^feishin$";   cmd = "feishin"; }
   { name = "notes"; key = "N"; class = "^Notesnook$"; cmd = "notesnook"; autostart = true; }
   { name = "files"; key = "E"; class = "^dev\\.arlo\\.files$";

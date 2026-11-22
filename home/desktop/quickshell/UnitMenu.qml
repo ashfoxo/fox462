@@ -1,7 +1,9 @@
 // Dropdown for a UnitStatus (backup, update): last good run, next scheduled
-// run, what the last run did, the error if it failed, and a run-now button
-// (asks for your password).
+// run, what the last run did, the error if it failed, a run-now button
+// (asks for your password), and rows that copy a command to paste into a
+// terminal (`commands`: [{ label, cmd }]).
 import QtQuick
+import Quickshell
 
 Dropdown {
     id: menu
@@ -12,6 +14,7 @@ Dropdown {
     property string okText: "ok"
     property string actionText: ""
     property string busyText: ""
+    property var commands: []
 
     readonly property var c: Config.colors
     readonly property bool failed: status.state === "failed"
@@ -24,6 +27,7 @@ Dropdown {
             skipped: ["● skipped", c.amber],
             overdue: ["● overdue", c.amber],
             failed: ["● failed", c.rust_text],
+            reboot: ["● reboot to apply", c.teal_text],
             none: ["● never run yet", c.amber],
             absent: ["● not set up on this machine", c.dim],
             unknown: ["● unknown", c.dim]
@@ -78,5 +82,26 @@ Dropdown {
         icon: "\u{F0167}"
         text: menu.running ? menu.busyText : menu.actionText
         onClicked: menu.status.start()
+    }
+
+    Column {
+        visible: menu.commands.length > 0
+        width: parent.width
+
+        Repeater {
+            model: menu.commands
+
+            ListRow {
+                required property var modelData
+                icon: "\u{F018F}"
+                text: modelData.label
+                note: "copy"
+                onClicked: {
+                    Quickshell.execDetached(["wl-copy", modelData.cmd]);
+                    Osd.show("\u{F018F}", "copied", -1);
+                    menu.dismissed();
+                }
+            }
+        }
     }
 }
