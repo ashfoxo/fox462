@@ -738,7 +738,7 @@ in
       config = {
         imports = [ (guestBase "untrusted" vms.untrusted) ];
         # Not exactly 2048: qemu's microvm machine corrupts the initrd at that size.
-        microvm.mem = 2560; # MiB; Mullvad Browser, and foot's 512 MiB drawing buffer through waypipe
+        microvm.mem = 4096; # MiB; Mullvad Browser (OOM-killed at 2560), and foot's 512 MiB drawing buffer through waypipe
         # Out through sys-vpn (Mullvad); Mullvad's resolver through the tunnel.
         networking.interfaces.vpn-untrusted.ipv4.addresses = [ { address = linkAddr "vpn-untrusted" "b"; prefixLength = 30; } ];
         networking.defaultGateway = { address = linkAddr "vpn-untrusted" "a"; interface = "vpn-untrusted"; };
