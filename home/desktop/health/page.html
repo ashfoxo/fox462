@@ -964,7 +964,22 @@ function series(box, pts, o) {
 // ---- Hiking: what you've done, no goal ----------------------------------
 const HIKES = W.filter((w) => w.kind === "hike");   // rucks are on Wildland
 const hikeMi = (ws) => ws.reduce((s, w) => s + (w.dist || 0), 0) / MI;
-const hikeFt = (ws) => ws.reduce((s, w) => s + (w.up || 0), 0) * FT;
+// A failing barometer jumps: 15 m (50 ft) up or down inside 20 s can't be walked. A hike with 4 or more
+// of those (the old Instinct, near its end) has its climb left out of totals, records and the chart.
+function climb(w) {
+  if (w.climbOk === undefined) {
+    const tr = w.track, it = tr?.cols.indexOf("t"), ia = tr?.cols.indexOf("alt") ?? -1;
+    let n = 0, prev = null;
+    if (ia >= 0) for (const r of tr.rows) {
+      if (r[ia] == null) continue;
+      if (prev && r[it] - prev[0] <= 20 && Math.abs(r[ia] - prev[1]) >= 15) n++;
+      prev = [r[it], r[ia]];
+    }
+    w.climbOk = n < 4;
+  }
+  return w.climbOk && w.up ? w.up : null;
+}
+const hikeFt = (ws) => ws.reduce((s, w) => s + (climb(w) || 0), 0) * FT;
 let hikePlots = [];
 
 function hikeView() {
@@ -976,7 +991,7 @@ function hikeView() {
   const top = h("div", { className: "goal" }), year = String(new Date().getFullYear());
   const now = HIKES.filter((w) => localDay(w.start).startsWith(year)), last = HIKES.at(-1);
   big(top, "This year", String(now.length), now.length === 1 ? "hike" : "hikes", `${fmt(hikeMi(now), 1)} mi · ${fmt(hikeFt(now))} ft climbed`);
-  big(top, "Last hike", last ? fmt(last.dist / MI, 1) : "–", last ? "mi" : "", last && on(last), last?.up && `${fmt(last.up * FT)} ft climbed`);
+  big(top, "Last hike", last ? fmt(last.dist / MI, 1) : "–", last ? "mi" : "", last && on(last), last && climb(last) && `${fmt(climb(last) * FT)} ft climbed`);
   if (last) {   // the tile opens the hike
     const t = top.lastChild;
     Object.assign(t, { tabIndex: 0, role: "button" });
@@ -988,7 +1003,7 @@ function hikeView() {
 
   const grid = h("section", { className: "grid" });
   hikePlots = [["Distance", "miles, each hike in the past year", (w) => w.dist / MI, (v) => fmt(v, 1), "mi"],
-    ["Climb", "feet, each hike in the past year that recorded it", (w) => w.up ? w.up * FT : null, (v) => fmt(v), "ft"]].map(([title, unit, ...rest]) => {
+    ["Climb", "feet, each hike in the past year that recorded it", (w) => climb(w) && climb(w) * FT, (v) => fmt(v), "ft"]].map(([title, unit, ...rest]) => {
     const card = h("section", { className: "card" }), plot = h("div", { className: "plot" });
     card.append(h("h3", {}, title), h("div", { className: "unit" }, unit), plot);
     grid.appendChild(card);
@@ -1007,9 +1022,9 @@ function hikeView() {
   sh("Records");
   const recs = h("div", { className: "recs" }), most = (f) => HIKES.filter(f).sort((a, b) => f(b) - f(a))[0];
   const onY = (w) => `${w.label}, ${longDay(localDay(w.start))}, ${localDay(w.start).slice(0, 4)}`;   // records span years
-  const far = most((w) => w.dist || 0), high = most((w) => w.up || 0), long = most((w) => w.secs || 0);
+  const far = most((w) => w.dist || 0), high = most((w) => climb(w) || 0), long = most((w) => w.secs || 0);
   recRow(recs, "Longest hike", far ? onY(far) : "none yet", far ? fmt(far.dist / MI, 2) + " mi" : "–", far?.secs ? clock(far.secs) : "", far);
-  recRow(recs, "Most climbing", high ? onY(high) : "none yet", high ? fmt(high.up * FT) + " ft" : "–", high?.dist ? fmt(high.dist / MI, 1) + " mi" : "", high);
+  recRow(recs, "Most climbing", high ? onY(high) : "none yet", high ? fmt(climb(high) * FT) + " ft" : "–", high?.dist ? fmt(high.dist / MI, 1) + " mi" : "", high);
   recRow(recs, "Longest time out", long ? onY(long) : "none yet", long ? clock(long.secs) : "–", long?.dist ? fmt(long.dist / MI, 1) + " mi" : "", long);
   const weeks = {};   // Sunday-to-Saturday miles
   for (const w of HIKES) { const sun = w.dn - weekday(w.dn); (weeks[sun] ||= []).push(w); }
