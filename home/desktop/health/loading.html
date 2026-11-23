@@ -1,0 +1,29 @@
+<!doctype html>
+<meta charset="utf-8">
+<!-- `health` swaps the real page in while this is open; the reload picks it up. -->
+<meta http-equiv="refresh" content="1">
+<title>Health</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #@bg@; color: #@fg@; font: 14px/1.45 system-ui, sans-serif; }
+  main { max-width: 1180px; margin: 0 auto; padding: 32px 20px 64px; }
+  h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; margin: 0; }
+  p { color: #@dim@; margin: 4px 0 0; }
+  .bar { position: relative; overflow: hidden; height: 4px; margin-top: 24px; border-radius: 2px; background: #@line@; }
+  .bar i { position: absolute; inset: 0 auto 0 0; width: 30%; border-radius: 2px; background: #@accent@;
+    animation: slide 1.4s ease-in-out infinite; }
+  @keyframes slide { from { left: -30%; } to { left: 100%; } }
+  @media (prefers-reduced-motion: reduce) { .bar i { animation: none; width: 100%; opacity: 0.5; } }
+  .wait .fail, body:not(.wait) .bar, body:not(.wait) .msg { display: none; }
+</style>
+<body class="wait">
+<main>
+  <h1>Health</h1>
+  <p class="msg" role="status">Reading your watch data…</p>
+  <p class="fail" role="alert">Couldn't build the page. Run <code>health</code> in a terminal to see why.</p>
+  <div class="bar" aria-hidden="true"><i></i></div>
+</main>
+<script>
+  // Carry on where the last reload left off, so the bar doesn't restart every second.
+  document.querySelector(".bar i").style.animationDelay = -(Date.now() % 1400) + "ms";
+</script>

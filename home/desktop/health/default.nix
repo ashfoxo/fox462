@@ -29,6 +29,10 @@ let
     rust = c.rust_text;
     inherit (c) amber;
   };
+  loading = pkgs.replaceVars ./loading.html {
+    inherit (c) bg line fg dim;
+    accent = c.forest_text;
+  };
 
   # Pinned map libraries, inlined into the page.
   lib = { url, hash }: pkgs.fetchurl { inherit url hash; };
@@ -47,9 +51,17 @@ let
     text = ''
       dir="$XDG_RUNTIME_DIR/health"   # RAM; the viewer sees it as /health
       mkdir -p "$dir"
-      ${build} "$dir/index.html" ${page} ${maplibreCss} ${maplibreJs} ${pmtilesJs} ${basemapsJs}
-      exec ${viewer}/bin/chromium --app=file:///health/index.html \
-        --no-first-run --no-default-browser-check --password-store=basic
+      # The window opens on a loading page right away; the built page replaces it in one step.
+      cat ${loading} > "$dir/index.html"
+      ${viewer}/bin/chromium --app=file:///health/index.html \
+        --no-first-run --no-default-browser-check --password-store=basic &
+      if ${build} "$dir/index.html.part" ${page} ${maplibreCss} ${maplibreJs} ${pmtilesJs} ${basemapsJs}; then
+        mv "$dir/index.html.part" "$dir/index.html"
+      else
+        rm -f "$dir/index.html.part"
+        sed -e 's/ class="wait"//' -e '/http-equiv/d' ${loading} > "$dir/index.html"
+      fi
+      wait
     '';
   };
 

@@ -275,7 +275,7 @@ const median = (a) => { a = a.filter((x) => x != null).sort((x, y) => x - y); re
 // Today isn't over: its daytime numbers are partial, so only last night's (sleep, HRV) count yet.
 const todayStr = localDay(Date.now());
 const DAYS = D.days.map((r) => r.d !== todayStr ? r : Object.fromEntries(Object.entries(r).filter(([k]) =>
-  ["d", "deep", "rem", "light", "awake", "score", "hrv", "hrvLo", "hrvHi"].includes(k)))).map((r) => ({ ...r, dn: dayNum(r.d),
+  ["d", "deep", "rem", "light", "awake", "score", "hrv", "hrvLo", "hrvHi", "vo2"].includes(k)))).map((r) => ({ ...r, dn: dayNum(r.d),
   sleep: [r.deep, r.rem, r.light].some((x) => x != null) ? (r.deep || 0) + (r.rem || 0) + (r.light || 0) : null }));
 const byDn = new Map(DAYS.map((r) => [r.dn, r]));
 const lastDn = DAYS.length ? DAYS[DAYS.length - 1].dn : dayNum(localDay(Date.now()));
@@ -425,6 +425,12 @@ function today() {
     bar.appendChild(fill); bt.appendChild(bar);
     spark(bt, "bbHi", css("--accent"));
   } else val(bt, "–");
+
+  // Only some workouts update VO2 max, so its sparkline looks back 90 days.
+  const o = latest("vo2");
+  const ot = tile("VO2 max", o, css("--amber"));
+  if (o) { val(ot, fmt(o.vo2, 1), "ml/kg/min"); ot.appendChild(vsUsual(o.vo2, usual("vo2", o.dn), +1, "", 1, 0.01)); spark(ot, "vo2", css("--amber"), 90); }
+  else val(ot, "–");
 }
 
 // ---- Workout cards ------------------------------------------------------

@@ -31,7 +31,7 @@ SYNC = HOME / "sync"
 DATA = HOME / ".local/share/health"
 GARMIN = DATA / "garmin"
 CACHE = DATA / "cache"
-VERSION = "3"           # bump when parse() output changes, to re-parse every file
+VERSION = "4"          # bump when parse() output changes, to re-parse every file
 MAX_POINTS = 2000       # per workout; plenty for a chart or a route line
 SEMI = 180 / 2**31      # FIT semicircles -> degrees
 COLS = ["t", "lat", "lon", "dist", "hr", "spd", "alt", "cad", "pwr", "vo", "gct", "sl"]
@@ -56,7 +56,7 @@ def log(*a):
 # ---- Workout files --------------------------------------------------------
 
 def read_fit(data):
-    s, laps, recs, zones = {}, [], [], None
+    s, laps, recs, zones, vo2 = {}, [], [], None, None
     with fitdecode.FitReader(io.BytesIO(data)) as fr:
         for f in fr:
             if not isinstance(f, fitdecode.FitDataMessage):
@@ -77,6 +77,8 @@ def read_fit(data):
                 z = g("time_in_hr_zone")
                 if z:
                     zones = [round(x or 0) for x in list(z)[:5]]   # zones 1-5; matches Garmin's hrTimeInZone_1..5
+            elif f.global_mesg_num == 140 and g(7):   # undocumented Garmin message; field 7 is VO2 max * 65536 / 3.5, 0 if not estimated
+                vo2 = round(g(7) * 3.5 / 65536, 1)
             elif f.name == "lap":
                 laps.append({"time": g("total_timer_time"), "dist": g("total_distance"),
                              "hr": g("avg_heart_rate"), "maxhr": g("max_heart_rate"),
@@ -100,7 +102,7 @@ def read_fit(data):
     if not s and not recs:
         return None
     s["start"] = s.get("start") or recs[0]["ts"]
-    s["zones"] = zones
+    s["zones"], s["vo2"] = zones, vo2
     return s, recs, laps
 
 
@@ -406,7 +408,10 @@ def main():
     for d, v in gb.items():   # Gadgetbridge wins wherever it has the number
         days.setdefault(d, {}).update(v)
     ws = workouts(names)
-    data = {"device": device, "exported": exported, "days": [{"d": d, **v} for d, v in sorted(days.items())],
+    for w in ws:   # VO2 max goes on its workout's day (newest wins), so the page reads it like any daily number
+        if w.get("vo2"):
+            days.setdefault(datetime.fromtimestamp(w["start"] / 1000).date().isoformat(), {})["vo2"] = w["vo2"]
+    data ={"device": device, "exported": exported, "days": [{"d": d, **v} for d, v in sorted(days.items())],
             "workouts": [{k: v for k, v in w.items() if k != "bbox" or v} for w in ws]}
 
     with tempfile.TemporaryDirectory() as tmp:
