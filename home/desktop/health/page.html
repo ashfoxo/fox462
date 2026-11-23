@@ -131,6 +131,19 @@
   .rec .when, .rec .extra { color: var(--faint); font-size: 12px; }
   .rec .extra { text-align: right; }
 
+  /* Activity list (bottom of each tab); a row opens the workout */
+  .wlist { display: flex; flex-direction: column; }
+  .wrow { display: grid; grid-template-columns: 10px minmax(0, 1fr) 90px 80px 90px; gap: 12px; align-items: center;
+    padding: 9px 6px; border: 0; border-top: 1px solid var(--line); background: none; color: inherit; text-align: left;
+    cursor: pointer; border-radius: 0; }
+  .wrow:first-child { border-top: 0; }
+  .wrow:hover, .wrow:focus-visible { background: var(--bg); outline: none; }
+  .wrow i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+  .wrow .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wrow .n span { color: var(--faint); margin-left: 8px; font-size: 12px; }
+  .wrow .r { text-align: right; color: var(--dim); }
+  @media (max-width: 620px) { .wrow { grid-template-columns: 10px minmax(0, 1fr) 80px; } .wrow .r.x { display: none; } }
+
   /* Workout detail */
   dialog { width: min(1120px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0; border: 1px solid var(--line);
     border-radius: 18px; background: var(--surf); color: var(--fg); scrollbar-color: var(--line) transparent; }
@@ -817,6 +830,29 @@ const big = (parent, k, v, unit, ...notes) => {
   parent.appendChild(d);
 };
 const on = (w) => `${w.label}, ${longDay(localDay(w.start))}`;
+// Every workout of these kinds, newest first, one row each; a row opens the workout.
+function activityList(sec, kinds) {
+  const ws = W.filter((w) => kinds.includes(w.kind)).reverse(), year = String(new Date().getFullYear());
+  const head = h("div", { className: "sec" }), h2 = h("h2", {}, "Activities");
+  h2.appendChild(h("span", {}, `${ws.length} ${ws.length === 1 ? "workout" : "workouts"}, newest first`));
+  head.appendChild(h2);
+  const list = h("div", { className: "wlist" });
+  for (const w of ws) {
+    const b = withC(h("button", { className: "wrow" }), w.color), d = localDay(w.start);
+    const n = h("div", { className: "n" }, w.label);
+    n.appendChild(h("span", {}, longDay(d) + (d.startsWith(year) ? "" : ", " + d.slice(0, 4))));
+    b.append(h("i"), n, h("div", { className: "r" }, w.dist > 100 ? fmt(w.dist / MI, 2) + " mi" : ""),
+      h("div", { className: "r x" }, w.secs ? clock(w.secs) : ""),
+      h("div", { className: "r x" }, onFoot(w) && paceOf(w) ? clock(paceOf(w)) + " /mi" : w.hr ? fmt(w.hr) + " bpm" : ""));
+    b.addEventListener("click", () => detail(w));
+    list.appendChild(b);
+  }
+  if (!ws.length) list.appendChild(h("div", { className: "empty" }, "None yet"));
+  const card = h("section", { className: "card" });
+  card.appendChild(list);
+  sec.append(head, card);
+}
+
 // How many of ws fell in each of the last 8 weeks, as numbered squares, this week on the right.
 function weekSquares(ws, color) {
   const sun = todayDn - weekday(todayDn), weeks = h("div", { className: "weeks" });
@@ -902,6 +938,7 @@ function goalView(g) {
     }
   }
   sec.append(rh, recs);
+  activityList(sec, g.strength ? [...g.counts, "strength"] : g.counts);
   return sec;
 }
 
@@ -1032,6 +1069,7 @@ function hikeView() {
   recRow(recs, "Biggest week", big7 ? `week of ${longDay(numDay(+big7[0]))}, ${numDay(+big7[0]).slice(0, 4)}` : "none yet", big7 ? fmt(hikeMi(big7[1]), 1) + " mi" : "–",
     big7 ? `${big7[1].length} hikes · ${fmt(hikeFt(big7[1]))} ft` : "", null);
   sec.appendChild(recs);
+  activityList(sec, ["hike"]);
   return sec;
 }
 
