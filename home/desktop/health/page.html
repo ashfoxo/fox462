@@ -8,7 +8,7 @@
     --bg: #@bg@; --surf: #@surf@; --line: #@line@;
     --fg: #@fg@; --dim: #@dim@; --faint: #@faint@;
     --accent: #@accent@; --teal: #@teal@; --rust: #@rust@; --amber: #@amber@;
-    --violet: #b39ce8; --pink: #e58fb4;
+    --violet: #b39ce8;
     --good: var(--accent); --bad: var(--rust);
     --deep: #3987e5; --rem: #d95926; --light: #199e70; --awake: #c98500;
     /* Heart-rate zones: one blue, dark (warm-up) to light (maximum). */
@@ -21,66 +21,76 @@
   main { max-width: 1180px; margin: 0 auto; padding: 32px 20px 64px; }
   button { font: inherit; }
 
-  /* Header and section titles */
+  /* Header, tabs and section titles. Sections sit flat on the page, a thin line above each. */
   .top h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; margin: 0; }
   .sub { color: var(--dim); margin: 4px 0 0; }
+  .tabs { display: flex; gap: 24px; margin-top: 20px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .tabs button { background: none; border: 0; border-bottom: 2px solid transparent; color: var(--dim); padding: 8px 0; cursor: pointer; font-size: 15px; }
+  .tabs button:hover { color: var(--fg); }
+  .tabs button[aria-current="page"] { color: var(--fg); border-bottom-color: var(--accent); }
   .sec { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap;
-    margin: 40px 0 12px; }
-  .sec h2 { font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); margin: 0; }
-  .sec h2 span { text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--faint); margin-left: 6px; }
-  .card { background: var(--surf); border-radius: var(--r); padding: 18px 20px; border: 1px solid color-mix(in srgb, var(--line) 50%, transparent); }
+    margin: 36px 0 12px; }
+  .sec h2 { font-size: 18px; font-weight: 600; margin: 0; }
+  .sec h2 span { font-size: 13px; font-weight: 400; color: var(--faint); margin-left: 8px; }
+  .card { border-top: 1px solid var(--line); padding: 18px 0 8px; }
   .pills { display: flex; gap: 4px; flex-wrap: wrap; background: var(--surf); padding: 4px; border-radius: 10px; }
   .pills button { background: transparent; color: var(--dim); border: 0; border-radius: 7px; padding: 5px 12px; cursor: pointer; }
   .pills button:hover { color: var(--fg); }
   .pills button[aria-pressed="true"] { background: var(--bg); color: var(--fg); }
   .empty { color: var(--faint); padding: 40px 0; text-align: center; }
+  .good { color: var(--good); } .bad { color: var(--bad); } .dim { color: var(--dim); } .faint { color: var(--faint); }
 
-  /* Today */
-  .today { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 24px; }
-  .hero { position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 6px; min-height: 178px; }
-  .hero::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--c); opacity: 0.9; }
-  .hero .label { color: var(--dim); display: flex; justify-content: space-between; }
-  .hero .label span { color: var(--faint); font-size: 12px; }
-  .hero .value { font-size: 36px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
-  .hero .value small { font-size: 15px; font-weight: 500; color: var(--dim); margin-left: 4px; letter-spacing: 0; }
-  .chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 2px 8px; border-radius: 99px;
-    background: color-mix(in srgb, var(--c, var(--dim)) 16%, transparent); color: var(--c, var(--dim)); width: fit-content; }
-  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
-  .spark { height: 40px; margin-top: auto; }
-  .stagebar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; gap: 2px; }
-  .stagebar div { background: var(--c); }
-  .bbbar { position: relative; height: 8px; border-radius: 4px; background: var(--bg); }
-  .bbbar div { position: absolute; top: 0; bottom: 0; border-radius: 4px; background: var(--c); }
+  /* This week */
+  .strip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)) minmax(150px, 1.4fr); gap: 8px; align-items: end; }
+  .strip .day { text-align: center; color: var(--faint); font-size: 12px; }
+  .strip .day.now { color: var(--fg); font-weight: 600; }
+  .strip .bars { height: 80px; display: flex; flex-direction: column-reverse; gap: 2px; margin-bottom: 4px;
+    border-bottom: 1px solid var(--line); }
+  .strip .bars i { display: block; border-radius: 3px; background: var(--c); min-height: 3px; cursor: pointer; }
+  .strip .tot { color: var(--dim); font-size: 12px; padding-left: 8px; }
+  .strip .tot b { display: block; color: var(--fg); font-size: 24px; font-weight: 650; }
+  @media (max-width: 620px) { .strip { grid-template-columns: repeat(7, minmax(0, 1fr)); } .strip .tot { grid-column: 1 / -1; padding: 0; } }
 
-  /* Recent workouts */
-  .recent { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
-  .wcard { text-align: left; color: inherit; cursor: pointer; display: grid; grid-template-columns: 1fr 96px; gap: 4px 14px;
-    transition: transform 0.15s, border-color 0.15s; }
-  .wcard:hover, .wcard:focus-visible { transform: translateY(-2px); border-color: var(--c); outline: none; }
-  .wcard .badge { grid-column: 1; }
-  .wcard .name { grid-column: 1; font-size: 17px; font-weight: 600; line-height: 1.25; }
-  .wcard .route { grid-column: 2; grid-row: 1 / 4; width: 96px; height: 96px; border-radius: 10px; background: var(--bg); }
-  .wcard .nums { grid-column: 1 / -1; display: flex; gap: 22px; margin-top: 10px; flex-wrap: wrap; }
+  /* Workout feed */
+  .dayhead { color: var(--dim); margin: 18px 0 6px; }
+  .wcard { position: relative; display: grid; grid-template-columns: 150px minmax(0, 1fr) auto; gap: 16px; align-items: center;
+    background: var(--surf); border: 1px solid var(--line); border-radius: var(--r); padding: 12px; margin-bottom: 8px; transition: border-color 0.15s; }
+  .wcard:hover, .wcard:focus-within { border-color: var(--c); }
+  .wcard .pic { width: 150px; height: 96px; border-radius: 9px; background: var(--bg); overflow: hidden; }
+  .wcard .pic > * { width: 100%; height: 100%; display: block; object-fit: cover; }
+  .wcard .open { all: unset; font-size: 17px; font-weight: 600; line-height: 1.25; cursor: pointer; }
+  .wcard .open::after { content: ""; position: absolute; inset: 0; border-radius: var(--r); }   /* the whole card opens it */
+  .wcard .open:focus-visible { text-decoration: underline; }
+  .wcard .share { position: relative; z-index: 1; display: grid; gap: 6px; }
+  .wcard .share button { background: none; border: 1px solid var(--line); color: var(--dim); border-radius: 8px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
+  .wcard .share button:hover { color: var(--fg); border-color: var(--dim); }
+  .nums { display: flex; gap: 8px 26px; margin-top: 8px; flex-wrap: wrap; }
   .nums div { display: flex; flex-direction: column; }
-  .nums b { font-size: 18px; font-weight: 650; }
+  .nums b { font-size: 17px; font-weight: 650; }
+  .nums .big b { font-size: 23px; }
   .nums b small { font-size: 12px; color: var(--dim); font-weight: 400; margin-left: 2px; }
   .nums span { color: var(--faint); font-size: 12px; }
   .badge { font-size: 12px; color: var(--dim); display: flex; gap: 8px; align-items: center; }
   .badge i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); display: inline-block; }
   .badge b { color: var(--c); font-weight: 600; }
+  .more { display: block; margin: 14px auto 0; background: var(--surf); border: 1px solid var(--line); color: var(--fg); padding: 8px 18px; border-radius: 8px; cursor: pointer; }
+  @media (max-width: 620px) { .wcard { grid-template-columns: 96px minmax(0, 1fr); } .wcard .pic { width: 96px; } .wcard .share { grid-column: 1 / -1; display: flex; } }
+  .offscreen { position: fixed; left: -10000px; top: 0; }
 
-  /* Week */
-  .week { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
-  .week .card { padding: 14px 16px; }
-  .week .k { color: var(--dim); }
-  .week .v { font-size: 24px; font-weight: 650; margin: 2px 0; }
-  .week .v small { font-size: 13px; color: var(--dim); font-weight: 400; margin-left: 3px; }
-  .week .was { color: var(--faint); font-size: 12px; }
+  /* Goal tabs */
+  .goal { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px 40px; }
+  .goal .k { color: var(--dim); }
+  .goal .v { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }
+  .goal .v small { font-size: 14px; font-weight: 400; color: var(--dim); margin-left: 4px; letter-spacing: 0; }
+  .goal .n { color: var(--faint); font-size: 12px; }
+  .weeks { display: flex; gap: 4px; margin: 8px 0 4px; }
+  .weeks i { width: 22px; height: 22px; border-radius: 4px; font-style: normal; font-size: 11px; line-height: 22px; text-align: center;
+    background: color-mix(in srgb, var(--violet) calc(var(--n) * 30%), var(--surf)); color: var(--fg); }
 
   /* Trend charts */
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 12px; }
-  .grid .card h3 { font-size: 16px; font-weight: 600; margin: 0; }
-  .grid .card .unit { color: var(--dim); font-size: 12px; margin-bottom: 10px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 12px 40px; }
+  .card h3 { font-size: 16px; font-weight: 600; margin: 0; }
+  .card .unit { color: var(--dim); font-size: 12px; margin-bottom: 10px; }
   .phead { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; margin-top: 8px; }
   .phead b { font-weight: 600; display: flex; align-items: center; gap: 6px; }
   .phead b::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: var(--c); }
@@ -96,7 +106,7 @@
   .hit:hover + .mark, .hit:focus + .mark { filter: brightness(1.3); }
 
   /* Calendar */
-  .calwrap { overflow-x: auto; padding-bottom: 4px; }
+  .calwrap { overflow-x: auto; padding-bottom: 4px; scrollbar-color: var(--line) transparent; }
   svg.cal { width: auto; height: auto; }
   .cal rect.day { rx: 3px; }
   .calfoot { display: flex; justify-content: space-between; align-items: center; color: var(--faint); font-size: 12px; margin-top: 10px; flex-wrap: wrap; gap: 8px; }
@@ -104,32 +114,15 @@
   .scale i { width: 12px; height: 12px; border-radius: 3px; background: var(--c); display: inline-block; }
 
   /* Records */
-  .records { align-items: start; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 12px; }
-  @media (max-width: 860px) { .records { grid-template-columns: 1fr; } }
-  .bigs { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px 28px; }
-  .records h3 { font-size: 16px; font-weight: 600; margin: 0 0 10px; }
   .rec { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 10px 0; border-top: 1px solid var(--line);
     background: none; border-left: 0; border-right: 0; border-bottom: 0; width: 100%; color: inherit; text-align: left; cursor: pointer; }
   .rec:first-of-type { border-top: 0; }
-  .rec:hover .what, .rec:focus-visible .what { color: var(--accent); }
+  .rec:disabled { cursor: default; }
+  .rec:not(:disabled):hover .what, .rec:focus-visible .what { color: var(--accent); }
   .rec .what { font-weight: 500; }
   .rec .val { font-weight: 650; font-size: 16px; text-align: right; }
   .rec .when, .rec .extra { color: var(--faint); font-size: 12px; }
   .rec .extra { text-align: right; }
-  .sportrec h4 { margin: 0 0 2px; font-size: 13px; font-weight: 600; color: var(--c); }
-
-  /* Workout list */
-  .wlist { display: flex; flex-direction: column; }
-  .wrow { display: grid; grid-template-columns: 10px minmax(0, 1fr) 90px 80px 90px; gap: 12px; align-items: center;
-    padding: 9px 6px; border: 0; border-top: 1px solid var(--line); background: none; color: inherit; text-align: left;
-    cursor: pointer; border-radius: 0; }
-  .wrow:first-child { border-top: 0; }
-  .wrow:hover, .wrow:focus-visible { background: var(--bg); outline: none; }
-  .wrow i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
-  .wrow .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .wrow .n span { color: var(--faint); margin-left: 8px; font-size: 12px; }
-  .wrow .r { text-align: right; color: var(--dim); }
-  @media (max-width: 620px) { .wrow { grid-template-columns: 10px minmax(0, 1fr) 80px; } .wrow .r.x { display: none; } }
 
   /* Workout detail */
   dialog { width: min(1120px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0; border: 1px solid var(--line);
@@ -185,45 +178,42 @@
   .maplibregl-ctrl-group { background: var(--surf) !important; }
   .maplibregl-ctrl-group button + button { border-top-color: var(--line) !important; }
   .maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: invert(1); opacity: 0.8; }
-  @media (prefers-reduced-motion: reduce) { .wcard { transition: none; } .wcard:hover { transform: none; } }
+  [hidden] { display: none !important; }
 </style>
 
 <main>
   <header class="top">
     <h1>Health</h1>
     <p class="sub" id="sub"></p>
+    <nav class="tabs" id="tabs" aria-label="Views"></nav>
   </header>
-  <section class="today" id="today" aria-label="Today"></section>
 
-  <div class="sec"><h2>Recent workouts</h2></div>
-  <section class="recent" id="recent"></section>
+  <section class="view" id="log">
+    <div class="sec"><h2>This week<span>Monday to Sunday, minutes by sport</span></h2></div>
+    <div class="strip" id="strip"></div>
+    <div class="sec"><h2>Workouts<span>the past 5 days</span></h2></div>
+    <div id="feed"></div>
+    <button class="more" id="more">Show 10 older</button>
+  </section>
 
-  <div class="sec"><h2>Last 7 days<span>against the 7 before</span></h2></div>
-  <section class="week" id="week"></section>
+  <!-- The goal tabs (GOALS in the script) go here. -->
 
-  <div class="sec">
-    <h2>Trends</h2>
-    <div class="pills" id="range" role="group" aria-label="Date range">
-      <button data-days="30">30 days</button><button data-days="90">90 days</button>
-      <button data-days="180">6 months</button><button data-days="0">All</button>
+  <section class="view" id="body">
+    <div class="sec">
+      <h2>Trends</h2>
+      <div class="pills" id="range" role="group" aria-label="Date range">
+        <button data-days="30">30 days</button><button data-days="90">90 days</button>
+        <button data-days="180">6 months</button><button data-days="0">All</button>
+      </div>
     </div>
-  </div>
-  <section class="grid" id="charts"></section>
+    <section class="grid" id="charts"></section>
 
-  <div class="sec">
-    <h2>Calendar</h2>
-    <div class="pills" id="calpick" role="group" aria-label="Calendar metric"></div>
-  </div>
-  <section class="card"><div class="calwrap" id="cal"></div><div class="calfoot" id="calfoot"></div></section>
-
-  <div class="sec"><h2>Records</h2></div>
-  <section class="records" id="records"></section>
-
-  <div class="sec">
-    <h2>All workouts<span id="wcount"></span></h2>
-    <div class="pills" id="wfilter" role="group" aria-label="Sport"></div>
-  </div>
-  <section class="card"><div class="wlist" id="wlist"></div></section>
+    <div class="sec">
+      <h2>Calendar</h2>
+      <div class="pills" id="calpick" role="group" aria-label="Calendar metric"></div>
+    </div>
+    <section><div class="calwrap" id="cal"></div><div class="calfoot" id="calfoot"></div></section>
+  </section>
 </main>
 
 <dialog id="detail" aria-labelledby="dtitle">
@@ -269,7 +259,6 @@ const clock = (s) => {
   return (hh ? `${hh}:${String(mm).padStart(2, "0")}` : `${mm}`) + `:${String(ss).padStart(2, "0")}`;
 };
 const mean = (a) => { a = a.filter((x) => x != null); return a.length ? a.reduce((x, y) => x + y, 0) / a.length : null; };
-const median = (a) => { a = a.filter((x) => x != null).sort((x, y) => x - y); return a.length ? a[Math.floor(a.length / 2)] : null; };
 
 // ---- Data ---------------------------------------------------------------
 // Today isn't over: its daytime numbers are partial, so only last night's (sleep, HRV) count yet.
@@ -280,29 +269,37 @@ const DAYS = D.days.map((r) => r.d !== todayStr ? r : Object.fromEntries(Object.
 const byDn = new Map(DAYS.map((r) => [r.dn, r]));
 const lastDn = DAYS.length ? DAYS[DAYS.length - 1].dn : dayNum(localDay(Date.now()));
 const firstDn = DAYS.length ? DAYS[0].dn : lastDn;
+
 const todayDn = dayNum(todayStr);
-const latest = (k) => { for (let i = DAYS.length - 1; i >= 0; i--) if (DAYS[i][k] != null) return DAYS[i]; return null; };
-// Your normal: the median of the 30 days before this one.
-const usual = (k, dn) => median(DAYS.filter((r) => r.dn < dn && r.dn >= dn - 30).map((r) => r[k]));
+const weekday = (dn) => (new Date(numDay(dn) + "T12:00").getDay() + 6) % 7;   // Monday 0
+const paceOf = (w) => w.dist > 100 && w.secs ? w.secs / (w.dist / MI) : null;
 
 const W = D.workouts.map((w, i) => ({ ...w, i }));
+// Each sport: its name and colour. A new sport needs an entry here and a line in sportOf.
 const SPORTS = {
-  run: ["Run", "--rust"], trail: ["Trail run", "--amber"], hike: ["Hike", "--amber"], walk: ["Walk", "--accent"],
-  ride: ["Ride", "--teal"], gym: ["Training", "--violet"], other: ["Other", "--dim"],
+  run: ["Run", "--rust"], trail: ["Trail run", "--rust"], ruck: ["Ruck", "--amber"], hike: ["Hike", "--accent"],
+  walk: ["Walk", "--accent"], ride: ["Ride", "--teal"], strength: ["Strength", "--violet"], gym: ["Training", "--dim"],
+  other: ["Other", "--dim"],
 };
 const sportOf = (w) => {
   const t = `${w.type || ""} ${w.sport || ""} ${w.sub || ""} ${w.name || ""}`.toLowerCase();
   if (/trail/.test(t) && /run/.test(t)) return "trail";
   if (/run/.test(t)) return "run";
-  if (/hik|ruck/.test(t)) return "hike";
+  if (/ruck/.test(t)) return "ruck";
+  // The watch records rucks as hikes, but they're much brisker than any real hike: under 17:00/mi at
+  // 110+ steps a minute (real hikes are 21:00/mi and slower, under 95). Every ruck counts as 45 lb.
+  if (/hik/.test(t)) return paceOf(w) && paceOf(w) < 17 * 60 && w.cad >= 110 ? "ruck" : "hike";
   if (/walk/.test(t)) return "walk";
   if (/cycl|bik|ride/.test(t)) return "ride";
-  if (/strength|training|cardio|row|breath|yoga|fitness/.test(t)) return "gym";
+  if (/strength|weight|lift/.test(t)) return "strength";
+  if (/training|cardio|row|breath|yoga|fitness/.test(t)) return "gym";
   return "other";
 };
-for (const w of W) { w.kind = sportOf(w); w.color = css(SPORTS[w.kind][1]); w.label = w.name || SPORTS[w.kind][0]; }
-const onFoot = (w) => ["run", "trail", "hike", "walk"].includes(w.kind);
-const paceOf = (w) => w.dist > 100 && w.secs ? w.secs / (w.dist / MI) : null;
+for (const w of W) {
+  w.kind = sportOf(w); w.color = css(SPORTS[w.kind][1]); w.label = w.name || SPORTS[w.kind][0];
+  w.dn = dayNum(localDay(w.start));
+}
+const onFoot = (w) => ["run", "trail", "ruck", "hike", "walk"].includes(w.kind);
 
 // ---- Tooltip ------------------------------------------------------------
 const tip = document.getElementById("tip");
@@ -342,97 +339,6 @@ function pillPath(x, y0, y1, w, r) {
   r = Math.min(r, w / 2, (bot - top) / 2);
   return `M${x},${top + r}Q${x},${top} ${x + r},${top}H${x + w - r}Q${x + w},${top} ${x + w},${top + r}V${bot - r}Q${x + w},${bot} ${x + w - r},${bot}H${x + r}Q${x},${bot} ${x},${bot - r}Z`;
 }
-// Sparkline of the last n days of k; optional shaded band (lo/hi keys).
-function spark(box, k, color, n = 21, band) {
-  const rows = DAYS.filter((r) => r.dn > lastDn - n);
-  const vals = rows.flatMap((r) => [r[k], band && r[band[0]], band && r[band[1]]]).filter((v) => v != null && v !== false);
-  if (vals.length < 2) return;
-  const Wd = 200, Hd = 40, lo = Math.min(...vals), hi = Math.max(...vals), sp = hi - lo || 1;
-  const x = (dn) => ((dn - (lastDn - n + 1)) / (n - 1)) * Wd, y = (v) => Hd - 3 - ((v - lo) / sp) * (Hd - 6);
-  const svg = el("svg", { viewBox: `0 0 ${Wd} ${Hd}`, preserveAspectRatio: "none", class: "spark", "aria-hidden": "true" }, box);
-  if (band) {
-    const b = rows.filter((r) => r[band[0]] != null);
-    if (b.length > 1) el("path", { d: "M" + b.map((r) => `${x(r.dn)},${y(r[band[1]])}`).join("L") + "L" +
-      b.slice().reverse().map((r) => `${x(r.dn)},${y(r[band[0]])}`).join("L") + "Z", fill: color, "fill-opacity": 0.12 }, svg);
-  }
-  const pts = rows.filter((r) => r[k] != null);
-  el("path", { d: "M" + pts.map((r) => `${x(r.dn)},${y(r[k])}`).join("L"), fill: "none", stroke: color, "stroke-width": 2,
-    "stroke-linejoin": "round", "stroke-linecap": "round", "vector-effect": "non-scaling-stroke" }, svg);
-}
-// "▲ 4 vs usual": good/bad by which way is better; within the usual spread it's just "usual".
-function vsUsual(v, base, better, unit = "", dp = 0, tol = 0.05) {
-  if (v == null || base == null) return h("span", { className: "chip" }, "building your baseline");
-  const d = v - base;
-  if (Math.abs(d) <= Math.abs(base) * tol) return h("span", { className: "chip" }, "about usual");
-  const good = (d > 0) === (better > 0);
-  return withC(h("span", { className: "chip" }, `${d > 0 ? "▲" : "▼"} ${fmt(Math.abs(d), dp)}${unit} vs usual`), css(good ? "--good" : "--bad"));
-}
-
-// ---- Today --------------------------------------------------------------
-function today() {
-  const box = document.getElementById("today");
-  const tile = (label, row, color) => {
-    const t = withC(h("article", { className: "card hero" }), color);
-    const l = h("div", { className: "label" }, label);
-    l.appendChild(h("span", {}, row ? (row.dn === todayDn ? "today" : row.dn === todayDn - 1 ? "yesterday" : longDay(row.d)) : ""));
-    t.appendChild(l);
-    box.appendChild(t);
-    return t;
-  };
-  const val = (t, v, unit) => { const e = h("div", { className: "value" }, v); if (unit) e.appendChild(h("small", {}, unit)); t.appendChild(e); };
-
-  const s = latest("sleep");
-  const st = tile("Sleep", s, css("--deep"));
-  if (s) {
-    val(st, hm(s.sleep));
-    const chips = h("div", { className: "chips" });
-    chips.appendChild(vsUsual(s.sleep, usual("sleep", s.dn), +1, " h", 1, 0.06));
-    if (s.score != null) chips.appendChild(withC(h("span", { className: "chip" }, `score ${s.score}`), css("--fg")));
-    if (s.awake >= 0.5) chips.appendChild(withC(h("span", { className: "chip" }, `${hm(s.awake)} awake`), css("--awake")));
-    st.appendChild(chips);
-    const bar = h("div", { className: "stagebar", role: "img" });
-    bar.setAttribute("aria-label", `Deep ${hm(s.deep || 0)}, REM ${hm(s.rem || 0)}, light ${hm(s.light || 0)}`);
-    for (const k of ["deep", "rem", "light", "awake"]) if (s[k]) { const seg = withC(h("div"), css("--" + k)); seg.style.flex = s[k]; bar.appendChild(seg); }
-    st.appendChild(bar);
-    spark(st, "sleep", css("--deep"));
-  } else val(st, "–");
-
-  const v = latest("hrv");
-  const ht = tile("HRV overnight", v, css("--teal"));
-  if (v) {
-    val(ht, fmt(v.hrv), "ms");
-    const inBand = v.hrvLo != null && v.hrv >= v.hrvLo && v.hrv <= v.hrvHi;
-    ht.appendChild(v.hrvLo == null ? vsUsual(v.hrv, usual("hrv", v.dn), +1, " ms") :
-      withC(h("span", { className: "chip" }, inBand ? `balanced · ${v.hrvLo}–${v.hrvHi}` : `${v.hrv < v.hrvLo ? "below" : "above"} your ${v.hrvLo}–${v.hrvHi} range`),
-        css(inBand ? "--good" : v.hrv < v.hrvLo ? "--bad" : "--amber")));
-    spark(ht, "hrv", css("--teal"), 21, ["hrvLo", "hrvHi"]);
-  } else val(ht, "–");
-
-  const r = latest("rhr");
-  const rt = tile("Resting heart rate", r, css("--rust"));
-  if (r) { val(rt, fmt(r.rhr), "bpm"); rt.appendChild(vsUsual(r.rhr, usual("rhr", r.dn), -1, " bpm", 0, 0.02)); spark(rt, "rhr", css("--rust")); }
-  else val(rt, "–");
-
-  const b = latest("bbHi");
-  const bt = tile("Body Battery", b, css("--accent"));
-  if (b) {
-    val(bt, fmt(b.bbHi), b.bbLo != null ? `low ${b.bbLo}` : "");
-    bt.appendChild(vsUsual(b.bbHi, usual("bbHi", b.dn), +1, "", 0, 0.08));
-    const bar = h("div", { className: "bbbar", role: "img" });
-    bar.setAttribute("aria-label", `From ${b.bbLo} to ${b.bbHi} of 100`);
-    const fill = withC(h("div"), css("--accent"));
-    fill.style.left = (b.bbLo ?? 0) + "%"; fill.style.width = (b.bbHi - (b.bbLo ?? 0)) + "%";
-    bar.appendChild(fill); bt.appendChild(bar);
-    spark(bt, "bbHi", css("--accent"));
-  } else val(bt, "–");
-
-  // Only some workouts update VO2 max, so its sparkline looks back 90 days.
-  const o = latest("vo2");
-  const ot = tile("VO2 max", o, css("--amber"));
-  if (o) { val(ot, fmt(o.vo2, 1), "ml/kg/min"); ot.appendChild(vsUsual(o.vo2, usual("vo2", o.dn), +1, "", 1, 0.01)); spark(ot, "vo2", css("--amber"), 90); }
-  else val(ot, "–");
-}
-
 // ---- Workout cards ------------------------------------------------------
 function trackOf(w) {
   if (!w.track) return null;
@@ -442,7 +348,7 @@ function trackOf(w) {
   return tr;
 }
 // The route as a little line drawing, north up.
-function routeSvg(w, cls) {
+function routeSvg(w, cls = "") {
   const svg = el("svg", { viewBox: "0 0 100 100", class: cls, "aria-hidden": "true" });
   const tr = trackOf(w);
   const pts = tr ? tr.lat.map((la, i) => la == null ? null : [tr.lon[i], la]).filter(Boolean) : [];
@@ -460,14 +366,21 @@ function routeSvg(w, cls) {
   el("circle", { cx: P[0][0], cy: P[0][1], r: 3.5, fill: w.color }, svg);
   return svg;
 }
+// The headline numbers: pace (or speed) and heart rate big, then distance and time.
+const statsOf = (w) => [
+  onFoot(w) && paceOf(w) ? [clock(paceOf(w)), "/mi", "pace", true] :
+    w.kind === "ride" && w.dist > 100 && w.secs ? [fmt((w.dist / MI) / (w.secs / 3600), 1), "mph", "speed", true] : null,
+  w.hr ? [fmt(w.hr), "bpm", "avg heart rate", true] : null,
+  w.dist > 100 ? [fmt(w.dist / MI, 2), "mi", "distance"] : null,
+  w.secs ? [clock(w.secs), "", "time"] : null,
+].filter(Boolean);
 const nums = (w) => {
   const box = h("div", { className: "nums" });
-  const n = (v, unit, k) => { if (v == null) return; const d = h("div"); const b = h("b", {}, v); if (unit) b.appendChild(h("small", {}, unit)); d.append(b, h("span", {}, k)); box.appendChild(d); };
-  if (w.dist > 100) n(fmt(w.dist / MI, 2), "mi", "distance");
-  n(w.secs ? clock(w.secs) : null, "", "time");
-  if (onFoot(w) && paceOf(w)) n(clock(paceOf(w)), "/mi", "pace");
-  else if (w.kind === "ride" && w.dist) n(fmt((w.dist / MI) / (w.secs / 3600), 1), "mph", "speed");
-  if (box.children.length < 3) n(w.hr ? fmt(w.hr) : null, "bpm", "avg heart rate");
+  for (const [v, unit, k, big] of statsOf(w)) {
+    const d = h("div", { className: big ? "big" : "" }), b = h("b", {}, v);
+    if (unit) b.appendChild(h("small", {}, unit));
+    d.append(b, h("span", {}, k)); box.appendChild(d);
+  }
   return box;
 };
 const badge = (w) => {
@@ -476,49 +389,124 @@ const badge = (w) => {
   b.append(h("i"), same ? "" : h("b", {}, SPORTS[w.kind][0]), h("span", {}, new Date(w.start).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })));
   return b;
 };
-function recent() {
-  const box = document.getElementById("recent");
-  const last = W.slice(-3).reverse();
-  if (!last.length) { box.appendChild(h("div", { className: "empty" }, "No workouts yet")); return; }
-  for (const w of last) {
-    const c = withC(h("button", { className: "card wcard" }), w.color);
-    c.append(badge(w), h("div", { className: "name" }, w.label), routeSvg(w, "route"), nums(w));
-    if (w.place && w.place !== w.label) c.insertBefore(h("div", { className: "badge" }, w.place), c.children[2]);
-    c.addEventListener("click", () => detail(w));
-    box.appendChild(c);
+const hasGps = (w) => w.track?.cols.includes("lat") && w.track.rows.some((r) => r[1] != null);
+
+// ---- This week ----------------------------------------------------------
+function weekStrip() {
+  const box = document.getElementById("strip");
+  const mon = todayDn - weekday(todayDn);
+  const inWeek = (a) => W.filter((w) => w.dn >= a && w.dn < a + 7);
+  const now = inWeek(mon), secs = (ws) => ws.reduce((s, w) => s + (w.secs || 0), 0);
+  const max = Math.max(3600, ...[0, 1, 2, 3, 4, 5, 6].map((i) => secs(now.filter((w) => w.dn === mon + i))));
+  for (let i = 0; i < 7; i++) {
+    const day = h("div", { className: "day" + (mon + i === todayDn ? " now" : "") });
+    const bars = h("div", { className: "bars" });
+    for (const w of now.filter((w) => w.dn === mon + i)) {
+      const seg = withC(h("i", { tabIndex: 0, role: "button", ariaLabel: `${w.label}, ${clock(w.secs || 0)}` }), w.color);
+      seg.style.height = ((w.secs || 0) / max) * 76 + "px";
+      hover(seg, (e) => showTip(e, w.label, [{ name: SPORTS[w.kind][0].toLowerCase(), value: clock(w.secs || 0), color: w.color }]));
+      seg.addEventListener("click", () => detail(w));
+      seg.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); detail(w); } });
+      bars.appendChild(seg);
+    }
+    day.append(bars, ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][i]);
+    box.appendChild(day);
   }
+  const count = {};
+  for (const w of now) count[w.kind] = (count[w.kind] || 0) + 1;
+  const tot = h("div", { className: "tot" });
+  tot.append(h("b", {}, now.length ? hm(secs(now) / 3600) : "Nothing yet"),
+    Object.entries(count).map(([k, n]) => `${n} ${SPORTS[k][0].toLowerCase()}${n > 1 ? "s" : ""}`).join(" · "), h("br"),
+    h("span", { className: "faint" }, `last week ${hm(secs(inWeek(mon - 7)) / 3600)}`));
+  box.appendChild(tot);
 }
 
-// ---- Week ---------------------------------------------------------------
-function week() {
-  const box = document.getElementById("week");
-  const span = (a, b) => DAYS.filter((r) => r.dn > lastDn - b && r.dn <= lastDn - a);
-  const ws = (a, b) => W.filter((w) => { const dn = dayNum(localDay(w.start)); return dn > lastDn - b && dn <= lastDn - a; });
-  const items = [
-    ["Steps", (r) => mean(r.map((x) => x.steps)), (v) => fmt(v), "a day"],
-    ["Sleep", (r) => mean(r.map((x) => x.sleep)), (v) => hm(v), "a night"],
-    ["HRV", (r) => mean(r.map((x) => x.hrv)), (v) => fmt(v), "ms"],
-    ["Intensity", (r) => r.reduce((s, x) => s + (x.intensity || 0), 0), (v) => fmt(v), "min"],
-  ];
-  for (const [k, f, show, unit] of items) {
-    const now = f(span(0, 7)), was = f(span(7, 14));
-    card(k, now == null ? "–" : show(now), unit, was == null ? "no data the week before" : `was ${show(was)}`, now, was);
-  }
-  const wn = ws(0, 7), ww = ws(7, 14);
-  const t = (l) => l.reduce((s, w) => s + (w.secs || 0), 0);
-  card("Workouts", String(wn.length), wn.length ? clock(t(wn)) : "", `was ${ww.length}${ww.length ? " · " + clock(t(ww)) : ""}`, t(wn), t(ww));
-  function card(k, v, unit, wasText, now, was) {
-    const c = h("div", { className: "card" });
-    const vv = h("div", { className: "v" }, v); if (unit) vv.appendChild(h("small", {}, unit));
-    const w = h("div", { className: "was" }, wasText);
-    if (now != null && was) {
-      const pc = Math.round(((now - was) / was) * 100);
-      const txt = pc > 100 ? `▲ ${fmt(now / was, 1)}×` : `${pc > 0 ? "▲" : "▼"} ${Math.abs(pc)}%`;
-      if (Math.abs(pc) >= 3) w.prepend(withC(h("span", { className: "chip" }, txt), css(pc > 0 ? "--good" : "--bad")), " ");
+// ---- Workout feed -------------------------------------------------------
+const FEED_DAYS = 5, MORE = 10;
+const newest = W.slice().reverse();
+let shown = 0, lastHead = null;
+function feed(upTo) {
+  const box = document.getElementById("feed");
+  for (; shown < Math.min(upTo, newest.length); shown++) {
+    const w = newest[shown];
+    if (w.dn !== lastHead) {
+      lastHead = w.dn;
+      box.appendChild(h("div", { className: "dayhead" }, w.dn === todayDn ? "Today" : w.dn === todayDn - 1 ? "Yesterday" : longDay(numDay(w.dn))));
     }
-    c.append(h("div", { className: "k" }, k), vv, w);
-    box.appendChild(c);
+    box.appendChild(feedCard(w));
   }
+  if (!shown && !box.children.length) box.appendChild(h("div", { className: "empty" }, "No workouts in the past 5 days"));
+  document.getElementById("more").hidden = shown >= newest.length;
+}
+document.getElementById("more").addEventListener("click", () => { document.querySelector("#feed > .empty")?.remove(); feed(shown + MORE); });
+
+function feedCard(w) {
+  const c = withC(h("article", { className: "wcard" }), w.color);
+  const pic = h("div", { className: "pic" });
+  pic.appendChild(routeSvg(w));
+  // The line drawing shows at once; the map picture replaces it when it's drawn.
+  if (hasGps(w)) mapImage(w, 150, 96).then((url) => pic.replaceChildren(h("img", { src: url, alt: "" }))).catch(() => {});
+  const open = h("button", { className: "open" }, w.label);
+  open.addEventListener("click", () => detail(w));
+  const what = withC(h("div", { className: "badge" }), w.color);
+  what.append(h("i"), [w.label !== SPORTS[w.kind][0] && SPORTS[w.kind][0], w.place].filter(Boolean).join(" · "),
+    h("span", { className: "faint" }, new Date(w.start).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })));
+  const mid = h("div");
+  mid.append(what, open, nums(w));
+  const share = h("div", { className: "share" });
+  const btn = (label, withMap) => {
+    const b = h("button", {}, label);
+    b.addEventListener("click", () => copyImage(w, withMap, b));
+    share.appendChild(b);
+  };
+  btn("Copy image", hasGps(w));
+  if (hasGps(w)) btn("Copy, no map", false);
+  c.append(pic, mid, share);
+  return c;
+}
+
+// ---- Share image --------------------------------------------------------
+// Draws the workout as a picture (with the map, or without) and puts it on the clipboard.
+async function shareImage(w, withMap) {
+  const Wd = 1200, mapH = withMap ? 630 : 0, Hd = mapH + 330;
+  const cv = h("canvas"); cv.width = Wd; cv.height = Hd;
+  const g = cv.getContext("2d");
+  g.fillStyle = css("--bg"); g.fillRect(0, 0, Wd, Hd);
+  const img = (src) => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = src; });
+  if (withMap) g.drawImage(await img(await mapImage(w, Wd, mapH)), 0, 0, Wd, mapH);
+  else if (hasGps(w)) {
+    const svg = routeSvg(w);
+    svg.setAttribute("width", 260); svg.setAttribute("height", 260);
+    g.drawImage(await img("data:image/svg+xml," + encodeURIComponent(new XMLSerializer().serializeToString(svg))), Wd - 320, 35, 260, 260);
+  }
+  const font = (wt, px) => `${wt} ${px}px system-ui, sans-serif`;
+  let y = mapH + 64;
+  g.fillStyle = w.color; g.beginPath(); g.arc(68, y - 9, 8, 0, 7); g.fill();
+  g.fillStyle = css("--dim"); g.font = font(400, 26);
+  g.fillText([SPORTS[w.kind][0], longDay(localDay(w.start)), w.place].filter(Boolean).join(" · "), 88, y);
+  g.fillStyle = css("--fg"); g.font = font(700, 50); g.fillText(w.label, 60, y += 66);
+  let x = 60; y += 104;
+  for (const [v, unit, k] of statsOf(w)) {
+    g.font = font(700, 54); g.fillStyle = css("--fg"); g.fillText(v, x, y);
+    const vw = g.measureText(v).width;
+    g.font = font(400, 24); g.fillStyle = css("--dim"); g.fillText(unit, x + vw + 6, y);
+    g.fillStyle = css("--faint"); g.fillText(k, x, y + 36);
+    x += Math.max(vw + g.measureText(unit).width + 60, 200);
+  }
+  return new Promise((ok) => cv.toBlob(ok, "image/png"));
+}
+async function copyImage(w, withMap, b) {
+  const label = b.textContent;
+  b.textContent = "Copying…";
+  try {
+    // The image is handed over as a promise so the click still counts while the map draws.
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": shareImage(w, withMap) })]);
+    b.textContent = "Copied";
+  } catch (e) {
+    b.textContent = "Couldn't copy";
+    console.error(e);
+  }
+  setTimeout(() => { b.textContent = label; }, 2000);
 }
 
 // ---- Trend charts -------------------------------------------------------
@@ -537,14 +525,15 @@ const CARDS = [
     { name: "Body Battery", unit: "", type: "range", lo: "bbLo", hi: "bbHi", color: css("--accent"), max: 100 },
     { name: "Stress", unit: "of 100", type: "line", key: "stress", color: css("--amber") },
   ] },
-  { title: "Training", unit: "load from heart rate: fitness builds over 6 weeks, fatigue over 1; efficiency is speed for heartbeat on easy runs", plots: [
+  { title: "Training", unit: "load from heart rate: fitness builds over 6 weeks, fatigue over 1; efficiency is speed for heartbeat on easy runs; VO2 max from the watch", plots: [
     { name: "Fitness", unit: "", type: "line", key: "fit", color: css("--accent") },
     { name: "Fatigue", unit: "", type: "line", key: "fat", color: css("--rust") },
     { name: "Efficiency", unit: "m/min per bpm", type: "line", key: "ef", color: css("--teal") },
+    { name: "VO2 max", unit: "ml/kg/min", type: "line", key: "vo2", color: css("--amber") },
   ] },
   { title: "Activity", unit: "steps and intensity minutes (vigorous counts double)", plots: [
-    { name: "Steps", unit: "", type: "bar", key: "steps", color: css("--violet") },
-    { name: "Intensity", unit: "min", type: "bar", key: "intensity", color: css("--pink") },
+    { name: "Steps", unit: "", type: "bar", key: "steps", color: css("--dim") },
+    { name: "Intensity", unit: "min", type: "bar", key: "intensity", color: css("--dim") },
   ] },
 ];
 for (const c of CARDS) for (const p of c.plots) if (!p.rows) p.rows = DAYS.filter((r) => r[p.key || p.hi] != null);
@@ -744,74 +733,209 @@ function calendar() {
   CAL.forEach(([n], i) => { const b = h("button", {}, n); b.addEventListener("click", () => { calKey = i; calendar(); }); pick.appendChild(b); });
 }
 
-// ---- Records ------------------------------------------------------------
-function records() {
-  const box = document.getElementById("records");
-  const recRow = (parent, what, when, val, extra, w) => {
-    const b = h("button", { className: "rec" });
-    b.append(h("span", { className: "what" }, what), h("span", { className: "val" }, val),
-      h("span", { className: "when" }, when), h("span", { className: "extra" }, extra));
-    b.addEventListener("click", () => detail(w));
-    parent.appendChild(b);
-  };
-  const runs = W.filter((w) => w.kind === "run" || w.kind === "trail");
-  const bests = h("section", { className: "card" });
-  bests.appendChild(h("h3", {}, "Fastest runs"));
-  let any = false;
-  for (const name of ["1 km", "1 mi", "5 km", "10 km", "Half marathon", "Marathon"]) {
-    const top = runs.filter((w) => w.best?.[name]).sort((a, b) => a.best[name] - b.best[name])[0];
-    if (!top) continue;
-    any = true;
-    const meters = { "1 km": 1000, "1 mi": MI, "5 km": 5000, "10 km": 10000, "Half marathon": 21097.5, Marathon: 42195 }[name];
-    recRow(bests, name, `${top.label} · ${longDay(localDay(top.start))}`, clock(top.best[name]), clock(top.best[name] / (meters / MI)) + " /mi", top);
-  }
-  if (!any) bests.appendChild(h("div", { className: "empty" }, "No runs with distance yet"));
-  box.appendChild(bests);
+// ---- Goals: one tab each ------------------------------------------------
+// Every entry below becomes a tab between Log and Body. To train for something new,
+// copy an entry and change it:
+//
+//   tab       the tab's name.
+//   counts    which sports count toward it (names from SPORTS above; for a new sport,
+//             add it to SPORTS and to sportOf).
+//   test      what you're training for:
+//               name    what to call it.
+//               effort  its distance, as one of build.py's EFFORTS. build.py keeps the fastest
+//                       stretch of each of those distances inside every workout, so a 3 mi stretch
+//                       of a 4 mi ruck counts. (For a new distance, add it to EFFORTS and bump
+//                       VERSION there, so every workout file is read again.)
+//               target  goal time in seconds (45 * 60 is 45:00).
+//               date    optional race day, "YYYY-MM-DD", for a countdown.
+//               note    optional, shown beside the name.
+//             The estimate is your fastest stretch of that distance in the last 90 days. If you
+//             haven't gone that far yet, it's predicted from your longest recent stretch with
+//             Riegel's formula (time × (distance ratio)^1.06), which runs a little optimistic.
+//             No workouts in 90 days: it falls back to all of them, and says so.
+//   charts    any of "weekly" (miles a week), "long" (longest each week), "pace" (each
+//             workout's pace, with the target pace dashed), over the past year.
+//   strength  true adds which days you did strength training, this week and the 7 before.
+//   records   [label, sports, what]: "what" is an effort name (fastest stretch) or "dist" (farthest).
+const RUNS = ["run", "trail"];
+const GOALS = [
+  { tab: "Wildland", counts: ["ruck"],
+    test: { name: "Pack test", effort: "3 mi", target: 45 * 60, note: "3 miles with 45 lb, under 45:00 for arduous duty" },
+    charts: ["pace"], strength: true,
+    records: [["Fastest pack test", ["ruck"], "3 mi"], ["Longest ruck", ["ruck"], "dist"],
+      ["Fastest 5K", RUNS, "5 km"], ["Fastest 10K", RUNS, "10 km"]] },
+  { tab: "Marathon", counts: RUNS,
+    // A first half at an average pace: 2:30:00 is 11:27/mi. For the full later: effort "Marathon", a new target and date.
+    test: { name: "Half marathon", effort: "Half marathon", target: 2.5 * 3600, date: "2027-03-01" },
+    charts: ["weekly", "long", "pace"],
+    records: [["5K", RUNS, "5 km"], ["10K", RUNS, "10 km"], ["Half marathon", RUNS, "Half marathon"], ["Marathon", RUNS, "Marathon"]] },
+];
+const EFF = D.efforts || {};
+for (const g of GOALS) g.id = g.tab.toLowerCase().replace(/\W+/g, "-");
 
-  const big = h("section", { className: "card" });
-  big.appendChild(h("h3", {}, "Biggest days"));
-  const bigs = h("div", { className: "bigs" });
-  big.appendChild(bigs);
-  for (const kind of Object.keys(SPORTS)) {
-    const ws = W.filter((w) => w.kind === kind);
-    if (!ws.length) continue;
-    const grp = withC(h("div", { className: "sportrec" }), css(SPORTS[kind][1]));
-    grp.appendChild(h("h4", {}, SPORTS[kind][0]));
-    const top = (f) => ws.filter((w) => f(w) > 0).sort((a, b) => f(b) - f(a))[0];
-    const d = top((w) => w.dist || 0), t = top((w) => w.secs || 0), u = top((w) => w.up || 0);
-    if (d && d.dist > 100) recRow(grp, "Farthest", `${d.label} · ${longDay(localDay(d.start))}`, fmt(d.dist / MI, 2) + " mi", "", d);
-    if (t) recRow(grp, "Longest", `${t.label} · ${longDay(localDay(t.start))}`, clock(t.secs), "", t);
-    if (u && u.up >= 10) recRow(grp, "Most climb", `${u.label} · ${longDay(localDay(u.start))}`, fmt(u.up * FT) + " ft", "", u);
-    bigs.appendChild(grp);
+// Your time for g's test: the best real one, or a prediction from a shorter stretch.
+function estimate(g) {
+  const want = EFF[g.test.effort];
+  for (const since of [todayDn - 90, -Infinity]) {
+    let best = null;
+    for (const w of W) if (g.counts.includes(w.kind) && w.dn > since) for (const [e, t] of Object.entries(w.best || {})) {
+      const d = EFF[e];
+      if (d && d <= want && (!best || d > best.d || (d === best.d && t < best.t))) best = { d, t, e, w };
+    }
+    if (best) return { ...best, est: best.t * (want / best.d) ** 1.06, old: since === -Infinity };
   }
-  box.appendChild(big);
+  return null;
+}
+function _checkEstimate() {   // Riegel: a 25:00 5 km predicts about 52:07 for 10 km
+  const t = 1500 * (10000 / 5000) ** 1.06;
+  console.assert(Math.abs(t - 3127) < 1, "Riegel", t);
+}
+_checkEstimate();
+
+const recRow = (parent, what, when, val, extra, w) => {
+  const b = h("button", { className: "rec", disabled: !w });
+  b.append(h("span", { className: "what" }, what), h("span", { className: "val" }, val),
+    h("span", { className: "when" }, when), h("span", { className: "extra" }, extra));
+  if (w) b.addEventListener("click", () => detail(w));
+  parent.appendChild(b);
+};
+const big = (parent, k, v, unit, ...notes) => {
+  const d = h("div"), vv = h("div", { className: "v" }, v);
+  if (unit) vv.appendChild(h("small", {}, unit));
+  d.append(h("div", { className: "k" }, k), vv);
+  for (const n of notes.filter(Boolean)) d.appendChild(typeof n === "string" ? h("div", { className: "n" }, n) : n);
+  parent.appendChild(d);
+};
+const on = (w) => `${w.label}, ${longDay(localDay(w.start))}`;
+
+function goalView(g) {
+  const sec = h("section", { className: "view", id: g.id });
+  const T = g.test, dist = EFF[T.effort];
+  const head = h("div", { className: "sec" }), h2 = h("h2", {}, T.name);
+  if (T.note) h2.appendChild(h("span", {}, T.note));
+  head.appendChild(h2);
+  const top = h("div", { className: "goal" });
+  sec.append(head, top);
+
+  const e = estimate(g);
+  if (e) {
+    const gap = e.est - T.target;
+    big(top, e.d === dist ? "Your best" : "Estimated today", clock(e.est), "",
+      h("div", { className: gap > 0 ? "bad" : "good" }, gap > 0 ? `${clock(gap)} to cut` : `${clock(-gap)} under your goal`),
+      e.d === dist ? on(e.w) : `from ${e.e} in ${clock(e.t)}, ${on(e.w)}`, e.old && "over 90 days ago");
+  } else big(top, "Estimated today", "–", "", `no ${g.counts.map((k) => SPORTS[k][0].toLowerCase()).join(" or ")} with distance yet`);
+  big(top, "Goal", clock(T.target), "", `${clock(T.target / (dist / MI))} /mi`);
+  if (T.date) {
+    const days = dayNum(T.date) - todayDn;
+    big(top, longDay(T.date), days >= 0 ? String(Math.ceil(days / 7)) : "–", days >= 0 ? "weeks to go" : "", days < 0 && "set a new date in GOALS");
+  }
+  const mon = todayDn - weekday(todayDn), wk = W.filter((w) => g.counts.includes(w.kind) && w.dn >= mon);
+  big(top, "This week", String(wk.length), wk.length === 1 ? "workout" : "workouts",
+    wk.length ? `${fmt(wk.reduce((s, w) => s + (w.dist || 0), 0) / MI, 1)} mi` : "");
+
+  if (g.strength) {
+    const sh = h("div", { className: "sec" });
+    sh.appendChild(h("h2", {}, "Strength"));
+    const row = h("div", { className: "goal" });
+    const str = W.filter((w) => w.kind === "strength");
+    const days = [...new Set(str.filter((w) => w.dn >= mon).map((w) => weekday(w.dn)))].sort();
+    big(row, "This week", days.length ? days.map((d) => ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][d]).join(", ") : "None yet");
+    const weeks = h("div", { className: "weeks" });
+    for (let k = 7; k >= 0; k--) {
+      const n = str.filter((w) => w.dn >= mon - 7 * k && w.dn < mon - 7 * k + 7).length;
+      const i = h("i", { title: `week of ${longDay(numDay(mon - 7 * k))}: ${n}` }, String(n));
+      i.style.setProperty("--n", Math.min(n, 3));
+      weeks.appendChild(i);
+    }
+    big(row, "Sessions a week", "", "", weeks, "the last 8 weeks, this one on the right");
+    sec.append(sh, row);
+  }
+
+  if (g.charts.length) {
+    const grid = h("section", { className: "grid" });
+    g.plots = g.charts.map((kind) => {
+      const card = h("section", { className: "card" }), plot = h("div", { className: "plot" });
+      const [title, unit] = { weekly: ["Miles a week", "the past year"], long: ["Longest each week", "miles, the past year"],
+        pace: [`${SPORTS[g.counts[0]][0]} pace`, `min/mi, faster is higher; dashed: goal pace ${clock(T.target / (dist / MI))}`] }[kind];
+      card.append(h("h3", {}, title), h("div", { className: "unit" }, unit), plot);
+      grid.appendChild(card);
+      return [kind, plot];
+    });
+    sec.appendChild(grid);
+  }
+
+  const rh = h("div", { className: "sec" });
+  rh.appendChild(h("h2", {}, "Records"));
+  const recs = h("div");
+  recs.style.maxWidth = "560px";
+  for (const [label, kinds, what] of g.records) {
+    const ws = W.filter((w) => kinds.includes(w.kind));
+    if (what === "dist") {
+      const t = ws.filter((w) => w.dist > 100).sort((a, b) => b.dist - a.dist)[0];
+      recRow(recs, label, t ? on(t) : "none yet", t ? fmt(t.dist / MI, 2) + " mi" : "–", t?.secs ? clock(t.secs) : "", t);
+    } else {
+      const t = ws.filter((w) => w.best?.[what]).sort((a, b) => a.best[what] - b.best[what])[0];
+      recRow(recs, label, t ? on(t) : "none yet", t ? clock(t.best[what]) : "–", t ? clock(t.best[what] / (EFF[what] / MI)) + " /mi" : "", t);
+    }
+  }
+  sec.append(rh, recs);
+  return sec;
 }
 
-// ---- All workouts -------------------------------------------------------
-let wKind = "all";
-function workoutList() {
-  const kinds = ["all", ...Object.keys(SPORTS).filter((k) => W.some((w) => w.kind === k))];
-  const f = document.getElementById("wfilter");
-  f.replaceChildren(...kinds.map((k) => {
-    const b = h("button", {}, k === "all" ? "All" : SPORTS[k][0]);
-    b.setAttribute("aria-pressed", String(k === wKind));
-    b.addEventListener("click", () => { wKind = k; workoutList(); });
-    return b;
-  }));
-  const list = document.getElementById("wlist");
-  const ws = W.filter((w) => wKind === "all" || w.kind === wKind).reverse();
-  document.getElementById("wcount").textContent = `${ws.length} workout${ws.length === 1 ? "" : "s"}`;
-  list.replaceChildren(...ws.map((w) => {
-    const b = withC(h("button", { className: "wrow" }), w.color);
-    const n = h("div", { className: "n" }, w.label);
-    n.appendChild(h("span", {}, longDay(localDay(w.start))));
-    b.append(h("i"), n, h("div", { className: "r" }, w.dist > 100 ? fmt(w.dist / MI, 2) + " mi" : ""),
-      h("div", { className: "r x" }, w.secs ? clock(w.secs) : ""),
-      h("div", { className: "r x" }, onFoot(w) && paceOf(w) ? clock(paceOf(w)) + " /mi" : w.hr ? fmt(w.hr) + " bpm" : ""));
-    b.addEventListener("click", () => detail(w));
-    return b;
-  }));
-  if (!ws.length) list.appendChild(h("div", { className: "empty" }, "No workouts yet"));
+function goalCharts(g) {
+  const year = todayDn - 364, ws = W.filter((w) => g.counts.includes(w.kind) && w.dn >= year);
+  const color = css(SPORTS[g.counts[0]][1]);
+  for (const [kind, plot] of g.plots || []) {
+    if (kind === "pace") {
+      series(plot, ws.filter((w) => paceOf(w)).map((w) => ({ dn: w.dn, v: paceOf(w), label: on(w), w })),
+        { color, f: clock, unit: "/mi", time: true, faster: true, target: g.test.target / (EFF[g.test.effort] / MI) });
+      continue;
+    }
+    const pts = [];
+    for (let mon = todayDn - weekday(todayDn); mon > year - 7; mon -= 7) {
+      const wk = ws.filter((w) => w.dn >= mon && w.dn < mon + 7);
+      if (!wk.length) continue;
+      const v = kind === "weekly" ? wk.reduce((s, w) => s + (w.dist || 0), 0) : Math.max(...wk.map((w) => w.dist || 0));
+      pts.push({ dn: mon + 3, v: v / MI, label: `week of ${longDay(numDay(mon))}`, w: kind === "long" ? wk.find((w) => (w.dist || 0) === v) : null });
+    }
+    series(plot, pts, { color, f: (v) => fmt(v, 1), unit: "mi", bars: kind === "weekly" });
+  }
+}
+
+// A year of points: bars, or dots joined by a line; an optional dashed goal line.
+function series(box, pts, o) {
+  box.replaceChildren();
+  if (!pts.length) { box.appendChild(h("div", { className: "empty" }, "Nothing in the past year yet")); return; }
+  const Wd = box.clientWidth, Hd = box.clientHeight, m = { l: 44, r: 10, t: 8, b: 20 };
+  const svg = el("svg", { viewBox: `0 0 ${Wd} ${Hd}`, role: "img" }, box);
+  const iw = Wd - m.l - m.r, ih = Hd - m.t - m.b, n0 = todayDn - 364;
+  const x = (dn) => m.l + ((dn - n0 + 0.5) / 365) * iw;
+  const vals = pts.map((p) => p.v).concat(o.target ?? []);
+  let lo = o.bars ? 0 : Math.min(...vals), hi = Math.max(...vals);
+  const raw = niceStep(hi - lo || hi || 1), step = o.time ? Math.max(60, Math.round(raw / 60) * 60) : raw;
+  if (!o.bars) lo = Math.max(0, Math.floor((lo - step / 4) / step) * step);
+  hi = Math.max(lo + step, Math.ceil((hi + (o.bars ? 0 : step / 4)) / step) * step);
+  // Pace: lower is faster, so it goes up the chart.
+  const y = (v) => m.t + (o.faster ? (v - lo) / (hi - lo) : 1 - (v - lo) / (hi - lo)) * ih;
+  for (let v = lo; v <= hi + step / 1e6; v += step) {
+    el("line", { x1: m.l, x2: m.l + iw, y1: y(v), y2: y(v), stroke: css("--line"), "stroke-dasharray": v === (o.faster ? hi : lo) ? "" : "2 4" }, svg);
+    el("text", { x: m.l - 6, y: y(v) + 4, "text-anchor": "end" }, svg).textContent = o.f(v);
+  }
+  [[n0, "start"], [n0 + 182, "middle"], [todayDn, "end"]].forEach(([dn, a]) =>
+    el("text", { x: x(dn), y: Hd - 4, "text-anchor": a }, svg).textContent = dayLabel(numDay(dn)));
+  if (o.target != null) el("line", { x1: m.l, x2: m.l + iw, y1: y(o.target), y2: y(o.target), stroke: css("--fg"), "stroke-width": 1.5, "stroke-dasharray": "6 5", opacity: 0.6 }, svg);
+  if (o.bars) {
+    const bw = Math.max(2, iw / 53 - 3);
+    for (const p of pts) el("path", { d: colPath(x(p.dn) - bw / 2, y(0), y(p.v), bw, Math.min(3, bw / 2)), fill: o.color }, svg);
+  } else {
+    el("path", { d: "M" + pts.map((p) => `${x(p.dn)},${y(p.v)}`).join("L"), fill: "none", stroke: o.color, "stroke-width": 1.5, opacity: 0.5 }, svg);
+    for (const p of pts) el("circle", { cx: x(p.dn), cy: y(p.v), r: 3.5, fill: o.color }, svg);
+  }
+  for (const p of pts) {   // a wide invisible target per point, for the tooltip and opening the workout
+    const hit = el("rect", { x: x(p.dn) - 6, y: m.t, width: 12, height: ih, class: "hit", tabindex: p.w ? 0 : -1 }, svg);
+    hover(hit, (e) => showTip(e, p.label, [{ name: o.unit, value: o.f(p.v), color: o.color }]));
+    if (p.w) { hit.style.cursor = "pointer"; hit.addEventListener("click", () => detail(p.w)); }
+  }
 }
 
 // ---- Workout detail -----------------------------------------------------
@@ -928,15 +1052,8 @@ const pct = (a, p) => { const v = a.filter((x) => x != null).sort((x, y) => x - 
 // The map: your route over the offline OpenStreetMap area (health-map), or
 // over plain background if there is none yet. Returns { mark(i) }.
 let pmtilesReady = null;
-function mapPanel(container, tr) {
-  const box = h("div", { className: "map" });
-  container.appendChild(box);
-  const key = h("div", { className: "map-key" });
-  key.append(withC(h("span", {}, "Start"), ACC), withC(h("span", {}, "Finish"), css("--fg")));
-  container.appendChild(key);
-  const api = { mark() {}, onHover: null };
-  if (!window.maplibregl) { box.appendChild(h("div", { className: "note" }, "Map library failed to load")); return api; }
-
+// The map style; the first call loads the offline tiles. null tiles = plain background.
+function mapStyle() {
   const tilesB64 = (document.getElementById("maptiles")?.textContent || "").trim();
   if (tilesB64 && !pmtilesReady) {
     const bytes = Uint8Array.from(atob(tilesB64), (ch) => ch.charCodeAt(0));
@@ -951,19 +1068,80 @@ function mapPanel(container, tr) {
       attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' };
     // No labels: they need font files from the network.
     style.layers = basemaps.layers("protomaps", basemaps.namedFlavor("dark"), { lang: "en" }).filter((l) => l.type !== "symbol");
-  } else {
-    box.appendChild(h("div", { className: "note" }, "No map yet: run health-map once"));
   }
+  return style;
+}
+const pt = (c) => ({ type: "Feature", geometry: { type: "Point", coordinates: c } });
+const lineOf = (coords) => ({ type: "Feature", geometry: { type: "LineString", coordinates: coords } });
+const endsOf = (coords, color) => ({ type: "FeatureCollection", features: [
+  { ...pt(coords[0]), properties: { c: color } }, { ...pt(coords[coords.length - 1]), properties: { c: css("--fg") } }] });
+const boundsOf = (coords) => [[Math.min(...coords.map((c) => c[0])), Math.min(...coords.map((c) => c[1]))],
+  [Math.max(...coords.map((c) => c[0])), Math.max(...coords.map((c) => c[1]))]];
+const coordsOf = (tr) => tr.lat.map((v, i) => v != null ? [tr.lon[i], v] : null).filter(Boolean);
+function addRoute(map, coords, color) {
+  map.addSource("route", { type: "geojson", data: lineOf(coords) });
+  map.addLayer({ id: "route-casing", type: "line", source: "route", layout: { "line-join": "round", "line-cap": "round" },
+    paint: { "line-color": css("--bg"), "line-width": 8 } });
+  map.addLayer({ id: "route", type: "line", source: "route", layout: { "line-join": "round", "line-cap": "round" },
+    paint: { "line-color": color, "line-width": 4 } });
+  map.addSource("ends", { type: "geojson", data: endsOf(coords, color) });
+  map.addLayer({ id: "ends", type: "circle", source: "ends",
+    paint: { "circle-radius": 6, "circle-color": ["get", "c"], "circle-stroke-color": css("--surf"), "circle-stroke-width": 2 } });
+}
+
+// Map pictures for the feed and share images. One hidden map draws them in turn:
+// a live map per card would run out of WebGL contexts (Chromium allows about 16).
+let picMap = null, picQueue = Promise.resolve();
+function mapImage(w, wd, ht) {
+  const job = picQueue.then(() => drawMapImage(w, wd, ht));
+  picQueue = job.catch(() => {});
+  return job;
+}
+async function drawMapImage(w, wd, ht) {
+  if (!window.maplibregl) throw new Error("no map library");
+  const style = mapStyle();
+  if (!pmtilesReady) throw new Error("no map tiles");   // the line drawing is better than a blank map
+  const coords = coordsOf(trackOf(w));
+  const idle = (m) => new Promise((ok) => m.once("idle", ok));
+  if (!picMap) {
+    const box = h("div", { className: "offscreen" });
+    document.body.appendChild(box);
+    box.style.width = wd + "px"; box.style.height = ht + "px";
+    picMap = new maplibregl.Map({ container: box, style, interactive: false, attributionControl: false,
+      preserveDrawingBuffer: true, fadeDuration: 0, bounds: boundsOf(coords) });
+    await new Promise((ok) => picMap.once("load", ok));
+    addRoute(picMap, coords, w.color);
+  }
+  const box = picMap.getContainer();
+  box.style.width = wd + "px"; box.style.height = ht + "px";
+  picMap.resize();
+  picMap.getSource("route").setData(lineOf(coords));
+  picMap.getSource("ends").setData(endsOf(coords, w.color));
+  picMap.setPaintProperty("route", "line-color", w.color);
+  picMap.setPaintProperty("route", "line-width", Math.max(3, wd / 200));
+  picMap.fitBounds(boundsOf(coords), { padding: Math.round(Math.min(wd, ht) * 0.14), animate: false });
+  await idle(picMap);
+  return picMap.getCanvas().toDataURL("image/png");
+}
+
+function mapPanel(container, tr) {
+  const box = h("div", { className: "map" });
+  container.appendChild(box);
+  const key = h("div", { className: "map-key" });
+  key.append(withC(h("span", {}, "Start"), ACC), withC(h("span", {}, "Finish"), css("--fg")));
+  container.appendChild(key);
+  const api = { mark() {}, onHover: null };
+  if (!window.maplibregl) { box.appendChild(h("div", { className: "note" }, "Map library failed to load")); return api; }
+  const style = mapStyle();
+  if (!pmtilesReady) box.appendChild(h("div", { className: "note" }, "No map yet: run health-map once"));
 
   const idx = tr.lat.map((v, i) => v != null ? i : -1).filter((i) => i >= 0);
   const coords = idx.map((i) => [tr.lon[i], tr.lat[i]]);
-  const lons = coords.map((c) => c[0]), lats = coords.map((c) => c[1]);
   let map;
   try {
     map = new maplibregl.Map({
       container: box, style, attributionControl: { compact: true }, dragRotate: false, pitchWithRotate: false,
-      bounds: [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
-      fitBoundsOptions: { padding: 40 },
+      bounds: boundsOf(coords), fitBoundsOptions: { padding: 40 },
     });
   } catch (e) {
     box.appendChild(h("div", { className: "note" }, "This browser can't draw the map (WebGL is off)"));
@@ -971,18 +1149,9 @@ function mapPanel(container, tr) {
   }
   openMap = map;
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
-  const pt = (c) => ({ type: "Feature", geometry: { type: "Point", coordinates: c } });
   let loaded = false;
   map.on("load", () => {
-    map.addSource("route", { type: "geojson", data: { type: "Feature", geometry: { type: "LineString", coordinates: coords } } });
-    map.addLayer({ id: "route-casing", type: "line", source: "route", layout: { "line-join": "round", "line-cap": "round" },
-      paint: { "line-color": css("--bg"), "line-width": 8 } });
-    map.addLayer({ id: "route", type: "line", source: "route", layout: { "line-join": "round", "line-cap": "round" },
-      paint: { "line-color": ACC, "line-width": 4 } });
-    map.addSource("ends", { type: "geojson", data: { type: "FeatureCollection", features: [
-      { ...pt(coords[0]), properties: { c: ACC } }, { ...pt(coords[coords.length - 1]), properties: { c: css("--fg") } }] } });
-    map.addLayer({ id: "ends", type: "circle", source: "ends",
-      paint: { "circle-radius": 6, "circle-color": ["get", "c"], "circle-stroke-color": css("--surf"), "circle-stroke-width": 2 } });
+    addRoute(map, coords, ACC);
     map.addSource("cursor", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
     map.addLayer({ id: "cursor", type: "circle", source: "cursor",
       paint: { "circle-radius": 7, "circle-color": css("--fg"), "circle-stroke-color": ACC, "circle-stroke-width": 3 } });
@@ -1205,12 +1374,32 @@ function lapsTable(box, tr) {
 // ---- Page ---------------------------------------------------------------
 document.getElementById("sub").textContent = [D.device, D.exported && `phone export ${D.exported}`,
   DAYS.length && `${longDay(numDay(firstDn))} to ${longDay(numDay(lastDn))}`, `${W.length} workouts`].filter(Boolean).join(" · ");
-today();
-recent();
-week();
-renderCharts();
-calendar();
-records();
-workoutList();
-let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(renderCharts, 100); });
+weekStrip();
+feed(Math.max(1, W.filter((w) => w.dn > todayDn - FEED_DAYS).length));   // at least the latest one
+for (const g of GOALS) document.getElementById("body").before(goalView(g));
+
+// Tabs. Charts measure their width, so each view draws them when it's shown.
+const VIEWS = [["log", "Log"], ...GOALS.map((g) => [g.id, g.tab]), ["body", "Body"]];
+const draw = (id) => {
+  const g = GOALS.find((x) => x.id === id);
+  if (g) goalCharts(g);
+  if (id === "body") { renderCharts(); calendar(); }
+};
+let current;
+function show(id) {
+  if (!VIEWS.some(([v]) => v === id)) id = "log";
+  current = id;
+  for (const [v] of VIEWS) document.getElementById(v).hidden = v !== id;
+  for (const b of document.querySelectorAll("#tabs button")) b.setAttribute("aria-current", b.dataset.v === id ? "page" : "false");
+  history.replaceState(null, "", "#" + id);   // a reload stays on this tab
+  draw(id);
+}
+for (const [v, name] of VIEWS) {
+  const b = h("button", {}, name);
+  b.dataset.v = v;
+  b.addEventListener("click", () => show(v));
+  document.getElementById("tabs").appendChild(b);
+}
+show(location.hash.slice(1));
+let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => draw(current), 100); });
 </script>

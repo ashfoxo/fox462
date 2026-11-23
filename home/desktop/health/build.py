@@ -31,11 +31,11 @@ SYNC = HOME / "sync"
 DATA = HOME / ".local/share/health"
 GARMIN = DATA / "garmin"
 CACHE = DATA / "cache"
-VERSION = "4"          # bump when parse() output changes, to re-parse every file
+VERSION = "5"          # bump when parse() output changes, to re-parse every file
 MAX_POINTS = 2000       # per workout; plenty for a chart or a route line
 SEMI = 180 / 2**31      # FIT semicircles -> degrees
 COLS = ["t", "lat", "lon", "dist", "hr", "spd", "alt", "cad", "pwr", "vo", "gct", "sl"]
-EFFORTS = {"1 km": 1000, "1 mi": 1609.344, "5 km": 5000, "10 km": 10000,
+EFFORTS = {"1 km": 1000, "1 mi": 1609.344, "3 mi": 4828.032, "5 km": 5000, "10 km": 10000,
            "Half marathon": 21097.5, "Marathon": 42195}
 
 
@@ -171,7 +171,7 @@ def _check_efforts():
     from datetime import timedelta, timezone
     t0 = datetime(2026, 1, 1, tzinfo=timezone.utc)
     recs = [{"ts": t0 + timedelta(seconds=i), "dist": 4.0 * i} for i in range(1300)]   # 4 m/s for 5.2 km
-    assert best_efforts(recs) == {"1 km": 250, "1 mi": 403, "5 km": 1250}, best_efforts(recs)
+    assert best_efforts(recs) == {"1 km": 250, "1 mi": 403, "3 mi": 1208, "5 km": 1250}, best_efforts(recs)
 
 
 _check_efforts()
@@ -464,7 +464,7 @@ def main():
         if w.get("vo2"):
             days.setdefault(datetime.fromtimestamp(w["start"] / 1000).date().isoformat(), {})["vo2"] = w["vo2"]
     training(days, ws)
-    data ={"device": device, "exported": exported, "days": [{"d": d, **v} for d, v in sorted(days.items())],
+    data = {"device": device, "exported": exported, "efforts": EFFORTS, "days": [{"d": d, **v} for d, v in sorted(days.items())],
             "workouts": [{k: v for k, v in w.items() if k != "bbox" or v} for w in ws]}
 
     with tempfile.TemporaryDirectory() as tmp:
