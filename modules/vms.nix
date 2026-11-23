@@ -28,7 +28,9 @@ let
       autoStop = true;
       apps = {
         terminal = [ "${pkgs.foot}/bin/foot" ];
-        mullvad-browser = [ (lib.getExe pkgs.mullvad-browser) ];
+        # No WebGL: with no GPU it renders in software, and Cloudflare's check
+        # then floods waypipe with frames until the VM runs out of memory.
+        mullvad-browser = [ (lib.getExe (pkgs.mullvad-browser.override { extraPrefs = ''lockPref("webgl.disabled", true);''; })) ];
       };
       launchers = [
         { app = "terminal"; label = "Terminal"; icon = "utilities-terminal"; }
