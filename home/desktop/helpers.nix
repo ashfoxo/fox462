@@ -12,9 +12,8 @@ let
   target = config.wayland.systemd.target;
   hyprctl = "${pkgs.hyprland}/bin/hyprctl";
 
-  # Private repo, so the image lives in it. Must be `git add`ed, or flakes
-  # can't see it.
-  wallpaper = ./wallpapers/firewatch.jpg;
+  # Drawn from palette.nix at build time (wallpaper.nix).
+  wallpaper = import ./wallpaper.nix { inherit pkgs lib; };
 
   font = "JetBrainsMono Nerd Font";
 

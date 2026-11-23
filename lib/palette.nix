@@ -51,6 +51,13 @@ rec {
       faint = "87938A";
       line  = "3A463F";
     };
+    # Terminal extras: the 16 ANSI colours need a blue and a magenta. Muted
+    # like the other *_text colours, 6:1 or better on bg.
+    ghostty = {
+      inherit (apps.quickshell) faint;
+      blue    = "7FA2C8";
+      magenta = "C08AB0";
+    };
     # Jellyfin's web UI (fox-red): the same outline grey for borders and
     # dividers.
     jellyfin = {

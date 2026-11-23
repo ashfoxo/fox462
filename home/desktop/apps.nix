@@ -26,8 +26,29 @@ let
     extraGpuDev = osConfig.fox.desktop.sandboxGpuDevices;
     extraGpuEnv = osConfig.fox.desktop.sandboxGpuEnv;
   };
+  term = (import ../../lib/palette.nix).for "ghostty";
 in
 {
+  # Ghostty's colours, from palette.nix. The 16 ANSI colours: black, red,
+  # green, yellow, blue, magenta, cyan, white, then their bright versions.
+  # The bright colours reuse the normal ones, except bright black (the grey
+  # for comments) and bright white.
+  # force: Ghostty writes an empty config.ghostty on first start, which
+  # would otherwise block the switch.
+  xdg.configFile."ghostty/config.ghostty" = {
+    force = true;
+    text = let
+      ansi = with term; [ surf rust_text forest_text amber blue magenta teal_text dim ];
+      bright = with term; [ faint rust_text forest_text amber blue magenta teal_text fg ];
+    in ''
+      background = #${term.bg}
+      foreground = #${term.fg}
+      cursor-color = #${term.forest_text}
+      selection-background = #${term.forest}
+      selection-foreground = #${term.fg}
+    '' + lib.concatImapStrings (i: hex: "palette = ${toString (i - 1)}=#${hex}\n") (ansi ++ bright);
+  };
+
   home.packages = [
 
     # --- Browsers -----------------------------------------------------------
