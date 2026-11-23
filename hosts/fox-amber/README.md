@@ -104,6 +104,14 @@ state (`modules/services/auto-update.nix`).
 
 Also:
 
+- **`health`'s Training chart** takes its idea from
+  [GoldenCheetah](https://www.goldencheetah.org/)'s Performance Manager, but
+  no code comes from it; the formulas are the published ones. Load per workout
+  is Banister's TRIMP (Morton, Fitz-Clarke & Banister, 1990). Fitness and
+  fatigue are the 42- and 7-day exponentially weighted averages of that load,
+  from Banister's fitness-fatigue model (1975) as popularised by Coggan's
+  CTL/ATL. Efficiency is Friel's efficiency factor (speed ÷ heart rate) on
+  easy runs.
 - **`~/sync`** is the same on every device, the phone included, kept in step
   by Syncthing over NetBird, with fox-red holding an always-on copy.
 - **`~/drop/{Music,Audiobooks,Movies,TV}`** sends new media to fox-red, which

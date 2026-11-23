@@ -21,7 +21,7 @@ import sys
 import tempfile
 import xml.etree.ElementTree as ET
 import zipfile
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import fitdecode
@@ -361,6 +361,58 @@ def garmin_days():
     return days
 
 
+# ---- Training load (formulas and sources: see the README) -----------------
+
+def trimp(w, rest, top):
+    """Banister TRIMP: minutes weighted by heart-rate reserve, so hard minutes count for more."""
+    hr = COLS.index("hr")
+    rows = [(r[0], r[hr]) for r in (w.get("track") or {}).get("rows", []) if r[hr]]
+    if len(rows) > 1:
+        parts = [(min(b[0] - a[0], 60), a[1]) for a, b in zip(rows, rows[1:])]   # a gap over a minute is a pause
+    elif w.get("hr") and w.get("secs"):
+        parts = [(w["secs"], w["hr"])]
+    else:
+        return 0
+    total = 0
+    for secs, bpm in parts:
+        x = min(max((bpm - rest) / (top - rest), 0), 1)
+        # shortcut: 1.92 is Banister's men's weighting (women's is 1.67); change it if it fits you better.
+        total += secs / 60 * x * 0.64 * math.exp(1.92 * x)
+    return total
+
+
+assert 50 < trimp({"hr": 125, "secs": 3600}, 50, 200) < 50.3   # an hour at half your reserve
+assert trimp({"track": {"rows": [[0] + [None] * 3 + [125], [60] + [None] * 3 + [125]]}}, 50, 200) == \
+    trimp({"hr": 125, "secs": 60}, 50, 200)
+
+
+def training(days, ws):
+    """Each day's fitness (42-day) and fatigue (7-day) load, and efficiency on easy runs, into days."""
+    top = max((w.get("maxhr") or 0 for w in ws), default=0)   # your highest recorded heart rate
+    rhrs = sorted((d, v["rhr"]) for d, v in days.items() if v.get("rhr"))
+    load, ef = {}, {}
+    for w in ws:
+        d = datetime.fromtimestamp(w["start"] / 1000).date()
+        rest = next((v for k, v in reversed(rhrs) if k <= d.isoformat()), 60)   # latest resting HR on or before the day
+        if top <= rest:
+            continue
+        load[d] = load.get(d, 0) + trimp(w, rest, top)
+        easy = w.get("hr") and (w["hr"] - rest) / (top - rest) < 0.75
+        if easy and "running" in f"{w.get('sport')} {w.get('type')}" and w.get("dist") and w.get("secs"):
+            ef[d.isoformat()] = round(w["dist"] / w["secs"] * 60 / w["hr"], 2)   # metres a minute per bpm
+    if not load:
+        return
+    fit = fat = 0
+    d = min(load)
+    while d <= date.today():   # rest days count too: both averages decay through them
+        fit += (load.get(d, 0) - fit) / 42
+        fat += (load.get(d, 0) - fat) / 7
+        days.setdefault(d.isoformat(), {}).update(fit=round(fit), fat=round(fat))
+        d += timedelta(days=1)
+    for k, v in ef.items():
+        days[k]["ef"] = v
+
+
 # ---- Map and page ---------------------------------------------------------
 
 def bbox_of(ws):
@@ -411,6 +463,7 @@ def main():
     for w in ws:   # VO2 max goes on its workout's day (newest wins), so the page reads it like any daily number
         if w.get("vo2"):
             days.setdefault(datetime.fromtimestamp(w["start"] / 1000).date().isoformat(), {})["vo2"] = w["vo2"]
+    training(days, ws)
     data ={"device": device, "exported": exported, "days": [{"d": d, **v} for d, v in sorted(days.items())],
             "workouts": [{k: v for k, v in w.items() if k != "bbox" or v} for w in ws]}
 
