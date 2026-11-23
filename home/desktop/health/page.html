@@ -44,27 +44,29 @@
   .strip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)) minmax(150px, 1.4fr); gap: 8px; align-items: end; }
   .strip .day { text-align: center; color: var(--faint); font-size: 12px; }
   .strip .day.now { color: var(--fg); font-weight: 600; }
-  .strip .bars { height: 80px; display: flex; flex-direction: column-reverse; gap: 2px; margin-bottom: 4px;
+  .strip .bars { height: 80px; display: flex; flex-direction: column-reverse; align-items: center; gap: 2px; margin-bottom: 4px;
     border-bottom: 1px solid var(--line); }
-  .strip .bars i { display: block; border-radius: 3px; background: var(--c); min-height: 3px; cursor: pointer; }
+  .strip .bars i { display: block; width: 50%; max-width: 44px; border-radius: 3px; background: var(--c); min-height: 3px; cursor: pointer; }
   .strip .tot { color: var(--dim); font-size: 12px; padding-left: 8px; }
   .strip .tot b { display: block; color: var(--fg); font-size: 24px; font-weight: 650; }
   @media (max-width: 620px) { .strip { grid-template-columns: repeat(7, minmax(0, 1fr)); } .strip .tot { grid-column: 1 / -1; padding: 0; } }
 
   /* Workout feed */
-  .dayhead { color: var(--dim); margin: 18px 0 6px; }
-  .wcard { position: relative; display: grid; grid-template-columns: 150px minmax(0, 1fr) auto; gap: 16px; align-items: center;
-    background: var(--surf); border: 1px solid var(--line); border-radius: var(--r); padding: 12px; margin-bottom: 8px; transition: border-color 0.15s; }
+  /* Two cards a row when there's room; a day's heading spans the row. */
+  #feed { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 500px), 1fr)); gap: 10px 12px; }
+  .dayhead { grid-column: 1 / -1; color: var(--dim); margin: 10px 0 -2px; }
+  .wcard { position: relative; display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 16px; align-items: center;
+    background: var(--surf); border: 1px solid var(--line); border-radius: var(--r); padding: 12px; transition: border-color 0.15s; }
   .wcard:hover, .wcard:focus-within { border-color: var(--c); }
   .wcard .pic { width: 150px; height: 96px; border-radius: 9px; background: var(--bg); overflow: hidden; }
   .wcard .pic > * { width: 100%; height: 100%; display: block; object-fit: cover; }
   .wcard .open { all: unset; font-size: 17px; font-weight: 600; line-height: 1.25; cursor: pointer; }
   .wcard .open::after { content: ""; position: absolute; inset: 0; border-radius: var(--r); }   /* the whole card opens it */
   .wcard .open:focus-visible { text-decoration: underline; }
-  .wcard .share { position: relative; z-index: 1; display: grid; gap: 6px; }
+  .wcard .share { position: relative; z-index: 1; display: flex; gap: 6px; margin-top: 10px; }
   .wcard .share button { background: none; border: 1px solid var(--line); color: var(--dim); border-radius: 8px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
   .wcard .share button:hover { color: var(--fg); border-color: var(--dim); }
-  .nums { display: flex; gap: 8px 26px; margin-top: 8px; flex-wrap: wrap; }
+  .nums { display: flex; align-items: flex-end; gap: 8px 22px; margin-top: 8px; flex-wrap: wrap; }   /* labels share one line */
   .nums div { display: flex; flex-direction: column; }
   .nums b { font-size: 17px; font-weight: 650; }
   .nums .big b { font-size: 23px; }
@@ -74,11 +76,16 @@
   .badge i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); display: inline-block; }
   .badge b { color: var(--c); font-weight: 600; }
   .more { display: block; margin: 14px auto 0; background: var(--surf); border: 1px solid var(--line); color: var(--fg); padding: 8px 18px; border-radius: 8px; cursor: pointer; }
-  @media (max-width: 620px) { .wcard { grid-template-columns: 96px minmax(0, 1fr); } .wcard .pic { width: 96px; } .wcard .share { grid-column: 1 / -1; display: flex; } }
+  @media (max-width: 620px) { .wcard { grid-template-columns: 96px minmax(0, 1fr); } .wcard .pic { width: 96px; } }
   .offscreen { position: fixed; left: -10000px; top: 0; }
 
   /* Goal tabs */
-  .goal { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px 40px; }
+  /* Always four columns, so the numbers line up from tab to tab. */
+  .goal { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px 40px; }
+  @media (max-width: 760px) { .goal { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .goal + .grid { margin-top: 36px; }   /* the same gap as before a heading */
+  .recs { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); column-gap: 40px; }
+  .recs .rec { border-top: 0; border-bottom: 1px solid var(--line); }
   .goal .k { color: var(--dim); }
   .goal .v { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }
   .goal .v small { font-size: 14px; font-weight: 400; color: var(--dim); margin-left: 4px; letter-spacing: 0; }
@@ -189,7 +196,7 @@
   </header>
 
   <section class="view" id="log">
-    <div class="sec"><h2>This week<span>Monday to Sunday, minutes by sport</span></h2></div>
+    <div class="sec"><h2>This week<span>Sunday to Saturday, minutes by sport</span></h2></div>
     <div class="strip" id="strip"></div>
     <div class="sec"><h2>Workouts<span>the past 5 days</span></h2></div>
     <div id="feed"></div>
@@ -251,7 +258,7 @@ const longDay = (d) => new Date(d + "T12:00").toLocaleDateString(undefined, { we
 const localDay = (ms) => { const t = new Date(ms); return new Date(t - t.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
 const dayNum = (d) => Math.round(new Date(d + "T12:00") / 864e5);
 const numDay = (n) => localDay(n * 864e5);
-const hm = (hours) => { const m = Math.round(hours * 60); return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`; };
+const hm = (hours) => { const m = Math.round(hours * 60); return m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, "0")}m`; };
 const MI = 1609.344, FT = 3.28084;
 const clock = (s) => {
   s = Math.round(s);
@@ -271,7 +278,8 @@ const lastDn = DAYS.length ? DAYS[DAYS.length - 1].dn : dayNum(localDay(Date.now
 const firstDn = DAYS.length ? DAYS[0].dn : lastDn;
 
 const todayDn = dayNum(todayStr);
-const weekday = (dn) => (new Date(numDay(dn) + "T12:00").getDay() + 6) % 7;   // Monday 0
+const weekday = (dn) => new Date(numDay(dn) + "T12:00").getDay();   // weeks start on Sunday (0)
+const DAYNAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const paceOf = (w) => w.dist > 100 && w.secs ? w.secs / (w.dist / MI) : null;
 
 const W = D.workouts.map((w, i) => ({ ...w, i }));
@@ -394,14 +402,14 @@ const hasGps = (w) => w.track?.cols.includes("lat") && w.track.rows.some((r) => 
 // ---- This week ----------------------------------------------------------
 function weekStrip() {
   const box = document.getElementById("strip");
-  const mon = todayDn - weekday(todayDn);
+  const sun = todayDn - weekday(todayDn);
   const inWeek = (a) => W.filter((w) => w.dn >= a && w.dn < a + 7);
-  const now = inWeek(mon), secs = (ws) => ws.reduce((s, w) => s + (w.secs || 0), 0);
-  const max = Math.max(3600, ...[0, 1, 2, 3, 4, 5, 6].map((i) => secs(now.filter((w) => w.dn === mon + i))));
+  const now = inWeek(sun), secs = (ws) => ws.reduce((s, w) => s + (w.secs || 0), 0);
+  const max = Math.max(3600, ...[0, 1, 2, 3, 4, 5, 6].map((i) => secs(now.filter((w) => w.dn === sun + i))));
   for (let i = 0; i < 7; i++) {
-    const day = h("div", { className: "day" + (mon + i === todayDn ? " now" : "") });
+    const day = h("div", { className: "day" + (sun + i === todayDn ? " now" : "") });
     const bars = h("div", { className: "bars" });
-    for (const w of now.filter((w) => w.dn === mon + i)) {
+    for (const w of now.filter((w) => w.dn === sun + i)) {
       const seg = withC(h("i", { tabIndex: 0, role: "button", ariaLabel: `${w.label}, ${clock(w.secs || 0)}` }), w.color);
       seg.style.height = ((w.secs || 0) / max) * 76 + "px";
       hover(seg, (e) => showTip(e, w.label, [{ name: SPORTS[w.kind][0].toLowerCase(), value: clock(w.secs || 0), color: w.color }]));
@@ -409,7 +417,7 @@ function weekStrip() {
       seg.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); detail(w); } });
       bars.appendChild(seg);
     }
-    day.append(bars, ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][i]);
+    day.append(bars, DAYNAMES[i]);
     box.appendChild(day);
   }
   const count = {};
@@ -417,7 +425,7 @@ function weekStrip() {
   const tot = h("div", { className: "tot" });
   tot.append(h("b", {}, now.length ? hm(secs(now) / 3600) : "Nothing yet"),
     Object.entries(count).map(([k, n]) => `${n} ${SPORTS[k][0].toLowerCase()}${n > 1 ? "s" : ""}`).join(" · "), h("br"),
-    h("span", { className: "faint" }, `last week ${hm(secs(inWeek(mon - 7)) / 3600)}`));
+    h("span", { className: "faint" }, `last week ${hm(secs(inWeek(sun - 7)) / 3600)}`));
   box.appendChild(tot);
 }
 
@@ -452,7 +460,6 @@ function feedCard(w) {
   what.append(h("i"), [w.label !== SPORTS[w.kind][0] && SPORTS[w.kind][0], w.place].filter(Boolean).join(" · "),
     h("span", { className: "faint" }, new Date(w.start).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })));
   const mid = h("div");
-  mid.append(what, open, nums(w));
   const share = h("div", { className: "share" });
   const btn = (label, withMap) => {
     const b = h("button", {}, label);
@@ -461,7 +468,8 @@ function feedCard(w) {
   };
   btn("Copy image", hasGps(w));
   if (hasGps(w)) btn("Copy, no map", false);
-  c.append(pic, mid, share);
+  mid.append(what, open, nums(w), share);
+  c.append(pic, mid);
   return c;
 }
 
@@ -695,8 +703,8 @@ function calendar() {
   for (const [i, b] of [...document.querySelectorAll("#calpick button")].entries()) b.setAttribute("aria-pressed", String(i === calKey));
   const box = document.getElementById("cal");
   box.replaceChildren();
-  // Columns are weeks starting Monday; rows are days.
-  const wd = (dn) => (new Date(numDay(dn) + "T12:00").getDay() + 6) % 7;
+  // Columns are weeks starting Sunday; rows are days.
+  const wd = weekday;
   const start = firstDn - wd(firstDn), weeks = Math.ceil((lastDn - start + 1) / 7);
   const gap = 4, left = 30, top = 18;
   const cell = Math.max(12, Math.min(24, Math.floor((box.clientWidth - left) / weeks) - gap));
@@ -705,7 +713,7 @@ function calendar() {
   const lo = vals[Math.floor(vals.length * 0.05)] ?? 0, hi = vals[Math.floor(vals.length * 0.95)] ?? 1;
   const wByDn = {};
   for (const w of W) (wByDn[dayNum(localDay(w.start))] ||= []).push(w);
-  ["Mon", "", "Wed", "", "Fri", "", ""].forEach((t, i) => t && (el("text", { x: 0, y: top + i * (cell + gap) + cell / 2 + 4 }, svg).textContent = t));
+  ["", "Mon", "", "Wed", "", "Fri", ""].forEach((t, i) => t && (el("text", { x: 0, y: top + i * (cell + gap) + cell / 2 + 4 }, svg).textContent = t));
   let lastMonth = -1;
   for (let dn = start; dn <= lastDn; dn++) {
     const col = Math.floor((dn - start) / 7), row = wd(dn), X = left + col * (cell + gap), Y = top + row * (cell + gap);
@@ -829,7 +837,7 @@ function goalView(g) {
     const days = dayNum(T.date) - todayDn;
     big(top, longDay(T.date), days >= 0 ? String(Math.ceil(days / 7)) : "–", days >= 0 ? "weeks to go" : "", days < 0 && "set a new date in GOALS");
   }
-  const mon = todayDn - weekday(todayDn), wk = W.filter((w) => g.counts.includes(w.kind) && w.dn >= mon);
+  const sun = todayDn - weekday(todayDn), wk = W.filter((w) => g.counts.includes(w.kind) && w.dn >= sun);
   big(top, "This week", String(wk.length), wk.length === 1 ? "workout" : "workouts",
     wk.length ? `${fmt(wk.reduce((s, w) => s + (w.dist || 0), 0) / MI, 1)} mi` : "");
 
@@ -838,12 +846,12 @@ function goalView(g) {
     sh.appendChild(h("h2", {}, "Strength"));
     const row = h("div", { className: "goal" });
     const str = W.filter((w) => w.kind === "strength");
-    const days = [...new Set(str.filter((w) => w.dn >= mon).map((w) => weekday(w.dn)))].sort();
-    big(row, "This week", days.length ? days.map((d) => ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][d]).join(", ") : "None yet");
+    const days = [...new Set(str.filter((w) => w.dn >= sun).map((w) => weekday(w.dn)))].sort();
+    big(row, "This week", days.length ? days.map((d) => DAYNAMES[d]).join(", ") : "None yet");
     const weeks = h("div", { className: "weeks" });
     for (let k = 7; k >= 0; k--) {
-      const n = str.filter((w) => w.dn >= mon - 7 * k && w.dn < mon - 7 * k + 7).length;
-      const i = h("i", { title: `week of ${longDay(numDay(mon - 7 * k))}: ${n}` }, String(n));
+      const n = str.filter((w) => w.dn >= sun - 7 * k && w.dn < sun - 7 * k + 7).length;
+      const i = h("i", { title: `week of ${longDay(numDay(sun - 7 * k))}: ${n}` }, String(n));
       i.style.setProperty("--n", Math.min(n, 3));
       weeks.appendChild(i);
     }
@@ -866,8 +874,7 @@ function goalView(g) {
 
   const rh = h("div", { className: "sec" });
   rh.appendChild(h("h2", {}, "Records"));
-  const recs = h("div");
-  recs.style.maxWidth = "560px";
+  const recs = h("div", { className: "recs" });
   for (const [label, kinds, what] of g.records) {
     const ws = W.filter((w) => kinds.includes(w.kind));
     if (what === "dist") {
@@ -892,11 +899,11 @@ function goalCharts(g) {
       continue;
     }
     const pts = [];
-    for (let mon = todayDn - weekday(todayDn); mon > year - 7; mon -= 7) {
-      const wk = ws.filter((w) => w.dn >= mon && w.dn < mon + 7);
+    for (let sun = todayDn - weekday(todayDn); sun > year - 7; sun -= 7) {
+      const wk = ws.filter((w) => w.dn >= sun && w.dn < sun + 7);
       if (!wk.length) continue;
       const v = kind === "weekly" ? wk.reduce((s, w) => s + (w.dist || 0), 0) : Math.max(...wk.map((w) => w.dist || 0));
-      pts.push({ dn: mon + 3, v: v / MI, label: `week of ${longDay(numDay(mon))}`, w: kind === "long" ? wk.find((w) => (w.dist || 0) === v) : null });
+      pts.push({ dn: sun + 3, v: v / MI, label: `week of ${longDay(numDay(sun))}`, w: kind === "long" ? wk.find((w) => (w.dist || 0) === v) : null });
     }
     series(plot, pts, { color, f: (v) => fmt(v, 1), unit: "mi", bars: kind === "weekly" });
   }
