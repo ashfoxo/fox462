@@ -92,7 +92,7 @@
   .goal .n { color: var(--faint); font-size: 12px; }
   .weeks { display: flex; gap: 4px; margin: 8px 0 4px; }
   .weeks i { width: 22px; height: 22px; border-radius: 4px; font-style: normal; font-size: 11px; line-height: 22px; text-align: center;
-    background: color-mix(in srgb, var(--violet) calc(var(--n) * 30%), var(--surf)); color: var(--fg); }
+    background: color-mix(in srgb, var(--wc, var(--violet)) calc(var(--n) * 30%), var(--surf)); color: var(--fg); }
 
   /* Trend charts */
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 12px 40px; }
@@ -198,6 +198,8 @@
   <section class="view" id="log">
     <div class="sec"><h2>This week<span>Sunday to Saturday, minutes by sport</span></h2></div>
     <div class="strip" id="strip"></div>
+    <div class="sec"><h2>Walks<span>every recorded walk counts</span></h2></div>
+    <div class="goal" id="walks"></div>
     <div class="sec"><h2>Workouts<span>the past 5 days</span></h2></div>
     <div id="feed"></div>
     <button class="more" id="more">Show 10 older</button>
@@ -815,6 +817,27 @@ const big = (parent, k, v, unit, ...notes) => {
   parent.appendChild(d);
 };
 const on = (w) => `${w.label}, ${longDay(localDay(w.start))}`;
+// How many of ws fell in each of the last 8 weeks, as numbered squares, this week on the right.
+function weekSquares(ws, color) {
+  const sun = todayDn - weekday(todayDn), weeks = h("div", { className: "weeks" });
+  if (color) weeks.style.setProperty("--wc", css(color));
+  for (let k = 7; k >= 0; k--) {
+    const n = ws.filter((w) => w.dn >= sun - 7 * k && w.dn < sun - 7 * k + 7).length;
+    const i = h("i", { title: `week of ${longDay(numDay(sun - 7 * k))}: ${n}` }, String(n));
+    i.style.setProperty("--n", Math.min(n, 3));
+    weeks.appendChild(i);
+  }
+  return weeks;
+}
+
+// ---- Walks: just that they happened; no goal, no streak -----------------
+function walkRow() {
+  const box = document.getElementById("walks"), sun = todayDn - weekday(todayDn);
+  const walks = W.filter((w) => w.kind === "walk"), now = walks.filter((w) => w.dn >= sun);
+  big(box, "This week", now.length ? String(now.length) : "None yet", now.length ? (now.length === 1 ? "walk" : "walks") : "",
+    now.length && hm(now.reduce((s, w) => s + (w.secs || 0), 0) / 3600));
+  big(box, "Walks a week", "", "", weekSquares(walks, SPORTS.walk[1]), "the last 8 weeks, this one on the right");
+}
 
 function goalView(g) {
   const sec = h("section", { className: "view", id: g.id });
@@ -848,14 +871,7 @@ function goalView(g) {
     const str = W.filter((w) => w.kind === "strength");
     const days = [...new Set(str.filter((w) => w.dn >= sun).map((w) => weekday(w.dn)))].sort();
     big(row, "This week", days.length ? days.map((d) => DAYNAMES[d]).join(", ") : "None yet");
-    const weeks = h("div", { className: "weeks" });
-    for (let k = 7; k >= 0; k--) {
-      const n = str.filter((w) => w.dn >= sun - 7 * k && w.dn < sun - 7 * k + 7).length;
-      const i = h("i", { title: `week of ${longDay(numDay(sun - 7 * k))}: ${n}` }, String(n));
-      i.style.setProperty("--n", Math.min(n, 3));
-      weeks.appendChild(i);
-    }
-    big(row, "Sessions a week", "", "", weeks, "the last 8 weeks, this one on the right");
+    big(row, "Sessions a week", "", "", weekSquares(str), "the last 8 weeks, this one on the right");
     sec.append(sh, row);
   }
 
@@ -943,6 +959,71 @@ function series(box, pts, o) {
     hover(hit, (e) => showTip(e, p.label, [{ name: o.unit, value: o.f(p.v), color: o.color }]));
     if (p.w) { hit.style.cursor = "pointer"; hit.addEventListener("click", () => detail(p.w)); }
   }
+}
+
+// ---- Hiking: what you've done, no goal ----------------------------------
+const HIKES = W.filter((w) => w.kind === "hike");   // rucks are on Wildland
+const hikeMi = (ws) => ws.reduce((s, w) => s + (w.dist || 0), 0) / MI;
+const hikeFt = (ws) => ws.reduce((s, w) => s + (w.up || 0), 0) * FT;
+let hikePlots = [];
+
+function hikeView() {
+  const sec = h("section", { className: "view", id: "hiking" });
+  const sh = (title, note) => { const d = h("div", { className: "sec" }), h2 = h("h2", {}, title);
+    if (note) h2.appendChild(h("span", {}, note)); d.appendChild(h2); sec.appendChild(d); };
+  sh("Hiking", "rucks are on the Wildland tab");
+
+  const top = h("div", { className: "goal" }), year = String(new Date().getFullYear());
+  const now = HIKES.filter((w) => localDay(w.start).startsWith(year)), last = HIKES.at(-1);
+  big(top, "This year", String(now.length), now.length === 1 ? "hike" : "hikes", `${fmt(hikeMi(now), 1)} mi · ${fmt(hikeFt(now))} ft climbed`);
+  big(top, "Last hike", last ? fmt(last.dist / MI, 1) : "–", last ? "mi" : "", last && on(last), last?.up && `${fmt(last.up * FT)} ft climbed`);
+  if (last) {   // the tile opens the hike
+    const t = top.lastChild;
+    Object.assign(t, { tabIndex: 0, role: "button" });
+    t.style.cursor = "pointer";
+    t.addEventListener("click", () => detail(last));
+    t.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); detail(last); } });
+  }
+  sec.appendChild(top);
+
+  const grid = h("section", { className: "grid" });
+  hikePlots = [["Distance", "miles, each hike in the past year", (w) => w.dist / MI, (v) => fmt(v, 1), "mi"],
+    ["Climb", "feet, each hike in the past year that recorded it", (w) => w.up ? w.up * FT : null, (v) => fmt(v), "ft"]].map(([title, unit, ...rest]) => {
+    const card = h("section", { className: "card" }), plot = h("div", { className: "plot" });
+    card.append(h("h3", {}, title), h("div", { className: "unit" }, unit), plot);
+    grid.appendChild(card);
+    return [plot, ...rest];
+  });
+  sec.appendChild(grid);
+
+  sh("Year by year");
+  const years = h("div", { className: "recs" });
+  for (const y of [...new Set(HIKES.map((w) => localDay(w.start).slice(0, 4)))].sort().reverse()) {
+    const ws = HIKES.filter((w) => localDay(w.start).startsWith(y));
+    recRow(years, y, `${ws.length} ${ws.length === 1 ? "hike" : "hikes"}`, `${fmt(hikeMi(ws), 1)} mi`, `${fmt(hikeFt(ws))} ft climbed`, null);
+  }
+  sec.appendChild(years);
+
+  sh("Records");
+  const recs = h("div", { className: "recs" }), most = (f) => HIKES.filter(f).sort((a, b) => f(b) - f(a))[0];
+  const onY = (w) => `${w.label}, ${longDay(localDay(w.start))}, ${localDay(w.start).slice(0, 4)}`;   // records span years
+  const far = most((w) => w.dist || 0), high = most((w) => w.up || 0), long = most((w) => w.secs || 0);
+  recRow(recs, "Longest hike", far ? onY(far) : "none yet", far ? fmt(far.dist / MI, 2) + " mi" : "–", far?.secs ? clock(far.secs) : "", far);
+  recRow(recs, "Most climbing", high ? onY(high) : "none yet", high ? fmt(high.up * FT) + " ft" : "–", high?.dist ? fmt(high.dist / MI, 1) + " mi" : "", high);
+  recRow(recs, "Longest time out", long ? onY(long) : "none yet", long ? clock(long.secs) : "–", long?.dist ? fmt(long.dist / MI, 1) + " mi" : "", long);
+  const weeks = {};   // Sunday-to-Saturday miles
+  for (const w of HIKES) { const sun = w.dn - weekday(w.dn); (weeks[sun] ||= []).push(w); }
+  const big7 = Object.entries(weeks).sort((a, b) => hikeMi(b[1]) - hikeMi(a[1]))[0];
+  recRow(recs, "Biggest week", big7 ? `week of ${longDay(numDay(+big7[0]))}, ${numDay(+big7[0]).slice(0, 4)}` : "none yet", big7 ? fmt(hikeMi(big7[1]), 1) + " mi" : "–",
+    big7 ? `${big7[1].length} hikes · ${fmt(hikeFt(big7[1]))} ft` : "", null);
+  sec.appendChild(recs);
+  return sec;
+}
+
+function hikeCharts() {
+  const ws = HIKES.filter((w) => w.dn > todayDn - 365 && w.dist > 100), color = css(SPORTS.hike[1]);
+  for (const [plot, v, f, unit] of hikePlots)
+    series(plot, ws.filter((w) => v(w) != null).map((w) => ({ dn: w.dn, v: v(w), label: on(w), w })), { color, f, unit });
 }
 
 // ---- Workout detail -----------------------------------------------------
@@ -1382,14 +1463,17 @@ function lapsTable(box, tr) {
 document.getElementById("sub").textContent = [D.device, D.exported && `phone export ${D.exported}`,
   DAYS.length && `${longDay(numDay(firstDn))} to ${longDay(numDay(lastDn))}`, `${W.length} workouts`].filter(Boolean).join(" · ");
 weekStrip();
+walkRow();
 feed(Math.max(1, W.filter((w) => w.dn > todayDn - FEED_DAYS).length));   // at least the latest one
+document.getElementById("body").before(hikeView());
 for (const g of GOALS) document.getElementById("body").before(goalView(g));
 
 // Tabs. Charts measure their width, so each view draws them when it's shown.
-const VIEWS = [["log", "Log"], ...GOALS.map((g) => [g.id, g.tab]), ["body", "Body"]];
+const VIEWS = [["log", "Log"], ["hiking", "Hiking"], ...GOALS.map((g) => [g.id, g.tab]), ["body", "Body"]];
 const draw = (id) => {
   const g = GOALS.find((x) => x.id === id);
   if (g) goalCharts(g);
+  if (id === "hiking") hikeCharts();
   if (id === "body") { renderCharts(); calendar(); }
 };
 let current;
