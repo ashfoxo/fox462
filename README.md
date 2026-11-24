@@ -110,7 +110,7 @@ daily use.
 ```bash
 sudo nixos-rebuild switch --flake .#fox-amber   # rebuild the laptop
 ./deploy.sh <server> test                       # try a server change (a reboot undoes it)
-./deploy.sh <server> switch                     # make it stick (needs a clean commit)
+./deploy.sh <server> switch                     # make it stick (needs a clean working tree; pushing not required)
 ./secret.sh <server> <name>                     # add a server secret
 ./sops.sh secrets/secrets.yaml                  # edit the personal machines' secrets
 nix flake update                                # then rebuild / deploy
