@@ -94,6 +94,7 @@ let
       cid = 8;
       trustClipboard = true;  # your own logins: shares the host clipboard, no Super+Shift+V
       autoStop = true;
+      pci = true; # the ~/personal-share share (virtiofs) needs PCI, so its NIC is PCI too
       audio = true;
       apps = {
         librewolf = [ (lib.getExe librewolfLogins) ];
@@ -710,6 +711,8 @@ in
           vcpu = lib.mkForce 4;
           # Its home survives restarts: logins, Element's keys and history.
           volumes = [ { image = "home.img"; mountPoint = "/home/user"; size = 8192; } ];
+          # Drop folder with the host: ~/personal-share there, ~/share in here.
+          shares = [ { proto = "virtiofs"; tag = "share"; source = "/home/arlo/personal-share"; mountPoint = "/home/user/share"; } ];
         };
         systemd.tmpfiles.rules = [ "d /home/user 0700 user users -" ];
         hardware.graphics.enable = true;  # software OpenGL; Element (Electron) needs it
