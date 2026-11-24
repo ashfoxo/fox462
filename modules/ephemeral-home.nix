@@ -80,6 +80,9 @@ in
     # that is already a mount point ("directory already mounted").
     "d /home/arlo/mnt 0755 arlo users -"
     "d /home/arlo/mnt/filen 0755 arlo users -"
+    # Drop folder shared into the personal VM (modules/vms.nix). RAM-only on
+    # purpose; made here so it is yours, not microvm's (which it makes if missing).
+    "d /home/arlo/personal-share 0755 arlo users -"
     # Syncthing's marker for ~/sync (home/desktop/syncthing.nix). It refuses
     # a folder without one, so that an empty, unmounted folder can't look
     # like "everything was deleted" and wipe the other devices. Made in the
