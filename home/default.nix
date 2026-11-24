@@ -23,6 +23,8 @@ in
   };
 
   programs.bash.enable = true;
+  # Context packets for the Tinfoil chat; the tool lives outside the repo.
+  programs.bash.shellAliases.ctx = "$HOME/Documents/tinfoil/ctx";
 
   home.sessionVariables = sessionVars;
 }
